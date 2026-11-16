@@ -1,0 +1,55 @@
+#!/bin/sh
+# commit-msg — enforce Conventional Commits format
+#   type(scope?): subject
+#   Allowed types: feat fix docs style refactor perf test chore build ci revert wip
+#
+# Spec: https://www.conventionalcommits.org/en/v1.0.0/
+
+RED='\033[0;31m'
+YEL='\033[0;33m'
+GRN='\033[0;32m'
+RST='\033[0m'
+
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+
+# Strip comment lines (lines starting with #)
+BODY=$(echo "$MSG" | grep -v '^#' | head -1)
+
+# Allow empty merge/revert commits created by git itself
+case "$BODY" in
+  Merge\ *|Revert\ \"*|Initial\ commit*) exit 0 ;;
+esac
+
+# Pattern: type(optional-scope)!?: subject (not empty)
+PATTERN='^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert|wip)(\([a-z0-9._/-]+\))?!?: .{1,}'
+
+if ! echo "$BODY" | grep -qE "$PATTERN"; then
+  printf "${RED}[commit-msg] ✗ Bad commit message format.${RST}\n" >&2
+  printf "\n  Got: ${YEL}%s${RST}\n\n" "$BODY" >&2
+  printf "  Expected:  ${GRN}type(scope): subject${RST}\n" >&2
+  printf "  Example:   ${GRN}feat(signals): add RSI divergence detector${RST}\n\n" >&2
+  printf "  Allowed types:\n" >&2
+  printf "    feat    — new feature\n" >&2
+  printf "    fix     — bug fix\n" >&2
+  printf "    docs    — documentation only\n" >&2
+  printf "    style   — formatting, no logic change\n" >&2
+  printf "    refactor — code change with no feature or fix\n" >&2
+  printf "    perf    — performance improvement\n" >&2
+  printf "    test    — adding or fixing tests\n" >&2
+  printf "    chore   — build, deps, tooling\n" >&2
+  printf "    build   — build system or external deps\n" >&2
+  printf "    ci      — CI/CD configuration\n" >&2
+  printf "    revert  — reverts a previous commit\n" >&2
+  printf "    wip     — work in progress (not for main branch)\n" >&2
+  printf "\n  To bypass (use with caution): git commit --no-verify\n" >&2
+  exit 1
+fi
+
+# Warn if 'wip' is used on main/master
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if echo "$BODY" | grep -qE '^wip' && [ "$BRANCH" = "main" -o "$BRANCH" = "master" ]; then
+  printf "${YEL}[commit-msg] ⚠ 'wip' commit on branch '%s' — are you sure?${RST}\n" "$BRANCH" >&2
+fi
+
+printf "${GRN}[commit-msg] ✓ Commit message OK${RST}\n"

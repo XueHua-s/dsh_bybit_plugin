@@ -1,0 +1,26 @@
+- insert:
+    - id: bybit-quant
+      name: '@local/bybit-quant'
+      config:
+        # 'demo' uses Bybit demo-trading funds, 'testnet' the testnet, 'live' real money.
+        env: demo
+        # Live order tools refuse every call while this stays false.
+        allowLiveTrading: false
+        # Hard ceiling for one live order's notional value (price * quantity).
+        maxOrderNotionalUsd: 200
+        # Second ceiling: no order may exceed this share of account equity.
+        maxOrderNotionalPctOfEquity: 25
+        # A main-account key needs this extra switch before it can place live orders.
+        allowMainAccount: false
+        # Starting cash of the simulated (paper) book.
+        paperBalanceUsd: 10000
+        defaultSymbol: BTCUSDT
+        defaultCategory: linear
+        # AI decision track: the model proposes, these limits decide what is allowed.
+        aiEnabled: true
+        aiRiskPerTradePct: 1
+        aiMaxOpenPositions: 2
+        aiMaxDailyLossPct: 3
+        aiMaxDrawdownPct: 20
+        # Starting default only: quant_watchlist owns the list afterwards.
+        aiSymbols: [BTCUSDT, ETHUSDT]

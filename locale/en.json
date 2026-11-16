@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Bybit quant",
+    "description": "Bybit market data, strategy backtests, a simulated (paper) book, and live orders behind an explicit safety switch, with a Bybit panel in the Web GUI.",
+    "detail": "docs/DETAIL.md"
+  }
+}
