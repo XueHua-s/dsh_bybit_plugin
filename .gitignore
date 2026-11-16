@@ -13,3 +13,13 @@ __pycache__/
 .mypy_cache/
 .nx/
 bybit_quant.db
+
+# Local DSH / Harness state
+.dsh/
+.deepseek/
+
+# Local OAuth and credential material
+credentials.json
+oauth-token.json
+oauth-init.json
+oauth-callback.json

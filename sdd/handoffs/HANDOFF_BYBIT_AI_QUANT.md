@@ -13,6 +13,11 @@
 
 ## Feito
 
+- 新增 `apps/dsh-plugin/test/backup.ts`：在临时目录验证 checksum-backed backup/restore 保留 watchlist、paper trade、AI track 和 audit marker，并拒绝篡改备份；已并入 plugin `test:unit`。
+- 真实隔离演练：子进程写入后 `SIGKILL`，重新打开 `createStore` 成功恢复状态；临时 SQLite 备份恢复保留 strategy config、trade/risk audit 行且 `PRAGMA integrity_check=ok`。
+- 补充 gate：`pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exit 0；Python 共 15 tests passed。
+- 验收边界：`quant_engine.EngineRuntime` 仍只有内存生命周期状态，没有 durable checkpoint、service supervisor 或 exchange reconciliation；自动重启/生产 WebSocket durability 仍未证明。目标数据库未迁移。
+
 - 根 `pnpm run verify` 返回 exit 0；当前测试源码检查 `pnpm typecheck:tests` 返回 exit 0。完整收据见 `sdd/reports/VERIFY_GATE_2026-11-17.md`。
 - Nx 发现 `quant-data`、`quant-engine`、`@bybit-quant/dsh-plugin`；修正后的网络命令 `pnpm exec nx run @bybit-quant/dsh-plugin:test:network --output-style=static` 返回 exit 0，8 项通过，使用 Testnet 公共行情、只读，无凭证/账户访问/订单，也无 skip。此前同一 CLI 命令的 7 smoke + 27 integration 是错误指向 Mainnet 行情的历史运行，已在 Verify Gate 中标为历史并由 Testnet 运行取代。
 - Python lint、typecheck、test 均返回 exit 0；Python 测试为 7 passed。Bybit market-data adapter 的 focused pytest 为 4 passed，最终 adapter 229 行、focused tests 171 行。

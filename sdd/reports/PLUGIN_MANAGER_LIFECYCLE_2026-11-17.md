@@ -28,3 +28,21 @@ Immediately before and after the lifecycle flow, user state files had unchanged 
 - The installed version remained `1.4.5`; this proves install/uninstall/reinstall behavior but does **not** prove an upgrade path. Do not claim upgrade acceptance.
 - A separate legacy `@local/bybit-quant` entry remained in the plugin list and displayed “this package does not declare a bundle and cannot be managed as a plugin.” It was not modified.
 - Harness-managed profile `package.json` and `cordis.patch.yml` were never edited directly.
+
+## Follow-up disposable-profile upgrade attempt (2026-11-17)
+
+Status: **BLOCKED — no safe disposable profile or standalone manager was available.** No install, upgrade, uninstall, restore, profile creation, or profile mutation was performed in this follow-up.
+
+### Read-only availability checks
+
+| Check | Exact command / observation | Result |
+|---|---|---|
+| Standalone manager executable | `command -v plugin_manager || true; command -v dsh || true` | Neither command printed a path. The shell `PATH` was also printed and contained no discovered manager command. |
+| Existing profile candidates | `find "$HOME/Library" -maxdepth 5 -iname '*profile*' -path '*DeepSeek*' -print 2>/dev/null \| head -50` | No candidate paths were returned. This bounded search does not prove that no profile exists elsewhere. |
+| Official Harness UI | Read-only inspection of running app `com.deepseek.dsh`, Plugins detail page | UI showed Bybit quant `@bybit-quant/dsh-plugin` v1.4.5 enabled, one component running, and source path `/Users/litlesnow/Desktop/Project/幻方量化/bybit-quant/apps/dsh-plugin`. This is the active Harness profile, not an identified disposable profile. |
+
+Repository search: `rg -n "plugin_manager|install_bundle" scripts package.json .agents --glob '!**/node_modules/**'` returned `rg: scripts: No such file or directory (os error 2)`; there is no repository `scripts/` directory at this checkout. Separate search results found no standalone manager integration entry point. The canonical method noted in `DESIGN_BYBIT_AI_QUANT.md` is the installed official manager's `install_bundle`/upgrade/uninstall flow, but no callable API/CLI was discovered here.
+
+### Decision and remaining acceptance
+
+The UI manager is available, but the only profile positively identified is the user's active profile. The earlier receipt also documents sensitive user state in the active profile and no disposable-profile evidence. Therefore the authorized safety boundary prohibits testing there. No local bundle versions were installed and no upgrade/uninstall/restore receipt was fabricated. Acceptance remains pending until an isolated disposable Harness profile and an official manager flow capable of an actual version upgrade are available. At that point capture pre/post state hashes without reading or printing credential contents, then run the controlled two-version lifecycle and record every real command/action and exit/result.

@@ -76,6 +76,30 @@ The following records the earlier pre-fix audit, not the current status. The old
 The protected wrapper is SQLite-only and requires an explicit database path;
 no durable project database or external service was migrated.
 
+## Durable recovery increment — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| TS isolated backup/restore and tamper refusal | `pnpm build && pnpm --filter @bybit-quant/dsh-plugin exec node test/backup.ts && pnpm typecheck:tests` | 0 | Temporary state retained watchlist, paper trade, AI track and audit marker; modified backup was rejected by SHA-256 validation. |
+| TS crash/restart rehearsal | Inline Node child writer, `SIGKILL`, then reopen `createStore` | 0 | Temporary JSON reopened with strategy/watchlist, paper trade and audit marker. This is not a service supervisor. |
+| SQLite restore rehearsal | Inline `uv run --project python python - <<'PY'` fixture with temporary SQLite and `upgrade_sqlite` backup | 0 | Strategy config, trade and risk audit rows restored; `PRAGMA integrity_check=ok`; no target DB or credentials touched. |
+| Full Verify Gate after test addition | `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` | 0 | TS and Python checks passed; 15 pytest tests passed. |
+
+`quant_engine.EngineRuntime` remains in-memory and has no durable checkpoint or process supervisor. Automatic restart, exchange reconciliation and production WebSocket durability remain unproven; no target database migration was applied.
+
+The first SQLite rehearsal command exited 1 because an inline JSON literal was parsed by SQLAlchemy as a bind parameter; it mutated no project file or database. The rerun used explicit bound parameters and exited 0 as recorded above.
+
+## Nx unit target coverage correction — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Nx unit target with cache disabled | `pnpm exec nx run @bybit-quant/dsh-plugin:test:unit --skip-nx-cache --output-style=static` | 0 | Target output includes `node apps/dsh-plugin/test/backup.ts` and the backup restore/checksum tamper `PASS` line. |
+| Defined root Verify Gate after target correction | `pnpm run verify` | 0 | Root build, lint, production typecheck, Nx unit target (including backup test), and bundle check passed. |
+| TS test typecheck | `pnpm typecheck:tests` | 0 | Strict test-source typecheck passed. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
+
+The correction changes Nx target coverage only; backup implementation and trading safety behavior were not changed.
+
 - Obtain a disposable Harness profile or official manager upgrade flow; verify upgrade and compare before/after state hashes without exposing credential contents.
 - Complete durable state preservation and restart recovery tests, including graceful shutdown and reconciliation. Current full persistence/automatic recovery remains partial.
 - Apply migrations only after the target database is identified and a traceable backup/rollback or restore plan is proven. No target migration has been applied.

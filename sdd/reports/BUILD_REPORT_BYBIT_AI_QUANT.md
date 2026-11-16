@@ -12,6 +12,18 @@
 | DESIGN | `sdd/features/DESIGN_BYBIT_AI_QUANT.md` |
 | Status | In Progress |
 
+## Durable recovery increment — 2026-11-17
+
+Added `apps/dsh-plugin/test/backup.ts` for isolated checksum-backed restore and tamper rejection, covering strategy/watchlist, paper trade, AI track and audit marker data. It is included in the plugin unit command.
+
+Evidence: the targeted backup test and complete local chain `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exited 0 (15 Python tests passed). Separate temporary `SIGKILL` and SQLite restore rehearsals also exited 0. Recovery remains bounded to existing TS state and SQLite backup behavior; Python runtime lacks durable checkpoint/supervisor/reconciliation.
+
+## Nx unit target coverage correction — 2026-11-17
+
+The Nx `@bybit-quant/dsh-plugin:test:unit` target was missing `apps/dsh-plugin/test/backup.ts` even though the package-level script already listed it. The target now invokes the backup test, so root `pnpm run verify` exercises the same regression.
+
+Evidence after the configuration change: `pnpm exec nx run @bybit-quant/dsh-plugin:test:unit --skip-nx-cache --output-style=static` exited 0 and printed the backup test `PASS`; `pnpm run verify` exited 0; `pnpm typecheck:tests` exited 0; `git diff --check` exited 0. No backup or trading safety behavior was changed.
+
 ## Mode Selection
 
 | Signal | Observation |
