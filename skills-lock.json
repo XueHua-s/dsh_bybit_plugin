@@ -1,0 +1,138 @@
+{
+  "version": 2,
+  "skills": {
+    "sdd-auditoria-harness": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-auditoria-harness/SKILL.md",
+      "computedHash": "5e18084d52b9d0c15bfd1954ef61da626f9230d67515e78882af130c1e5606eb"
+    },
+    "sdd-brainstorm": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-brainstorm/SKILL.md",
+      "computedHash": "4a070b3cb156efb59405c15dd31abc61903c28f0ac8c4b557b92ce20bee7a3a4"
+    },
+    "sdd-build": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-build/SKILL.md",
+      "computedHash": "b644a05abece94c3821c7d64421aca108a9a758cda33568011ebdc99a8a1cc53"
+    },
+    "sdd-checar-ambiente": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-checar-ambiente/SKILL.md",
+      "computedHash": "b88d01d9b9e0259a1cade4f05e81f54818d2ba66f8e87e70c345a80803edcd88"
+    },
+    "sdd-define": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-define/SKILL.md",
+      "computedHash": "4430410f475f5dbb294371bad23dcf281e7a73a3898a17a45a3bf75f6c730006"
+    },
+    "sdd-design": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-design/SKILL.md",
+      "computedHash": "05c7a8ac071a2c93f23bd004fa74533c5276e7d7e5f59582f79b8eae5bdd94c3"
+    },
+    "sdd-engenharia-reversa-saas": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-engenharia-reversa-saas/SKILL.md",
+      "computedHash": "4f80fa6c50ecc3f7907ed5e6063462937330e7f371cca763d02097623da5246a"
+    },
+    "sdd-governanca": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-governanca/SKILL.md",
+      "computedHash": "e5ecd33bdf3295d41fe596a19739f8800dabfd2b3f30ea0a4eede9cae306ffed"
+    },
+    "sdd-handoff": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-handoff/SKILL.md",
+      "computedHash": "8d56db104e761af99fb70727fd7d97d03956f9ebb96ea05d6ab773c92788aa0f"
+    },
+    "sdd-higiene-dado": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-higiene-dado/SKILL.md",
+      "computedHash": "db62598029fd39f783db4ee124b14bdeee36a90d6460fd98551b64cd6f7d62c4"
+    },
+    "sdd-iniciar-repo": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-iniciar-repo/SKILL.md",
+      "computedHash": "bae00251f49958b7db9e8f297dc0c6e6018c3c4b18b4027a0fe751e3eac923e5"
+    },
+    "sdd-kb": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-kb/SKILL.md",
+      "computedHash": "1a785efa62156cb00e3f114288533b4b509de5f86a615c8f3c0a5ae54789947c"
+    },
+    "sdd-loop-builder": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-loop-builder/SKILL.md",
+      "computedHash": "cab62c85e04216353042c663ca27c7072c0ded11605af8c8e1cab8ba59af9c9d"
+    },
+    "sdd-new-session": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-new-session/SKILL.md",
+      "computedHash": "dd6091156ce5ea9dbe0cf73e4528527e924c7f5fc693dd01940eb60022dca31a"
+    },
+    "sdd-prompt-builder": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-prompt-builder/SKILL.md",
+      "computedHash": "20a25dedecb6ea3989141321a6389805b69b81434a333d623cc1e6618bcb5b64"
+    },
+    "sdd-release": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-release/SKILL.md",
+      "computedHash": "a3bae648908b6bcc58b7fa03f64a97fdff3d4e5a327e9bc2f75dde2058916c97"
+    },
+    "sdd-seguranca": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/sdd-seguranca/SKILL.md",
+      "computedHash": "3f07c63f1c1f08ec9412f7b3d41db0f89b6d183afb9aa1e8b7e1616e3b54eb55"
+    },
+    "software-design-philosophy": {
+      "source": "wondelai/skills",
+      "commit": "c5265583b1a9740f06831e1d3e89b35bba3eb430",
+      "sourceType": "github",
+      "skillPath": "software-design-philosophy/SKILL.md",
+      "computedHash": "f2f5a2f4e131cc7b8b29e05c80321b56b933ef6a00189725306a745e7b5dc122"
+    },
+    "ux-review-builder": {
+      "source": "robertodiasduarte/sdd-starter",
+      "commit": "4269afe763bd5dd139eba75a09cbf116581f57b6",
+      "sourceType": "github",
+      "skillPath": "skills/ux-review-builder/SKILL.md",
+      "computedHash": "86fad94009eab629b40ca9fadf5688b85f74394194608a6605e0ddc7126bd491"
+    }
+  }
+}

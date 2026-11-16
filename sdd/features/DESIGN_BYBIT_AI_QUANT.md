@@ -1,0 +1,381 @@
+# DESIGN: Bybit AI Quant
+
+> Technical design for the phased Nx + pnpm monorepo and official DSH Bundle.
+
+## Metadata
+
+| Attribute | Value |
+|---|---|
+| **Feature** | BYBIT_AI_QUANT |
+| **Date** | 2026-11-17 |
+| **Author** | SDD Design by RDD |
+| **BRAINSTORM** | `sdd/features/BRAINSTORM_BYBIT_AI_QUANT.md` |
+| **DEFINE** | `sdd/features/DEFINE_BYBIT_AI_QUANT.md` |
+| **UX REVIEW** | N/A; existing DSH panel is retained and verified separately |
+| **LLM Prompts** | true |
+| **Status** | Build in progress; WebSocket/recovery and lifecycle upgrade remain open |
+
+---
+
+## Architecture Overview
+
+```text
+                         DeepSeek Harness
+                               │
+                    official Plugin Manager
+                               │
+                 apps/dsh-plugin (DSH Bundle)
+             ┌──────────────┬──────────────┐
+             │ Host runtime │ Client panel │
+             │ tools/config │ slots/locale│
+             └──────┬───────┴──────────────┘
+                    │ explicit typed contracts
+         packages/ts/quant-contracts + quant-api-client
+                    │ localhost/OpenAPI boundary
+          python/apps/quant-engine (long-running data plane)
+              ┌─────┼─────────┬─────────┐
+              │data │research │risk     │execution
+              └─────┴─────────┴─────────┘
+                    │
+             PostgreSQL + Parquet/DuckDB
+                    │
+          Alembic migrations + backup/restore
+```
+
+The DSH plugin owns lifecycle, credentials, tools and UI. The Python data plane owns durable quant work and can shut down/recover independently. A narrow typed contract prevents exchange protocol, database schema and model prompt details from leaking into every caller.
+
+#### Build decision: quant-contracts package scope
+
+The first reusable package owns only the normalized market DTOs already used by the plugin: `Category`, `Candle`, `Ticker`, and `Instrument`. These describe stable concepts that cross Host/client and future engine boundaries; venue parsing, credentials, request inputs and account/order records remain in the Bybit adapter because sharing them now would couple the reusable API to transport or plugin concerns. The plugin's existing `bybit-types.ts` re-exports the shared market types so current internal import paths remain stable. The package emits ESM plus declarations, and Nx builds dependencies before the plugin so the app resolves its workspace export deterministically.
+
+This package boundary scores **9/10** against the software-design diagnostic: the package owns a coherent contract, callers get a small type-only API, provider parsing stays hidden, and the boundary has compile-time negative cases. The remaining diagnostic is cross-boundary consumer coverage beyond the DSH plugin; the Python engine has no TypeScript consumer today, so connecting it now would invent a transport implementation rather than validate this contract. Revisit when that real consumer is implemented.
+
+---
+
+## Components
+
+| Component | Purpose | Technology / Pattern | Inputs | Outputs | Dependencies |
+|---|---|---|---|---|---|
+| `apps/dsh-plugin` Host | Register tools, services, prompt section and lifecycle effects | TypeScript ESM, deep runtime facade | DSH context/config/credentials | Tool results, health route, cleanup | `packages/ts/quant-contracts` |
+| `apps/dsh-plugin` Client | DSH slot UI and locale resources | TypeScript UI factory; no secrets | Host JSON snapshot | Dashboard view/actions | DSH client slots/locale |
+| `packages/ts/quant-contracts` | Stable domain and API types | TypeScript schemas/interfaces | DTO definitions | Shared types | none |
+| `packages/ts/quant-api-client` | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
+| `python/apps/quant-engine` | Long-running market/research/risk loop | uv project, FastAPI service, `quant_engine.market_data` | Public Bybit Testnet ticker stream | normalized ticker events and adapter health | `websockets`, Python packages |
+| `python/packages/quant-data` | Durable models and migration boundary | SQLAlchemy + Alembic | snapshots/orders/audit | queries and migrations | PostgreSQL/SQLite dev |
+| `python/packages/quant-risk` | Independent final veto | Pure deterministic functions | target/order/account state | allow/deny + reason | domain types |
+| `python/packages/quant-sandbox` | Execute generated algorithms out of process | Docker/OS resource limits | reviewed source + fixture data | bounded result | Docker runtime |
+| `scripts/check-bundle.ts` | Static package/patch/entry validation | TypeScript CLI | package manifest | exit 0/diagnostics | package files |
+| `scripts/backup.ts` + `src/lib/backup.ts` | Snapshot/restore user state | SHA-256 manifest and atomic writes | state DB/files | verified restore | local storage |
+
+### Software design philosophy review
+
+Current target score: **8/10**. Passing rows: describable module boundaries, simpler interfaces, hidden transport/protocol details, interface comments, explicit design discussion, information-owning modules, newcomer-readable boundaries, and strategic investment. Remaining risks: the current root package is still a shallow monorepo boundary and `client.ts` is near the 500-line limit. The build must move the application under `apps/dsh-plugin`, split any file that exceeds 500 lines, and keep transport/serialization inside adapters to reach 10/10.
+
+---
+
+## Key Decisions
+
+### Decision 1: True Nx + pnpm workspace boundaries
+
+| Attribute | Value |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-11-17 |
+| **Source** | User clarification and supplied architecture brief |
+
+**Context:** The existing root package has Nx config but is not a discoverable multi-project monorepo.
+
+**Choice:** Move DSH code into `apps/dsh-plugin`, introduce only packages with real shared contracts, and retain `python/` as a uv workspace with `apps/` and `packages/` boundaries as modules become real.
+
+**Rationale:** It satisfies the explicit architecture while avoiding empty package shells and classitis.
+
+**Alternatives Rejected:**
+1. Keep all code at root — fails the stated monorepo boundary.
+2. Create empty packages for every future capability — adds speculative complexity.
+
+**Consequences:** Package import paths and CI commands must be updated; migration is incremental and requires lockfile/build verification.
+
+### Decision 2: Official DSH lifecycle only
+
+| Attribute | Value |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-11-17 |
+| **Source** | User requirement and current DSH Bundle constraints |
+
+**Context:** A Bundle must declare metadata and patch but Harness-managed profile files must not be edited manually.
+
+**Choice:** Validate package metadata and patch in the repository, then use the installed official Plugin Manager `install_bundle`/upgrade/uninstall command when available. If unavailable, record the exact external blocker rather than simulating success.
+
+**Rationale:** It preserves Harness ownership of managed state and makes lifecycle evidence reproducible.
+
+**Alternatives Rejected:** Directly editing profile `package.json` or `cordis.patch.yml` — violates the requirement and can corrupt other plugins.
+
+**Consequences:** A real DSH installation profile is required for the final smoke gate.
+
+### Decision 3: Safety-first Testnet boundary
+
+| Attribute | Value |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-11-17 |
+| **Source** | User authorization and prior read-only Testnet evidence |
+
+**Context:** Testnet is authorized, but the current key was reported as main-account identity with zero equity.
+
+**Choice:** Keep `allowLiveTrading: false`, require Testnet environment and all identity/equity/instrument/risk checks, and never bypass a failed guard to force an order.
+
+**Rationale:** Testnet has no real funds but a mistaken endpoint, credential or guard can still create unsafe behavior and hide production bugs.
+
+**Alternatives Rejected:** Disabling main-account/zero-equity checks or using Mainnet credentials — outside authorization and unsafe.
+
+**Consequences:** Order lifecycle remains blocked until a valid funded Testnet account passes checks; paper/mocked lifecycle covers the meantime.
+
+### Decision 4: State preservation on upgrade
+
+| Attribute | Value |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-11-17 |
+| **Source** | User requirement |
+
+**Context:** Plugin upgrades must not overwrite credentials, strategy configuration or trading history.
+
+**Choice:** Keep credentials in Harness credential storage, version durable state with Alembic, back up before migration, restore atomically on failure, and test an upgrade against a disposable profile.
+
+**Rationale:** Code/package replacement and user-owned state have different lifecycles.
+
+**Alternatives Rejected:** Replacing the entire profile directory — would risk destructive overwrite.
+
+**Consequences:** Upgrade runner needs explicit pre/post snapshots and migration evidence.
+
+---
+
+## File Manifest
+
+| # | File | Action | Purpose | Agent / Owner | Dependencies |
+|---:|---|---|---|---|---|
+| 1 | `AGENTS.md` | Create | Repository rules for SDD, TypeScript, 500-line limit and design philosophy | general | none |
+| 2 | `package.json` | Modify | Root workspace orchestration and safe scripts | general | 3,4 |
+| 3 | `apps/dsh-plugin/package.json` | Create | Official Bundle package metadata and exports | general | 5-8 |
+| 4 | `pnpm-workspace.yaml` | Modify | Discover apps and real TS packages | general | 3 |
+| 5 | `apps/dsh-plugin/src/index.ts` | Move/Modify | Host entry and exports | general | 6 |
+| 6 | `apps/dsh-plugin/src/client.ts` | Move/Modify | Client entry and UI factory | general | 5 |
+| 7 | `apps/dsh-plugin/src/lib/*` | Move/Modify | Deep adapters, state, risk and monitor modules | general | 5,8 |
+| 8 | `apps/dsh-plugin/cordis.patch.yml` | Move/Modify | Bundle patch and Testnet-safe defaults | general | 3,5 |
+| 9 | `packages/ts/quant-contracts/*` | Create | Shared typed contract only when used by both sides | general | 5,10 |
+| 10 | `python/apps/quant-engine/*` | Create/Move | Long-running quant service boundary | general | 9,11 |
+| 11 | `python/packages/quant-data/*` | Create/Move | Alembic/data domain boundary | general | 10 |
+| 12 | `python/packages/quant-risk/*` | Create | Independent deterministic risk boundary | general | 10 |
+| 13 | `scripts/check-bundle.ts` | Modify | Static bundle contract checks | general | 3,8 |
+| 14 | `scripts/plugin-manager-smoke.ts` | Create | Detect and run official lifecycle in disposable profile | general | DSH installation |
+| 15 | `docs/research/github-repository-audit.md` | Create | Source/license/dependency/security audit of every requested reference | general | network/read-only sources |
+| 16 | `docs/architecture/monorepo.md` | Create | Project graph and ownership boundaries | general | 2-12 |
+| 17 | `sdd/reports/BUILD_REPORT_BYBIT_AI_QUANT.md` | Create | Evidence for Build gate | general | manifest checks |
+| 18 | `README.md` and `README.zh-CN.md` | Modify | Verified bilingual behavior and safe setup | general | all verified features |
+| 19 | `python/apps/quant-engine/src/quant_engine/market_data.py` | Create | Public Testnet ticker adapter with typed parsing, bounded queue, reconnect and health boundary | market-data increment | 10 |
+| 20 | `python/apps/quant-engine/tests/test_market_data.py` | Create | Deterministic fake-WebSocket coverage for subscription, parsing, backpressure, reconnect and close | market-data increment | 19 |
+| 21 | `python/apps/quant-engine/pyproject.toml` and `python/uv.lock` | Modify | Pin the `websockets` runtime dependency in the uv workspace | market-data increment | 19 |
+| 22 | `python/packages/quant-data/src/quant_data/migrations.py` | Create | Own explicit SQLite target selection, verified backup, candidate upgrade and atomic replacement | migration protection increment | 11 |
+| 23 | `python/packages/quant-data/alembic/versions/0002_strategy_config.py`, `0001_initial.py` | Modify/Create | Prove state-preserving schema evolution and refuse destructive downgrade with user rows | migration protection increment | 22 |
+| 24 | `python/packages/quant-data/tests/test_migrations.py` | Modify | Fixture-backed upgrade, backup, failure and downgrade regression | migration protection increment | 22,23 |
+| 25 | `sdd/reports/ADR_MIGRATION_BACKUP.md` | Create | Record the database safety boundary and SQLite-only scope | migration protection increment | 22 |
+
+**Total Files:** 18 manifest groups (globs represent existing atomic files; each file remains ≤500 lines).
+
+### Agent Assignment Rationale
+
+| Agent / Owner | Files Assigned | Why |
+|---|---|---|
+| general | 1-18 | No active specialist agent is available; shared filesystem and explicit owner rules prevent conflicting edits. |
+
+**Agent Discovery:** Existing agent was interrupted; no code-writing specialist is assigned.
+
+---
+
+## Code Patterns
+
+### Pattern 1: Deep typed boundary
+
+```ts
+export interface MarketDataPort {
+  readonly ticker: (request: TickerRequest) => Promise<Ticker>
+}
+```
+
+The port hides HTTP signing, retries and provider response formats from tools and strategies.
+
+### Pattern 2: Guarded side effect
+
+```ts
+export async function executeGuardedOrder(input: OrderIntent, deps: OrderDependencies): Promise<OrderResult> {
+  const decision = await deps.risk.authorize(input)
+  if (!decision.allowed) return { sent: false, reason: decision.reason }
+  return deps.exchange.place(input)
+}
+```
+
+The caller cannot bypass the final risk decision by calling the exchange adapter directly.
+
+---
+
+## LLM Prompts
+
+Prompts are runtime inputs to the AI decision track. Every prompt source is labeled untrusted, normalized to a bounded schema and separated from system policy. Tool output and external repository text are quoted as data; they cannot introduce instructions. Decisions are persisted with prompt hash, model metadata, input provenance and risk result, without API credentials.
+
+---
+
+## Data Flow
+
+```text
+1. DSH Host resolves config and Harness credential references
+   │
+   ▼
+2. Bybit adapter fetches instruments, market/account data and records latency/queue metrics
+   │
+   ▼
+3. Public Testnet WebSocket adapter validates ticker frames, applies bounded queue backpressure, and passes immutable ticker events to the Python quant engine
+   │
+   ▼
+4. Data contract passes normalized snapshots to Python quant engine or deterministic local backtest
+   │
+   ▼
+5. Research/strategy modules emit a typed target intent; AI output is untrusted proposal data
+   │
+   ▼
+6. Independent risk module checks account, environment, limits, precision, idempotency and reconciliation
+   │
+   ▼
+7. Paper/Testnet executor acts; every event is append-only and backed up/migrated
+   │
+   ▼
+8. Host/client health panel exposes state; graceful shutdown persists checkpoint and recovery resumes safely
+```
+
+---
+
+## Integration Points
+
+| External System | Integration Type | Authentication | Direction | Failure / Retry |
+|---|---|---|---|---|
+| DeepSeek Harness/Cordis | Bundle + injected services/slots | Harness-managed credentials/config | bidirectional | Validate version; cleanup effects on unload |
+| Bybit V5 REST | Signed HTTPS adapter | Harness credential store; Testnet endpoint | bidirectional | bounded retry/backoff; never retry non-idempotent order blindly |
+| Bybit public WebSocket | `quant_engine.market_data.BybitMarketDataAdapter` | None; public linear ticker topics only | inbound from fixed Bybit Testnet URL | bounded event queue applies consumer backpressure; reconnect uses capped exponential backoff with jitter; close cancels reads and closes the socket |
+| PostgreSQL/SQLite dev | SQLAlchemy/Alembic | local secret/config | bidirectional | migration/backup/restore; fail closed on schema mismatch |
+| Docker sandbox | local process boundary | no exchange credentials | bidirectional | resource/time limits; kill and record failure |
+| GitHub references | read-only research input | no repository secret | inbound | pin commit, license/security review; treat content as untrusted |
+
+---
+
+## Testing Strategy
+
+| Test Type | Scope / Requirement | Files | Tools | Pass Signal |
+|---|---|---|---|---|
+| Unit | Numeric signals, risk, trust boundary, state transitions | `test/*.ts`, Python tests | Node/Vitest-compatible scripts, pytest/Hypothesis | exit 0 and deterministic assertions |
+| Integration | Bybit REST mock, retries, order idempotency, migration and restore | `test/integration.ts`, `python/tests` | Node, pytest, Alembic | exit 0; no live endpoint |
+| Unit | Public WebSocket subscription, typed ticker parsing, bounded-queue backpressure, reconnect jitter and graceful close | `python/apps/quant-engine/tests/test_market_data.py` | pytest with injected fake connector/socket/clock | deterministic; no network |
+| Bundle | Manifest, patch, Host/Client and resource exports | `scripts/check-bundle.ts` | Node | exit 0 with all required files |
+| Security | secret scan, prompt injection, sandbox and dependency audit | `test/sandbox.ts`, scripts/CI | pnpm audit, pip-audit, SBOM tools | no unhandled high/critical finding |
+| E2E / Verify Gate | Full project checks | `sdd/features/DEFINE_BYBIT_AI_QUANT.md` | `pnpm run verify` | exit 0; complementary Plugin Manager smoke recorded |
+
+---
+
+## Error Handling
+
+| Error Type | Detection | Handling Strategy | Retry? | Observability |
+|---|---|---|---|---|
+| Invalid/expired credential | exchange auth error | redact, mark degraded, stop new orders | No | health + audit event |
+| Stale market data/queue backlog | timestamp/queue metric | protective state, no new order | after recovery | queue gauge + reason |
+| WebSocket disconnect | heartbeat timeout | reconnect with bounded backoff | Yes | reconnect counter/state |
+| WebSocket malformed frame | JSON/topic/schema validation | discard frame and increment discarded count | No | received/parsed/discarded counters |
+| Order timeout/unknown status | request timeout/reconciliation gap | stop duplicate send, reconcile | bounded | order latency + audit |
+| Migration/restore failure | command/result/hash mismatch | do not delete source; restore previous snapshot | No | migration log + health |
+| Sandbox violation | timeout/resource/exit code | kill process and quarantine result | No | sandbox audit |
+
+---
+
+## Configuration
+
+| Config Key | Type | Source / Default | Sensitive? | Description |
+|---|---|---|---|---|
+| `env` | `demo\|testnet\|live` | Bundle config / `testnet` | No | Exchange environment; live is disabled by default. |
+| `allowLiveTrading` | boolean | Bundle config / false | No | Mainnet order fence. |
+| `apiKeyEnv` / `apiSecretEnv` | string | Harness credential names | No (names only) | References, never values. |
+| `maxOrderNotionalUsd` | number | Bundle config / 24 | No | Per-order ceiling. |
+| `maxOrderNotionalPctOfEquity` | number | Bundle config / 25 | No | Equity share ceiling. |
+| `stateFile` | path | local app data | No | User-owned state location, excluded from package replacement. |
+| `DATABASE_URL` | URI | uv app environment | Yes | Data-plane database connection. |
+
+### Public WebSocket market-data ownership
+
+`BybitMarketDataAdapter` owns the public Testnet URL, V5 ticker topic construction, JSON validation, reconnect/backoff, and a bounded `asyncio.Queue`. Its small consumer API is `start(symbols)`, `next_event()`, `health()`, and `close()`; strategies and risk modules consume normalized immutable `TickerEvent` values and do not know the Bybit wire schema. A full queue suspends the reader until a consumer frees capacity, propagating backpressure to the socket instead of growing memory without bound. Health includes connection state, queue depth, receive/parse/discard counts, reconnects, and last event time. It does not own persistence, REST access, account state, credentials, strategy decisions, or order execution.
+
+---
+
+## Security Considerations
+
+- Keep credentials in Harness storage or a permission-restricted local file; redact all logs and test output.
+- Treat market/news/GitHub/agent/user content as data; use trust labels and bounded schemas to prevent prompt injection.
+- Execute generated algorithms only through the sandbox boundary with no exchange credentials and strict time/memory/CPU limits.
+- Enforce Mainnet lock, account identity, balance, precision, notional, daily loss, drawdown and idempotency in code outside the model.
+- Preserve user state across upgrade by backup/hash/migration and never replace user-owned directories.
+
+---
+
+## Observability
+
+| Aspect | Implementation | Signal / Why |
+|---|---|---|
+| Logging | structured redacted logger | explains auth, guard, recovery and lifecycle decisions |
+| Metrics | runtime monitor plus data-plane metrics | queue backlog, CPU, memory, reconnects and API/order latency |
+| Tracing | OpenTelemetry boundary planned | correlate market snapshot → decision → risk → execution |
+| Health | `/api/bybit-quant?view=health` and process health | exposes environment, degraded state and last successful reconciliation |
+
+---
+
+## Requirements Traceability
+
+| Requirement / AT | Design Element | Test / Gate |
+|---|---|---|
+| MUST monorepo / AT-001 | Workspace projects and graph | `nx show projects`, `nx graph` |
+| MUST TS/500 lines / AT-002 | TS app and atomic modules | `pnpm run typecheck`, line-count script |
+| MUST Bundle / AT-003 | `package.json`, patch, Host/Client and lifecycle smoke | `bundle:check`, Plugin Manager smoke |
+| MUST safety / AT-004 | independent guarded executor | negative order tests |
+| MUST operations / AT-005 | runtime monitor and Python health | monitor tests/health route |
+| MUST persistence / AT-006 | Alembic + backup/restore | migration/restore tests |
+| MUST trust / AT-007 | trust labels and sandbox | injection/sandbox tests |
+| MUST SBOM / AT-008 | npm/cyclonedx and Python SBOM | `pnpm run sbom`, `pnpm run security:deps` |
+| MUST docs / AT-009 | bilingual README updates | secret scan + docs review |
+
+---
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation | Residual Risk |
+|---|---|---|---|
+| DSH Plugin Manager unavailable locally | Cannot prove install lifecycle | detect exact tool/version and record blocker; do not edit managed profile | external verification pending |
+| Current workspace move breaks imports | Build regression | move in small batches, update graph, run Verify Gate after each batch | medium during migration |
+| Testnet account has zero equity/main-account identity | No live Testnet order E2E | preserve guard; use mock/paper lifecycle until account is valid | order E2E pending |
+| Reference repositories change | audit drift | pin commit SHA and license evidence | future refresh required |
+| Large UI/strategy modules | cognitive load and line-limit breach | split by knowledge, not temporal sequence; keep each file ≤500 lines | refactor effort |
+
+---
+
+## Advisor Ledger
+
+None — no formal external design review was executed. The installed `software-design-philosophy` review is recorded above as an internal design diagnostic.
+
+---
+
+## Revision History
+
+| Version | Date | Author | Changes |
+|---|---|---|---|
+| 1.0 | 2026-11-17 | SDD Design by RDD | Initial design; records root-layout drift and true monorepo migration. |
+| 1.1 | 2026-11-17 | market-data increment | Adds ownership, data flow, manifest and deterministic verification contract for public Testnet WebSocket ingestion. |
+
+---
+
+## Next Step
+
+Execute o **SDD Build by RDD**.

@@ -1,0 +1,12 @@
+{
+  "name": "quant-data",
+  "sourceRoot": "python/packages/quant-data/src",
+  "targets": {
+    "lint": { "command": "uv run --project python --locked ruff check python/packages/quant-data" },
+    "typecheck": { "command": "uv run --project python --locked pyright python/packages/quant-data/src" },
+    "test": { "command": "uv run --project python --locked pytest python/packages/quant-data/tests" },
+    "migrate": { "command": "uv run --project python --locked python -m quant_data.migrations" },
+    "security": { "command": "uv run --project python --locked pip-audit --skip-editable" },
+    "sbom": { "command": "uv run --project python --locked cyclonedx-py environment --output-reproducible --output-file sbom.python.cdx.json" }
+  }
+}

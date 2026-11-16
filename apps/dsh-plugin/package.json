@@ -1,0 +1,55 @@
+{
+  "name": "@bybit-quant/dsh-plugin",
+  "version": "1.4.5",
+  "private": true,
+  "description": "Bybit quant toolkit for DeepSeek Harness",
+  "readme": "../../README.md",
+  "homepage": "https://github.com/XueHua-s/dsh_bybit_plugin#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/XueHua-s/dsh_bybit_plugin.git" },
+  "type": "module",
+  "main": "./dist/index.js",
+  "license": "MIT",
+  "engines": { "node": ">=22.19" },
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": ["dist", "locale/*.json", "docs", "icon.svg", "cordis.patch.yml", "README.md", "LICENSE", "scripts"],
+  "scripts": {
+    "build": "tsdown",
+    "bundle:check": "node scripts/check-bundle.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "lint": "oxlint .",
+    "test:unit": "node test/signals.ts && node test/ai.ts && node test/client.ts && node test/render.ts && node test/network-endpoint.ts && node test/oauth.ts",
+    "test:network": "node test/smoke.ts",
+    "test": "pnpm run test:unit && pnpm run test:network",
+    "verify": "pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test:unit && pnpm run bundle:check",
+    "credentials": "node scripts/credentials.ts",
+    "oauth": "node scripts/bybit-oauth.ts",
+    "backup": "node scripts/backup.ts",
+    "sbom": "cd ../.. && COREPACK_ENABLE_PROJECT_SPEC=0 COREPACK_ENABLE_AUTO_PIN=0 node apps/dsh-plugin/scripts/sbom.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "oxlint": "^1.94.0",
+    "tsdown": "^0.23.7",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@bybit-quant/quant-contracts": "workspace:*"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-layout", "@deepseek-ai/dsh-client-ui-sidebar"]
+    }
+  }
+}

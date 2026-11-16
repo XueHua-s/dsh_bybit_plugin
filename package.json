@@ -1,68 +1,33 @@
 {
-  "name": "@local/bybit-quant",
+  "name": "bybit-ai-quant-workspace",
   "version": "1.4.5",
   "private": true,
-  "description": "Bybit quant toolkit for DeepSeek Harness: market data, a signal library, an AI decision track with journal scoring, a paper book, guarded live orders, and a Web panel",
-  "type": "module",
+  "description": "Nx + pnpm workspace for the Bybit AI Quant DSH Bundle",
   "license": "MIT",
   "engines": {
     "node": ">=22.19"
   },
-  "keywords": [
-    "dsh-plugin",
-    "deepseek-harness",
-    "bybit",
-    "quant",
-    "trading",
-    "ai-agent",
-    "backtest"
-  ],
-  "exports": {
-    ".": "./dist/index.js",
-    "./client": "./dist/client.js",
-    "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
-  },
-  "files": [
-    "dist",
-    "locale/*.json",
-    "docs",
-    "icon.svg",
-    "cordis.patch.yml",
-    "README.md",
-    "LICENSE",
-    "scripts"
-  ],
   "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint .",
-    "test:unit": "node test/signals.mjs && node test/ai.mjs && node test/client.mjs && node test/render.mjs",
-    "test:network": "node test/smoke.mjs && node test/integration.mjs",
-    "test": "npm run test:unit && npm run test:network",
-    "verify": "npm run build && npm run lint && npm run typecheck && npm run test:unit",
-    "credentials": "node scripts/credentials.mjs",
-    "hooks:setup": "git config core.hooksPath .githooks && echo '✓ git hooks path set to .githooks'",
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
-  },
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web",
-      "immediately": true,
-      "inject": [
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar"
-      ]
-    }
+    "build": "nx run @bybit-quant/dsh-plugin:build",
+    "bundle:check": "nx run @bybit-quant/dsh-plugin:bundle:check",
+    "typecheck": "nx run @bybit-quant/dsh-plugin:typecheck",
+    "typecheck:tests": "nx run @bybit-quant/dsh-plugin:typecheck:tests",
+    "lint": "nx run @bybit-quant/dsh-plugin:lint",
+    "test:unit": "nx run @bybit-quant/dsh-plugin:test:unit",
+    "verify": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm bundle:check",
+    "sbom": "COREPACK_ENABLE_PROJECT_SPEC=0 COREPACK_ENABLE_AUTO_PIN=0 node apps/dsh-plugin/scripts/sbom.ts",
+    "security:deps": "pnpm audit --audit-level high && uv run --project python --locked pip-audit --skip-editable",
+    "python:lint": "uv run --project python --locked ruff check python/packages python/apps && uv run --project python --locked ruff format --check python/packages python/apps",
+    "python:typecheck": "uv run --project python --locked pyright python/packages python/apps",
+    "python:test": "uv run --project python --locked pytest python/packages python/apps",
+    "db:upgrade": "uv run --project python --locked python -m quant_data.migrations",
+    "nx": "nx"
   },
   "devDependencies": {
-    "@types/node": "^22.20.5",
+    "@cyclonedx/cyclonedx-npm": "^7.0.1",
+    "nx": "^24.0.6",
     "oxlint": "^1.94.0",
-    "tsup": "^8.5.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "packageManager": "pnpm@12.6.0"
 }

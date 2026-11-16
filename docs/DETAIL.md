@@ -68,10 +68,11 @@ profile's `cordis.patch.yml`).
 
 | Field | Default | Meaning |
 |---|---|---|
-| `env` | `demo` | `demo` (demo-trading funds), `testnet`, or `live` (real money) |
+| `env` | `testnet` in the Bundle patch | `demo`, `testnet`, or `live` (real money) |
 | `apiKey` / `apiSecret` | — | Prefer `BYBIT_API_KEY` / `BYBIT_API_SECRET` in the environment; config is plain text |
 | `allowLiveTrading` | `false` | Master switch for `bybit_trade`; while false every call is a preview |
-| `maxOrderNotionalUsd` | `200` | Hard ceiling for one live order (`price × quantity`) |
+| `allowTestnetTrading` | `true` in the Bundle patch | Explicit Testnet order switch; Mainnet remains controlled by `allowLiveTrading` |
+| `maxOrderNotionalUsd` | `24` in the Bundle patch | Hard ceiling for one order (`price × quantity`) |
 | `paperBalanceUsd` | `10000` | Starting cash of the simulated book |
 | `defaultSymbol` | `BTCUSDT` | Symbol used when a tool call omits one |
 | `defaultCategory` | `linear` | `linear` (USDT perpetual) or `spot` |
@@ -97,8 +98,8 @@ profile's `cordis.patch.yml`).
   enabled, and it rounds quantities down to the instrument's step and rejects orders below
   the exchange's minimum quantity or notional. `close` is exempt from the cap because it
   reduces an existing position instead of opening exposure.
-- Start with `env: demo`. A demo key pair is issued in Bybit's demo-trading console, and
-  orders there settle against demo funds while prices track the live market.
+- The shipped Bundle uses `[TESTNET]`; Testnet credentials and orders stay on the Testnet host.
+  Mainnet requires a separate explicit configuration and is disabled by default.
 
 ## The AI loop
 

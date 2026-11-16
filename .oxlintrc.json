@@ -25,21 +25,20 @@
     "no-useless-return": "off",
     "unicorn/no-array-sort": "off",
     "unicorn/prefer-number-properties": "off",
-    "oxc/no-map-spread": "off"
+    "oxc/no-map-spread": "off",
+    "eslint/no-underscore-dangle": [
+      "warn",
+      {
+        "allow": [
+          "__ModuleLoader__"
+        ]
+      }
+    ]
   },
   "overrides": [
     {
       "files": [
-        "src/client.js"
-      ],
-      "rules": {
-        "unicorn/consistent-function-scoping": "off",
-        "eslint/no-underscore-dangle": "off"
-      }
-    },
-    {
-      "files": [
-        "src/index.js"
+        "src/client.ts"
       ],
       "rules": {
         "unicorn/consistent-function-scoping": "off"
@@ -47,7 +46,15 @@
     },
     {
       "files": [
-        "test/**/*.mjs"
+        "src/host-panel.ts"
+      ],
+      "rules": {
+        "unicorn/consistent-function-scoping": "off"
+      }
+    },
+    {
+      "files": [
+        "test/**/*.ts"
       ],
       "env": {
         "node": true

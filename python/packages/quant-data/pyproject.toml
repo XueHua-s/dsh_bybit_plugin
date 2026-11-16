@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bybit-quant-data"
+version = "0.1.0"
+description = "Alembic migrations and durable data models for Bybit AI Quant"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.14,<2",
+  "sqlalchemy>=2.0,<3",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quant_data"]
+
+[dependency-groups]
+dev = [
+    "cyclonedx-bom>=8.0.1",
+    "pip-audit>=2.10.1",
+    "pyright>=1.1.414",
+    "pytest>=9.0.3,<10",
+    "ruff>=0.8,<1",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"

@@ -10,31 +10,48 @@ permissions:
 
 jobs:
   verify:
-    name: build, lint, typecheck, unit tests
+    name: Nx, TypeScript, Python, Bundle, and security checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test:unit
+          node-version-file: .node-version
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --project python --locked --all-groups
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:build
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:lint
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:typecheck
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:test:unit
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:bundle:check
+      - run: pnpm exec nx run-many -p quant-data quant-engine -t lint typecheck test --parallel=1
+      - run: uv run --project python --locked ruff format --check python/packages python/apps
+      - run: pnpm run security:deps
+      - run: pnpm run sbom
+      - run: pnpm exec nx run quant-data:sbom
 
   network:
-    # Hits the live Bybit public API; allowed to fail without blocking a merge.
-    name: live Bybit smoke (non-blocking)
+    # Read-only public Testnet smoke; allowed to fail without blocking a merge.
+    name: Bybit Testnet smoke (non-blocking)
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:network
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:build
+      - run: pnpm exec nx run @bybit-quant/dsh-plugin:test:network

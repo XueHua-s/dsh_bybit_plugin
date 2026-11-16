@@ -1,0 +1,33 @@
+[project]
+name = "bybit-quant-workspace"
+version = "0.1.0"
+description = "uv workspace for the Bybit AI Quant data plane"
+requires-python = ">=3.12"
+dependencies = ["bybit-quant-data", "bybit-quant-engine"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+bybit-quant-data = { workspace = true }
+bybit-quant-engine = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
+
+[dependency-groups]
+dev = [
+  "cyclonedx-bom>=8.0.1",
+  "pip-audit>=2.10.1",
+  "pyright>=1.1.414",
+  "pytest>=9.0.3,<10",
+  "ruff>=0.8,<1",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.pyright]
+include = ["packages", "apps"]
+pythonVersion = "3.12"

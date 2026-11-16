@@ -1,0 +1,10 @@
+{
+  "name": "quant-engine",
+  "sourceRoot": "python/apps/quant-engine/src",
+  "implicitDependencies": ["quant-data"],
+  "targets": {
+    "lint": { "command": "uv run --project python --locked ruff check python/apps/quant-engine" },
+    "typecheck": { "command": "uv run --project python --locked pyright python/apps/quant-engine/src" },
+    "test": { "command": "uv run --project python --locked pytest python/apps/quant-engine/tests" }
+  }
+}
