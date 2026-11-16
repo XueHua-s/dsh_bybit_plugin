@@ -115,3 +115,29 @@ The correction changes Nx target coverage only; backup implementation and tradin
 | Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
 
 Sandbox stdout/stderr are now captured in fixed-capacity byte buffers sized to four times their existing character return limits, then sliced to the same 100,000/10,000 character limits. Excess child output is discarded while streams remain drained. This bounds retained host buffers; the existing Docker image tag remains tag-pinned rather than digest-pinned, so supply-chain pinning is still open.
+
+## Prompt trust boundary increment — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Fresh plugin build | `pnpm exec nx run @bybit-quant/dsh-plugin:build --skip-nx-cache --output-style=static` | 0 | Rebuilt trust boundary and Host tools from source. |
+| Fresh unit target | `pnpm exec nx run @bybit-quant/dsh-plugin:test:unit --skip-nx-cache --output-style=static` | 0 | Includes `trust.ts`; injection-like prose remains an untrusted envelope and risk output is unchanged when only prose changes. |
+| Test typecheck | `pnpm typecheck:tests` | 0 | Strict test-source typecheck passed. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors at the time of this increment. |
+
+The runtime now uses a typed, bounded provenance envelope for agent-provided decision prose. The helper does not claim to detect every prompt injection; code-owned action fields and risk checks remain authoritative, while the envelope communicates that prose is data only. No external news/GitHub connector, credentials, network request, or order path was used by this increment.
+
+### Full verification after trust-boundary lint correction
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Defined root Verify Gate | `pnpm run verify` | 0 | Fresh build, lint, strict production typecheck, Nx unit target (including trust test), and Bundle check. |
+| TS test typecheck | `pnpm typecheck:tests` | 0 | Strict test-source typecheck passed. |
+| Python lint/format | `pnpm python:lint` | 0 | Ruff and formatting check passed; 13 files already formatted. |
+| Python typecheck | `pnpm python:typecheck` | 0 | Pyright reported 0 errors, warnings, or information diagnostics. |
+| Python tests | `pnpm python:test` | 0 | 15 tests passed. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
+
+The first full Verify attempt exited 1 because oxlint rejected a control-character regex in `trust.ts` (`no-control-regex`). The implementation was changed to code-point checks and the complete command sequence above then passed.
+
+`apps/dsh-plugin/test/integration.ts` also asserts the `quant_decide` and `quant_review` envelope fields. `pnpm typecheck:tests` covers that source; the integration suite itself is network-backed and was not run in this local-only gate.

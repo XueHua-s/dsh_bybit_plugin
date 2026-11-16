@@ -1,37 +1,41 @@
-/**
- * Trust-boundary helpers for news, GitHub material and agent-provided text.
- * These values are evidence only and must never become executable instructions.
- */
+/** Provenance boundary for free text that may be shown to an LLM or user. */
+export type EvidenceSource = 'news' | 'github' | 'agent' | 'user' | 'tool' | 'unknown'
+
 export interface UntrustedText {
-  text: string
-  source: 'news' | 'github' | 'agent' | 'unknown'
-  receivedAt: number
+  kind: 'untrusted-evidence'
+  source: EvidenceSource
   trusted: false
+  text: string
 }
 
-const INJECTION_PATTERNS = [
-  /ignore\s+(all\s+)?previous\s+instructions/i,
-  /disregard\s+(the\s+)?system\s+prompt/i,
-  /reveal\s+(the\s+)?(api|secret|credential|token)/i,
-  /execute\s+(this\s+)?(script|command|code)/i,
-  /system\s*message\s*:/i,
-]
+const MAX_ENVELOPE_CHARS = 20_000
 
-/** Normalize untrusted content and retain its provenance for audit logs. */
-export function markUntrusted(value: unknown, source: UntrustedText['source'] = 'unknown'): UntrustedText {
-  const text = typeof value === 'string' ? value.normalize('NFKC').slice(0, 20_000) : String(value ?? '').slice(0, 20_000)
-  return { text, source, receivedAt: Date.now(), trusted: false }
+function cleanText(value: string): string {
+  return [...value.normalize('NFKC')].filter(character => {
+    if (character === '\n' || character === '\t') return true
+    const codePoint = character.codePointAt(0) ?? 0
+    return codePoint > 0x1f && (codePoint < 0x7f || codePoint > 0x9f)
+  }).join('')
 }
 
-/** Return a safe evidence envelope; callers must inspect flags before use. */
-export function inspectUntrusted(value: UntrustedText): { accepted: false, reason: 'prompt-injection' | 'empty' | 'untrusted' } | { accepted: true, evidence: string } {
-  if (value.text.trim() === '') return { accepted: false, reason: 'empty' }
-  if (INJECTION_PATTERNS.some(pattern => pattern.test(value.text))) return { accepted: false, reason: 'prompt-injection' }
-  return { accepted: true, evidence: value.text }
+/** Validate and normalize text at an untrusted boundary with a caller-owned limit. */
+export function normalizeUntrustedText(value: unknown, maxChars: number): string {
+  if (typeof value !== 'string') throw new Error('untrusted evidence must be a string')
+  if (!Number.isSafeInteger(maxChars) || maxChars < 1) throw new Error('evidence character limit must be positive')
+  if (value.length > maxChars) throw new Error(`untrusted evidence must be at most ${maxChars} characters`)
+  const text = cleanText(value).trim()
+  if (text.length === 0) throw new Error('untrusted evidence must not be empty')
+  if (text.length > maxChars) throw new Error(`untrusted evidence must be at most ${maxChars} characters`)
+  return text
 }
 
-/** Remove control characters before evidence is written to a prompt or log. */
-export function evidenceText(value: unknown, source: UntrustedText['source'] = 'unknown'): string {
-  const inspected = inspectUntrusted(markUntrusted(value, source))
-  return inspected.accepted ? inspected.evidence : `[untrusted evidence rejected: ${inspected.reason}]`
+/** Return a bounded provenance envelope; the content remains data, never policy. */
+export function evidenceEnvelope(value: unknown, source: EvidenceSource = 'unknown'): UntrustedText {
+  if (typeof value !== 'string') throw new Error('untrusted evidence must be a string')
+  return {
+    kind: 'untrusted-evidence',
+    source,
+    trusted: false,
+    text: cleanText(value.slice(0, MAX_ENVELOPE_CHARS)),
+  }
 }

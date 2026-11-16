@@ -64,6 +64,7 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 | `python/packages/quant-data` | Durable models and migration boundary | SQLAlchemy + Alembic | snapshots/orders/audit | queries and migrations | PostgreSQL/SQLite dev |
 | `python/packages/quant-risk` | Independent final veto | Pure deterministic functions | target/order/account state | allow/deny + reason | domain types |
 | `python/packages/quant-sandbox` | Execute generated algorithms out of process | Docker/OS resource limits | reviewed source + fixture data | bounded result | Docker runtime |
+| `apps/dsh-plugin/src/lib/trust.ts` evidence boundary | Normalize agent-provided free text and expose it only as a bounded, explicitly untrusted data envelope in model-visible tool results | TypeScript deep module; no regex denylist | `thesis` / `invalidation` strings | `{ source: 'agent', trusted: false, text }` | AI decision tools; code-owned risk gate remains independent |
 | `scripts/check-bundle.ts` | Static package/patch/entry validation | TypeScript CLI | package manifest | exit 0/diagnostics | package files |
 | `scripts/backup.ts` + `src/lib/backup.ts` | Snapshot/restore user state | SHA-256 manifest and atomic writes | state DB/files | verified restore | local storage |
 
@@ -180,8 +181,10 @@ Current target score: **8/10**. Passing rows: describable module boundaries, sim
 | 23 | `python/packages/quant-data/alembic/versions/0002_strategy_config.py`, `0001_initial.py` | Modify/Create | Prove state-preserving schema evolution and refuse destructive downgrade with user rows | migration protection increment | 22 |
 | 24 | `python/packages/quant-data/tests/test_migrations.py` | Modify | Fixture-backed upgrade, backup, failure and downgrade regression | migration protection increment | 22,23 |
 | 25 | `sdd/reports/ADR_MIGRATION_BACKUP.md` | Create | Record the database safety boundary and SQLite-only scope | migration protection increment | 22 |
+| 26 | `apps/dsh-plugin/test/trust.ts` | Create | Prove bounded provenance envelopes and risk-gate independence for agent-provided prose | gpt-6.1-sol | 7 |
+| 27 | `apps/dsh-plugin/test/integration.ts` | Modify | Assert quant_decide and quant_review expose decision prose as untrusted evidence envelopes | gpt-6.1-sol | 26 |
 
-**Total Files:** 18 manifest groups (globs represent existing atomic files; each file remains ≤500 lines).
+**Total Files:** 27 manifest entries (20 logical groups where paired paths or globs are shown; each handwritten file remains ≤500 lines).
 
 ### Agent Assignment Rationale
 
@@ -221,7 +224,7 @@ The caller cannot bypass the final risk decision by calling the exchange adapter
 
 ## LLM Prompts
 
-Prompts are runtime inputs to the AI decision track. Every prompt source is labeled untrusted, normalized to a bounded schema and separated from system policy. Tool output and external repository text are quoted as data; they cannot introduce instructions. Decisions are persisted with prompt hash, model metadata, input provenance and risk result, without API credentials.
+Prompts are runtime inputs to the AI decision track. The system policy is code-owned and contains no interpolated agent/news/GitHub prose. Agent-provided `thesis` and `invalidation` are validated as strings, normalized and bounded, persisted as evidence, and returned to the model only in an explicit `trusted: false` data envelope. The envelope communicates provenance; it is not claimed to make arbitrary model behavior immune to prompt injection. Explicit action/size/stop fields and the independent code-owned risk gate determine simulated decisions; evidence prose is never authorization and cannot bypass the separate guarded order tool. No news or GitHub ingestion connector exists in this implementation phase. Decisions are persisted with brief hash, model/tool metadata, input provenance and risk result, without API credentials.
 
 ---
 
@@ -243,13 +246,16 @@ Prompts are runtime inputs to the AI decision track. Every prompt source is labe
 5. Research/strategy modules emit a typed target intent; AI output is untrusted proposal data
    │
    ▼
-6. Independent risk module checks account, environment, limits, precision, idempotency and reconciliation
+6. Agent prose is normalized and bounded by the evidence boundary, stored for the user, and returned to the model only as a provenance-tagged untrusted data envelope; it cannot authorize actions
    │
    ▼
-7. Paper/Testnet executor acts; every event is append-only and backed up/migrated
+7. Independent risk module checks account, environment, limits, precision, idempotency and reconciliation
    │
    ▼
-8. Host/client health panel exposes state; graceful shutdown persists checkpoint and recovery resumes safely
+8. Paper/Testnet executor acts; every event is append-only and backed up/migrated
+   │
+   ▼
+9. Host/client health panel exposes state; graceful shutdown persists checkpoint and recovery resumes safely
 ```
 
 ---
@@ -272,6 +278,7 @@ Prompts are runtime inputs to the AI decision track. Every prompt source is labe
 | Test Type | Scope / Requirement | Files | Tools | Pass Signal |
 |---|---|---|---|---|
 | Unit | Numeric signals, risk, trust boundary, state transitions | `test/*.ts`, Python tests | Node/Vitest-compatible scripts, pytest/Hypothesis | exit 0 and deterministic assertions |
+| Security unit | Prompt-injection fixture is preserved only as bounded untrusted evidence; malformed/oversized inputs are rejected or bounded; changing evidence prose alone cannot change the risk-gate result | `apps/dsh-plugin/test/trust.ts`, `apps/dsh-plugin/project.json`, `apps/dsh-plugin/package.json` | Node local unit target; no network or credentials | Nx `test:unit` includes the fixture and remains green |
 | Integration | Bybit REST mock, retries, order idempotency, migration and restore | `test/integration.ts`, `python/tests` | Node, pytest, Alembic | exit 0; no live endpoint |
 | Unit | Public WebSocket subscription, typed ticker parsing, bounded-queue backpressure, reconnect jitter and graceful close | `python/apps/quant-engine/tests/test_market_data.py` | pytest with injected fake connector/socket/clock | deterministic; no network |
 | Bundle | Manifest, patch, Host/Client and resource exports | `scripts/check-bundle.ts` | Node | exit 0 with all required files |
@@ -373,6 +380,7 @@ None — no formal external design review was executed. The installed `software-
 |---|---|---|---|
 | 1.0 | 2026-11-17 | SDD Design by RDD | Initial design; records root-layout drift and true monorepo migration. |
 | 1.1 | 2026-11-17 | market-data increment | Adds ownership, data flow, manifest and deterministic verification contract for public Testnet WebSocket ingestion. |
+| 1.2 | 2026-11-17 | trust-boundary increment | Records observed runtime gap and defines a bounded provenance envelope for model-visible agent prose, with deterministic risk-independence tests; explicitly does not claim regex or envelope alone eliminates prompt injection. |
 
 ---
 

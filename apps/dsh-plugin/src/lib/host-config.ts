@@ -5,6 +5,7 @@ import { normalizeCategory, normalizeInterval, normalizeSymbol } from './bybit.j
 import type { Candle } from './bybit.js'
 import type { JournalDecision } from './ai-types.js'
 import type { StrategyParams } from './strategies.js'
+import { evidenceEnvelope } from './trust.js'
 
 export type Settings = {
   env: 'live' | 'demo' | 'testnet'; apiKeyEnv: string; apiSecretEnv: string; fallbackApiKey: string; fallbackApiSecret: string; fallbackCredentialSource: string; credentialsFile: string; credentialsSource: string; allowLiveTrading: boolean; allowTestnetTrading: boolean; allowMainAccount: boolean; maxOrderNotionalPctOfEquity: number; maxOrderNotionalUsd: number; paperBalanceUsd: number; defaultSymbol: string; defaultCategory: ReturnType<typeof normalizeCategory>; stateFile: string; feeBps: number; recvWindow: number; timeoutMs: number; aiEnabled: boolean; aiStartEquity: number; aiRiskPerTradePct: number; aiMaxPositionPct: number; aiMaxOpenPositions: number; aiMaxDailyLossPct: number; aiMaxDrawdownPct: number; aiFeeBps: number; aiSymbols: string[]; aiTimeframes: string[]
@@ -84,7 +85,10 @@ function compactDecision(entry: JournalDecision) {
     sizePct: entry.sizePct,
     confidence: entry.confidence,
     status: entry.status,
-    thesis: entry.thesis,
+    evidence: {
+      thesis: evidenceEnvelope(entry.thesis, 'agent'),
+      invalidation: evidenceEnvelope(entry.invalidation, 'agent'),
+    },
     result: entry.result,
   }
 }

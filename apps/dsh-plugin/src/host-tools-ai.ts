@@ -29,6 +29,7 @@ import { normalizeCategory, normalizeSymbol } from './lib/bybit.js'
 import type { Candle } from './lib/bybit.js'
 import { compactDecision, round2 } from './lib/host-config.js'
 import { buildBrief, buildSymbolBrief, closePosition, compactContext, DECISION_SCHEMA, briefHashOf, markedEquity, normalizeDecision, openPosition, recordDecision, riskGate, scoreTrack, settleTrack } from './lib/ai.js'
+import { evidenceEnvelope } from './lib/trust.js'
 
 import type { HostRuntime } from './host-runtime.js'
 
@@ -149,8 +150,10 @@ export function registerTools(runtime: HostRuntime): void {
           takePct: entry.takePct,
           horizonHours: entry.horizonHours,
           confidence: entry.confidence,
-          thesis: entry.thesis,
-          invalidation: entry.invalidation,
+          evidence: {
+            thesis: evidenceEnvelope(entry.thesis, 'agent'),
+            invalidation: evidenceEnvelope(entry.invalidation, 'agent'),
+          },
         },
         price,
         gate: { allowed: gate.allowed, checks: gate.checks, reasons: gate.reasons },

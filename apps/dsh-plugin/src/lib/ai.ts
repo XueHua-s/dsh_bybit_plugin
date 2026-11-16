@@ -9,6 +9,7 @@
  */
 import { round } from './numeric.js'
 import { markedEquity } from './ai-accounting.js'
+import { normalizeUntrustedText } from './trust.js'
 export { atr, trendState, volRegime, bookPressure, buildSymbolBrief, buildBrief } from './ai-market.js'
 
 /** Fee charged on each side of a simulated AI fill, in basis points. */
@@ -168,13 +169,19 @@ export function normalizeDecision(raw: Record<string, unknown>, { symbols }: { s
   const horizonHours = Number(raw.horizonHours)
   if (!Number.isFinite(horizonHours) || horizonHours < 1 || horizonHours > 240) problems.push('horizonHours must be between 1 and 240')
 
-  const thesis = String(raw.thesis ?? '').trim()
+  const thesisInput = raw.thesis
+  let thesis = ''
+  try { thesis = normalizeUntrustedText(thesisInput, 800) } catch (error) {
+    problems.push(typeof thesisInput === 'string' && error instanceof Error ? error.message : 'thesis must be a string')
+  }
   if (thesis.length < 20) problems.push('thesis must be at least 20 characters so it can be reviewed')
-  if (thesis.length > 800) problems.push('thesis must be at most 800 characters')
 
-  const invalidation = String(raw.invalidation ?? '').trim()
+  const invalidationInput = raw.invalidation
+  let invalidation = ''
+  try { invalidation = normalizeUntrustedText(invalidationInput, 400) } catch (error) {
+    problems.push(typeof invalidationInput === 'string' && error instanceof Error ? error.message : 'invalidation must be a string')
+  }
   if (invalidation.length < 8) problems.push('invalidation must state the observable that proves the thesis wrong')
-  if (invalidation.length > 400) problems.push('invalidation must be at most 400 characters')
 
   if (problems.length > 0) {
     throw Object.assign(new Error(`decision rejected: ${problems.join('; ')}`), { problems })
