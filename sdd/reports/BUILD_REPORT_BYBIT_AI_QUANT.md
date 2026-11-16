@@ -57,7 +57,7 @@ Evidence after the configuration change: `pnpm exec nx run @bybit-quant/dsh-plug
 | 4 | Add reusable `@bybit-quant/quant-contracts` deep package | Complete | package build/typecheck and app dependency edge |
 | 5 | Implement DSH Bundle metadata, patch, Host/Client and lifecycle wiring | Complete | build, strict typecheck, bundle check |
 | 6 | Fix packaged detail resource and fail-closed bundle check | Complete | Harness detail rendered; bundle check exit 0 |
-| 7 | Add Alembic, backup/restore, sandbox and trust boundaries | Complete for current scaffold | Python tests and isolated checks |
+| 7 | Add Alembic, backup/restore, sandbox and trust boundaries | Partial for current scaffold | Python tests and isolated checks; prompt trust helper is not wired to runtime call sites |
 | 8 | Add runtime metrics and health route | Complete for current scaffold | monitor/integration checks |
 | 9 | Update bilingual README and CI | Complete | docs review, YAML parse, diff check |
 | 10 | Pin and audit GitHub references | Complete for stated audit scope | `docs/research/github-repository-audit.md` |
@@ -92,7 +92,7 @@ The working tree contains the Nx workspace, `apps/dsh-plugin`, `packages/ts/quan
 | AT-004 | Pass for tested guards | 27 integration checks include disabled-live, missing-key, cap and paper/test paths; no order was sent |
 | AT-005 | Partial | queue, memory/CPU, reconnect and latency metrics exist; WebSocket adapter is disabled and reconnect wiring is not production-complete |
 | AT-006 | Pass for isolated scaffold | Alembic upgrade/downgrade and checksum backup/restore tests pass; full user-history migration across versions remains unproven |
-| AT-007 | Pass for current boundary | trust/sandbox tests treat external content as data; generated code is isolated with bounded Docker settings |
+| AT-007 | Partial | Docker runs with no network/read-only root/resource limits, and bounded stdout/stderr capture is tested; trust helper is not wired to runtime call sites, provider image is not digest-pinned, and full isolation review remains open |
 | AT-008 | Pass | CycloneDX 1.6 TS (241 components) and Python (62 components), pnpm audit, pip-audit and gitleaks pass; editable Python packages are excluded by pip-audit |
 | AT-009 | Pass | bilingual READMEs describe current verified behavior and contain no credentials |
 
@@ -113,6 +113,10 @@ Mainnet remained disabled; no real order was sent. API credentials were never wr
 See [PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md](./PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md). The Harness UI install/detail/enable/uninstall/reinstall flow passed. The receipt explicitly does not claim upgrade because the installed version stayed 1.4.5 and the active profile was not disposable.
 
 ## Blockers
+
+### Sandbox output bound and OAuth documentation correction — 2026-11-17
+
+`apps/dsh-plugin/src/lib/sandbox.ts` now retains stdout/stderr in fixed-capacity byte buffers while draining child streams; the new `sandbox-output.ts` regression floods the helper with 100 × 2 MB chunks and verifies it retains only 400 KB. The regression is wired into both the Nx and package unit targets. Both READMEs now state that Bybit Testnet OAuth support and real consent/revoke lifecycle are unverified, and require the user to inspect the agent/scopes before authorizing. Verification: `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test && git diff --check` → exit 0; 15 Python tests passed. This does not run Docker or establish image digest provenance. Prompt trust runtime wiring, image digest pinning, Plugin Manager upgrade, durable recovery, and Testnet order E2E remain open.
 
 ### Migration/backup protection increment — 2026-11-17
 

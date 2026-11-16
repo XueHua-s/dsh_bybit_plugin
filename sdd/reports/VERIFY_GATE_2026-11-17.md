@@ -104,3 +104,14 @@ The correction changes Nx target coverage only; backup implementation and tradin
 - Complete durable state preservation and restart recovery tests, including graceful shutdown and reconciliation. Current full persistence/automatic recovery remains partial.
 - Apply migrations only after the target database is identified and a traceable backup/rollback or restore plan is proven. No target migration has been applied.
 - Keep generated SBOMs and audits within their stated coverage: pip-audit omits editable workspace packages.
+
+## Sandbox bounded output increment — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Nx unit target | `pnpm exec nx run @bybit-quant/dsh-plugin:test:unit --output-style=static` | 0 | Added `sandbox-output.ts`; 100 chunks of 2 MB retain only a fixed 400 KB stdout buffer, while multibyte stderr is byte-bounded. No Docker, network, Bybit or credentials used by this unit test. |
+| TS test typecheck | `pnpm typecheck:tests` | 0 | Strict test-source typecheck passed. |
+| Defined root Verify Gate | `pnpm run verify` | 0 | Build, lint, strict production typecheck, unit target including bounded-output regression, and Bundle check passed. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
+
+Sandbox stdout/stderr are now captured in fixed-capacity byte buffers sized to four times their existing character return limits, then sliced to the same 100,000/10,000 character limits. Excess child output is discarded while streams remain drained. This bounds retained host buffers; the existing Docker image tag remains tag-pinned rather than digest-pinned, so supply-chain pinning is still open.

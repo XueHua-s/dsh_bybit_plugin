@@ -34,7 +34,7 @@ The panel never places orders. It uses the authenticated DSH bridge and REST pol
 
 ## Testnet OAuth
 
-The bundled PKCE client targets Bybit Testnet OAuth endpoints only. Run the commands from the repository root:
+The bundled PKCE client is a local Testnet OAuth flow. Bybit's public documentation does not confirm that this OAuth grant is available for Testnet, so this client remains unverified provider integration rather than a supported production login. Run the commands from the repository root:
 
 ```sh
 pnpm --filter @bybit-quant/dsh-plugin oauth -- start
@@ -43,7 +43,7 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- accounts
 pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 ```
 
-Review the returned accounts and explicitly select the intended AI sub-account. The client does not auto-select or create an account. Tokens are stored privately with restrictive permissions and are never printed. Mainnet OAuth is not supported by this flow.
+Before clicking **Authorize**, review the agent name and requested scopes in Bybit yourself. Then review the returned accounts and explicitly select the intended AI sub-account. The client does not auto-select or create an account. Tokens are stored privately with restrictive permissions and are never printed. No real consent, revoke, or Testnet provider lifecycle has been verified; revoke access by removing the AI sub-account in Bybit. Mainnet OAuth is not supported by this flow.
 
 ## Workspace layout
 

@@ -15,6 +15,8 @@ export interface SandboxResult {
 }
 
 const IMAGE = 'node:22.20.0-alpine'
+const OUTPUT_LIMIT = 100_000
+const ERROR_LIMIT = 10_000
 const RUNNER = [
   'const fs = await import("node:fs");',
   'const source = fs.readFileSync(0, "utf8");',
@@ -48,12 +50,12 @@ function execute({ code, timeoutMs, memoryMb }: { code: string, timeoutMs: numbe
       env: { PATH: process.env.PATH ?? '' },
       stdio: ['pipe', 'pipe', 'pipe'],
     })
-    const output: Buffer[] = []
-    const errors: Buffer[] = []
+    const output = new BoundedOutputCapture(OUTPUT_LIMIT * 4)
+    const errors = new BoundedOutputCapture(ERROR_LIMIT * 4)
     let timedOut = false
     let settled = false
-    child.stdout.on('data', chunk => output.push(Buffer.from(chunk)))
-    child.stderr.on('data', chunk => errors.push(Buffer.from(chunk)))
+    child.stdout.on('data', chunk => output.append(chunk))
+    child.stderr.on('data', chunk => errors.append(chunk))
     child.once('error', error => {
       if (settled) return
       settled = true
@@ -64,8 +66,8 @@ function execute({ code, timeoutMs, memoryMb }: { code: string, timeoutMs: numbe
       if (settled) return
       settled = true
       clearTimeout(timer)
-      const stdout = Buffer.concat(output).toString('utf8').slice(0, 100_000)
-      const stderr = Buffer.concat(errors).toString('utf8').slice(0, 10_000)
+      const stdout = output.toString().slice(0, OUTPUT_LIMIT)
+      const stderr = errors.toString().slice(0, ERROR_LIMIT)
       resolve({ ok: codeValue === 0, output: stdout, ...(stderr === '' ? {} : { error: stderr }), timedOut })
     })
     child.stdin.end(code)
@@ -75,4 +77,37 @@ function execute({ code, timeoutMs, memoryMb }: { code: string, timeoutMs: numbe
       killer.unref()
     }, timeoutMs)
   })
+}
+
+/** Retain a fixed byte budget while continuing to drain the child stream. */
+export class BoundedOutputCapture {
+  private readonly byteLimit: number
+  private readonly storage: Buffer
+  private retainedBytes = 0
+
+  constructor(byteLimit: number) {
+    if (!Number.isSafeInteger(byteLimit) || byteLimit < 0) {
+      throw new Error('output byte limit must be a non-negative safe integer')
+    }
+    this.byteLimit = byteLimit
+    this.storage = Buffer.allocUnsafe(byteLimit)
+  }
+
+  append(value: Buffer | string): void {
+    const remaining = this.byteLimit - this.retainedBytes
+    if (remaining <= 0) return
+    const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value)
+    const retainedBytes = Math.min(chunk.length, remaining)
+    if (retainedBytes === 0) return
+    chunk.copy(this.storage, this.retainedBytes, 0, retainedBytes)
+    this.retainedBytes += retainedBytes
+  }
+
+  toString(): string {
+    return this.storage.subarray(0, this.retainedBytes).toString('utf8')
+  }
+
+  get size(): number {
+    return this.retainedBytes
+  }
 }

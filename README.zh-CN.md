@@ -34,7 +34,7 @@ Bundle 默认配置为 `env: testnet`、`allowLiveTrading: false`、`allowTestne
 
 ## Testnet OAuth
 
-内置 PKCE 客户端只访问 Bybit Testnet OAuth。请在仓库根目录运行：
+内置 PKCE 客户端提供本地 Testnet OAuth 流程。Bybit 公开文档没有确认该 OAuth 授权是否支持 Testnet，因此这里仍属于未经提供方验证的本地客户端集成，不能当作生产登录支持。请在仓库根目录运行：
 
 ```sh
 pnpm --filter @bybit-quant/dsh-plugin oauth -- start
@@ -43,7 +43,7 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- accounts
 pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 ```
 
-查看账户列表后，明确选择目标 AI 子账户；客户端不会自动选择或创建账户。Token 以受限权限写入本地，不会打印到日志。此流程不支持 Mainnet OAuth。
+在点击 **Authorize** 前，请你本人在 Bybit 页面核对 Agent 名称和请求权限。查看账户列表后，再明确选择目标 AI 子账户；客户端不会自动选择或创建账户。Token 以受限权限写入本地，不会打印到日志。真实授权、撤销和 Testnet 提供方生命周期尚未验证；撤销访问请在 Bybit 删除对应 AI 子账户。此流程不支持 Mainnet OAuth。
 
 ## 工作区结构
 
