@@ -255,7 +255,7 @@ Prompts are runtime inputs to the AI decision track. The system policy is code-o
 8. Paper/Testnet executor acts; every event is append-only and backed up/migrated
    │
    ▼
-9. Host/client health panel exposes state; graceful shutdown persists checkpoint and recovery resumes safely
+9. Host/client health panel exposes state; graceful shutdown persists the reconnect counter and a new process starts with fresh lifecycle timestamps and an empty queue
 ```
 
 ---
@@ -316,6 +316,10 @@ Prompts are runtime inputs to the AI decision track. The system policy is code-o
 ### Public WebSocket market-data ownership
 
 `BybitMarketDataAdapter` owns the public Testnet URL, V5 ticker topic construction, JSON validation, reconnect/backoff, and a bounded `asyncio.Queue`. Its small consumer API is `start(symbols)`, `next_event()`, `health()`, and `close()`; strategies and risk modules consume normalized immutable `TickerEvent` values and do not know the Bybit wire schema. A full queue suspends the reader until a consumer frees capacity, propagating backpressure to the socket instead of growing memory without bound. Health includes connection state, queue depth, receive/parse/discard counts, reconnects, and last event time. It does not own persistence, REST access, account state, credentials, strategy decisions, or order execution.
+
+### Durable lifecycle checkpoint boundary
+
+`EngineRuntime` optionally writes a versioned JSON checkpoint on graceful stop using a flushed, fsynced temporary file and atomic replacement. Version 2 contains only the reconnect counter. Queue depth and lifecycle timestamps are process-local: a new process starts with an empty queue, a new `started_at`, and `stopped_at=None`, so stale backlog or old lifecycle times cannot be reported. Version 1 files are accepted only after validating their historical running flag, timestamps and queue field; those legacy values are ignored and only reconnect continuity is retained. Credentials, strategy configuration, orders and trade history remain outside this file. Startup fails closed to zero counters when the file is missing, malformed or uses an unsupported version, while exposing a typed error string in `RuntimeSnapshot`. This is a bounded restart checkpoint, not a process supervisor, exchange reconciliation mechanism or guarantee of crash-consistent order state; those remain separate operational work.
 
 ---
 
@@ -381,6 +385,9 @@ None — no formal external design review was executed. The installed `software-
 | 1.0 | 2026-11-17 | SDD Design by RDD | Initial design; records root-layout drift and true monorepo migration. |
 | 1.1 | 2026-11-17 | market-data increment | Adds ownership, data flow, manifest and deterministic verification contract for public Testnet WebSocket ingestion. |
 | 1.2 | 2026-11-17 | trust-boundary increment | Records observed runtime gap and defines a bounded provenance envelope for model-visible agent prose, with deterministic risk-independence tests; explicitly does not claim regex or envelope alone eliminates prompt injection. |
+| 1.3 | 2026-11-17 | runtime checkpoint increment | Defines the versioned, atomic health checkpoint contract, fail-closed malformed-state handling and explicit limits: no credentials, strategy state, order state, supervisor or exchange reconciliation. |
+| 1.4 | 2026-11-17 | checkpoint semantics correction | Removes queue depth from persisted state because it is process-local; startup resets backlog to zero and reads legacy v1 queue fields only for compatibility. |
+| 1.5 | 2026-11-17 | checkpoint timestamp correction | Narrows v2 persistence to reconnect count; v1 timestamps are validated for compatibility then ignored. Restart lifecycle timestamps are always fresh process state. |
 
 ---
 

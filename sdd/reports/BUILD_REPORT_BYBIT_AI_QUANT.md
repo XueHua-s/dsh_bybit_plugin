@@ -16,7 +16,7 @@
 
 Added `apps/dsh-plugin/test/backup.ts` for isolated checksum-backed restore and tamper rejection, covering strategy/watchlist, paper trade, AI track and audit marker data. It is included in the plugin unit command.
 
-Evidence: the targeted backup test and complete local chain `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exited 0 (15 Python tests passed). Separate temporary `SIGKILL` and SQLite restore rehearsals also exited 0. Recovery remains bounded to existing TS state and SQLite backup behavior; Python runtime lacks durable checkpoint/supervisor/reconciliation.
+Evidence: the targeted backup test and complete local chain `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exited 0. Separate temporary `SIGKILL` and SQLite restore rehearsals also exited 0. Recovery remains bounded to existing TS state, SQLite backup behavior and the Python health checkpoint; service supervision, order-state recovery and reconciliation remain open.
 
 ## Nx unit target coverage correction — 2026-11-17
 
@@ -65,7 +65,7 @@ Evidence after the configuration change: `pnpm exec nx run @bybit-quant/dsh-plug
 | 12 | Generate TS/Python SBOM and dependency/secret evidence | Complete | SBOM, audit and gitleaks commands |
 | 13 | Official Harness install/uninstall/reinstall/enable smoke | Partial | receipt in `PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md` |
 | 14 | Upgrade smoke in disposable profile | Blocked | no local standalone manager; local UI did not expose a version upgrade |
-| 15 | Real WebSocket/reconnect and durable engine recovery | Blocked | current implementation documents REST polling and scaffold lifecycle |
+| 15 | Real WebSocket/reconnect and durable engine recovery | Partial | `EngineRuntime` now persists and validates a bounded health checkpoint; real WebSocket durability, process supervision and exchange reconciliation remain open |
 | 16 | Full Testnet order E2E | Blocked by account state | prior read-only account had zero equity/main-account identity; guards correctly reject |
 
 ## Files Changed
@@ -139,8 +139,24 @@ Verification: `pnpm exec nx run @bybit-quant/dsh-plugin:build --skip-nx-cache --
 Commands and results: `uv run --project python --locked pytest python/packages/quant-data/tests/test_migrations.py -q` → exit 0 (9 passed); `uv run --project python --locked pytest python -q` → exit 0 (15 passed after concurrency/path fixtures); `uv run --project python --locked ruff check python/packages/quant-data` → exit 0; `uv run --project python --locked ruff format --check python/packages/quant-data` → exit 0; `uv run --project python --locked pyright python/packages/quant-data/src` → exit 0; `pnpm run verify` → exit 0; `pnpm python:lint`, `pnpm python:typecheck`, `pnpm python:test` → each exit 0; `git diff --check` → exit 0. An initial migration regression run exited 1 because literal JSON `:20` was parsed as a bind parameter and the assertion expected a different first guarded table; fixtures/assertion were corrected. Concurrency fixtures now cover all sidecars, active SQLite writer refusal, refusal of WAL journal mode without changing it, and an out-of-band source-file race; URL handling covers `?`, `#`, and spaces. Initial Ruff runs reported import ordering/formatting issues; these were corrected and final lint/format checks passed. No test command migrated a non-temporary database. The design rationale is recorded in [`ADR_MIGRATION_BACKUP.md`](./ADR_MIGRATION_BACKUP.md).
 
 1. Obtain a disposable Harness profile or standalone official `plugin_manager` capable of an actual version upgrade and record before/after state hashes.
-2. Implement and verify a real WebSocket adapter, reconnect policy, graceful shutdown and durable restart checkpoint.
+2. Verify production WebSocket restart behavior and implement process supervision plus exchange reconciliation; current checkpoint stores health counters only.
 3. Complete funded Testnet sub-account identity and balance verification before any order E2E; never bypass the guard.
+
+## Runtime checkpoint increment — 2026-11-17
+
+`python/apps/quant-engine/src/quant_engine/runtime.py` now supports an optional versioned JSON checkpoint for graceful lifecycle restart. Version 2 persists only reconnect count. Queue depth and lifecycle timestamps are process-local: a new process starts with an empty queue, a new `started_at`, and `stopped_at=None`. Restore validates the compact v2 schema; legacy v1 files validate their historical running flag, timestamps and queue field, then ignore those values and retain only reconnect continuity. Writes use a flushed/fsynced temporary file with atomic replacement. Missing, malformed or unsupported checkpoints fail closed to zero health counters and expose `checkpoint_error` in `RuntimeSnapshot`; credentials, strategy configuration, orders and trade history are never serialized.
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Runtime checkpoint tests | `uv run --project python --locked pytest python/apps/quant-engine/tests/test_runtime.py -q` | 0 | 8 tests passed, including compact v2 persistence, fresh restart timestamps, zeroed backlog, corrupted JSON, schema tampering, missing fields and legacy v1 compatibility. |
+| Workspace Python lint/format | `pnpm python:lint` | 0 | Ruff passed; 13 Python files already formatted. The first post-schema run exited 1 on Ruff TRY004; changed the payload type error to `TypeError` and reran successfully. |
+| Workspace Python typecheck | `pnpm python:typecheck` | 0 | Pyright reported 0 errors, warnings or information messages. |
+| Workspace Python tests | `pnpm python:test` | 0 | 21 tests passed across quant-data, market-data and runtime checkpoint suites. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
+
+After review found that Python treats `True` as equal to integer `1`, version parsing was tightened to require an exact `int`; checkpoint restore also rejects missing required fields, validates legacy v1 fields for compatibility, and deliberately ignores all v1 lifecycle/queue values. A focused pytest run initially exited 1 because the v2 decoder still required the legacy `running` field; the validator was corrected. Final command `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test && git diff --check` exited 0; pytest reported 21 passed, and Nx's unchanged build/lint/typecheck tasks were cache hits.
+
+This increment is a bounded health-state checkpoint only. It does not provide a process supervisor, crash-consistent order recovery, exchange reconciliation, or production WebSocket restart guarantee; those remain unresolved operational work.
 
 ## Final Status
 

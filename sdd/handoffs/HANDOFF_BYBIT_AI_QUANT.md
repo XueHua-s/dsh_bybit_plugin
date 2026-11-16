@@ -15,8 +15,8 @@
 
 - 新增 `apps/dsh-plugin/test/backup.ts`：在临时目录验证 checksum-backed backup/restore 保留 watchlist、paper trade、AI track 和 audit marker，并拒绝篡改备份；已并入 plugin `test:unit`。
 - 真实隔离演练：子进程写入后 `SIGKILL`，重新打开 `createStore` 成功恢复状态；临时 SQLite 备份恢复保留 strategy config、trade/risk audit 行且 `PRAGMA integrity_check=ok`。
-- 补充 gate：`pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exit 0；Python 共 15 tests passed。
-- 验收边界：`quant_engine.EngineRuntime` 仍只有内存生命周期状态，没有 durable checkpoint、service supervisor 或 exchange reconciliation；自动重启/生产 WebSocket durability 仍未证明。目标数据库未迁移。
+- 补充 gate：`pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exit 0；当前 Python 共 21 tests passed。
+- 验收边界：`quant_engine.EngineRuntime` 已有受限版本化 checkpoint，可在优雅关闭后恢复重连计数；生命周期时间戳和行情队列深度均为进程内状态，重启后生成新 `started_at`、清空 `stopped_at` 并归零队列。service supervisor、订单状态恢复、exchange reconciliation 与生产 WebSocket durability 仍未证明。目标数据库未迁移。
 
 - 根 `pnpm run verify` 返回 exit 0；当前测试源码检查 `pnpm typecheck:tests` 返回 exit 0。完整收据见 `sdd/reports/VERIFY_GATE_2026-11-17.md`。
 - Nx 发现 `quant-data`、`quant-engine`、`@bybit-quant/dsh-plugin`；修正后的网络命令 `pnpm exec nx run @bybit-quant/dsh-plugin:test:network --output-style=static` 返回 exit 0，8 项通过，使用 Testnet 公共行情、只读，无凭证/账户访问/订单，也无 skip。此前同一 CLI 命令的 7 smoke + 27 integration 是错误指向 Mainnet 行情的历史运行，已在 Verify Gate 中标为历史并由 Testnet 运行取代。
@@ -30,7 +30,7 @@
 ## Falta
 
 - 取得 disposable Harness profile 或可执行官方 upgrade 的 Plugin Manager，记录实际 upgrade 和升级前后 state hash；在此之前 Plugin Manager lifecycle 保持 partial。
-- 实现并验证 graceful shutdown、持久 checkpoint、重启恢复、reconciliation 和完整 backup/restore preservation；当前完整持久恢复/自动恢复仍 partial。
+- 将 Python adapter/runtime 接入 managed service lifecycle，并验证 supervisor、订单状态恢复、reconciliation 和完整 backup/restore preservation；当前 checkpoint 仅覆盖健康状态，完整持久恢复/自动恢复仍 partial。
 - 在确认目标环境、备份和回滚/恢复方案后才运行目标数据库 migration；当前只做过临时 SQLite round-trip，目标数据库未应用。
 - 完成真实 WebSocket/reconnect 生产接线和独立验证；当前公共行情网络 smoke 不等于生产 WebSocket durability。
 - 若要推进真实 Testnet order E2E，先独立核对账户身份、余额、精度、名义额和风险上限；Mainnet 默认关闭，任何真实交易都需明确用户授权。
@@ -42,7 +42,7 @@
 - [ ] Plugin Manager upgrade 与 disposable-profile 状态保留有可审计收据。
 - [ ] Bybit 官方确认 Testnet OAuth 支持，并验证真实授权与撤销生命周期；现有 fake-backed tests 只验证本地边界，不证明 provider 支持。
 - [ ] 目标数据库 migration 有环境确认、备份、回滚或恢复证据；不得把临时 SQLite 结果写成部署完成。
-- [ ] 持久 checkpoint、优雅关闭、重启自动恢复和 reconciliation 完成并通过隔离测试。
+- [ ] service supervisor、订单状态恢复、重启自动恢复和 reconciliation 完成并通过隔离测试；当前 checkpoint 仅覆盖健康状态，不是订单恢复。
 
 ## ⛔ Landmines desta feature
 
@@ -72,7 +72,7 @@
 
 ## Recomendações
 
-- 下一次先取得可审计的 Plugin Manager upgrade/profile 状态证据，再扩展持久恢复测试；这样能减少生命周期与数据保护两个独立验收面之间的混淆。
+- 下一次先取得可审计的 Plugin Manager upgrade/profile 状态证据，再把健康 checkpoint 接入受监督的服务并补订单对账测试；这样能区分生命周期与交易状态恢复证据。
 - 保持 Verify Gate、Python adapter gate、网络 smoke 和生产运维验收分栏记录；每条命令保留真实退出码和覆盖边界。
 - OAuth 继续保持证据分层：实现能力、provider support、用户 consent、测试和 revoke 生命周期分别记录，避免把 README 或本地命令当作授权完成证明。
 - 迁移前生成并校验备份，迁移后读取 schema/version 并准备回滚或 restore 证据；在证据齐全前保持“未应用目标数据库”。
@@ -90,7 +90,7 @@
 ## Tarefas
 
 1. **验证 Plugin Manager upgrade** — Pronto quando: 官方 manager 在 disposable profile 完成 upgrade，并有升级前后 state hash receipt；更新 `sdd/reports/PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md`。
-2. **补齐持久恢复闭环** — Pronto quando: graceful shutdown、checkpoint、restart recovery、reconciliation 和 backup/restore preservation 的隔离测试与真实命令均有收据；更新 Verify Gate/Build Report。
+2. **补齐持久恢复闭环** — Pronto quando: service supervisor、订单恢复、restart recovery、reconciliation 和 backup/restore preservation 的隔离测试与真实命令均有收据；当前仅有健康 checkpoint；更新 Verify Gate/Build Report。
 3. **确认并应用目标 migration（若获授权）** — 先核实目标数据库身份、备份 checksum 和 rollback/restore 计划；仓库 `pnpm db:upgrade` 现在要求显式传入 SQLite 文件路径，并先备份/验证、在候选副本迁移后原子替换。只有目标明确且获授权后才执行，再记录 revision、schema 读取及恢复证据。在此之前保持“未应用目标数据库”。
 4. **完成发布前检查** — Pronto quando: 运行 `/sdd-release` 要求的检查，审查 `git diff`、敏感文件、测试和 SBOM；未获明确授权不提交、不推送。
 
@@ -106,7 +106,7 @@
 ```text
 Retomar a feature BYBIT_AI_QUANT.
 
-Contexto: /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant está na branch codex/bybit-ai-quant-sdd. O root `pnpm run verify`, `pnpm typecheck:tests`, Python lint/typecheck/test, isolated Alembic round-trip, SBOM, dependency audit, gitleaks, line scan e `git diff --check` têm receipts exit 0 no Verify Gate de 2026-11-17. O produto ainda está PARTIAL: Plugin Manager upgrade/disposable-profile state hash, durable restart recovery, production WebSocket durability e target database migration não foram verificados; a target database migration não foi aplicada. OAuth tem fake-backed local regressions, mas Bybit não foi contatado, suporte oficial a Testnet OAuth não foi confirmado, e o CLI não implementa revoke.
+Contexto: /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant está na branch codex/bybit-ai-quant-sdd. O root `pnpm run verify`, `pnpm typecheck:tests`, Python lint/typecheck/test, isolated Alembic round-trip, SBOM, dependency audit, gitleaks, line scan e `git diff --check` têm receipts exit 0 no Verify Gate de 2026-11-17. O produto ainda está PARTIAL: Plugin Manager upgrade/disposable-profile state hash, service supervision, order-state recovery, production WebSocket durability e target database migration não foram verificados; a target database migration não foi aplicada. O runtime health checkpoint foi implementado e通过本地 21 项 Python tests；v2 只恢复 reconnect count，重启时间戳和队列深度均为新进程状态，不等于完整恢复。OAuth 有 fake-backed local regressions，但 Bybit 未被联系，官方 Testnet OAuth 支持未确认，CLI 不实现 revoke。
 
 Leia primeiro: /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant/sdd/handoffs/HANDOFF_BYBIT_AI_QUANT.md; depois /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant/sdd/features/DEFINE_BYBIT_AI_QUANT.md, DESIGN_BYBIT_AI_QUANT.md, sdd/reports/VERIFY_GATE_2026-11-17.md e sdd/reports/PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md.
 

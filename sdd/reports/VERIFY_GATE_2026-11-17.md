@@ -70,7 +70,7 @@ The following records the earlier pre-fix audit, not the current status. The old
 | Quant-data format | `uv run --project python --locked ruff format --check python/packages/quant-data` | 0 | all files formatted |
 | Quant-data typecheck | `uv run --project python --locked pyright python/packages/quant-data/src` | 0 | 0 errors |
 | Defined Verify Gate | `pnpm run verify` | 0 | build, lint, strict typecheck, unit tests and bundle check passed |
-| Python workspace checks | `pnpm python:lint`; `pnpm python:typecheck`; `pnpm python:test` | 0 each | Ruff+format, Pyright, and 15 pytest tests passed |
+| Python workspace checks | `pnpm python:lint`; `pnpm python:typecheck`; `pnpm python:test` | 0 each | Historical pre-checkpoint run: Ruff+format, Pyright, and 15 pytest tests passed |
 | Diff whitespace | `git diff --check` | 0 | no whitespace errors |
 
 The protected wrapper is SQLite-only and requires an explicit database path;
@@ -83,9 +83,33 @@ no durable project database or external service was migrated.
 | TS isolated backup/restore and tamper refusal | `pnpm build && pnpm --filter @bybit-quant/dsh-plugin exec node test/backup.ts && pnpm typecheck:tests` | 0 | Temporary state retained watchlist, paper trade, AI track and audit marker; modified backup was rejected by SHA-256 validation. |
 | TS crash/restart rehearsal | Inline Node child writer, `SIGKILL`, then reopen `createStore` | 0 | Temporary JSON reopened with strategy/watchlist, paper trade and audit marker. This is not a service supervisor. |
 | SQLite restore rehearsal | Inline `uv run --project python python - <<'PY'` fixture with temporary SQLite and `upgrade_sqlite` backup | 0 | Strategy config, trade and risk audit rows restored; `PRAGMA integrity_check=ok`; no target DB or credentials touched. |
-| Full Verify Gate after test addition | `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` | 0 | TS and Python checks passed; 15 pytest tests passed. |
+| Full Verify Gate after test addition | `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` | 0 | Historical pre-checkpoint run: TS and Python checks passed; 15 pytest tests passed. |
 
-`quant_engine.EngineRuntime` remains in-memory and has no durable checkpoint or process supervisor. Automatic restart, exchange reconciliation and production WebSocket durability remain unproven; no target database migration was applied.
+`quant_engine.EngineRuntime` now supports a bounded versioned checkpoint of reconnect count on graceful stop. Queue depth and timestamps are process-local: restart sets queue depth to zero, creates a fresh `started_at`, and clears `stopped_at`. Legacy v1 checkpoints validate historical queue/timestamp fields but ignore their values, retaining only reconnect continuity. This is not a process supervisor, order-state recovery, exchange reconciliation or production WebSocket durability; no target database migration was applied.
+
+## Runtime checkpoint follow-up — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Root Verify Gate | `pnpm run verify` | 0 | Nx build/lint/typecheck, unit target and bundle check passed; unchanged TS tasks were served from cache. |
+| Python lint and formatting | `pnpm python:lint` | 0 | Ruff checks passed; 13 Python files already formatted. |
+| Python typecheck | `pnpm python:typecheck` | 0 | Pyright reported 0 errors, warnings or informations. |
+| Python workspace tests | `pnpm python:test` | 0 | 21 tests passed, including eight runtime checkpoint cases. |
+| Diff whitespace | `git diff --check` | 0 | No whitespace errors at checkpoint implementation verification. |
+
+Checkpoint v2 persists only reconnect count. Startup initializes backlog depth to zero and creates fresh lifecycle timestamps; legacy v1 queue depth and timestamps are validated then ignored. Tests use temporary paths only. This local verification does not establish a managed service lifecycle, crash-consistent order recovery, exchange reconciliation or production WebSocket recovery.
+
+### Checkpoint timestamp-contract review correction — 2026-11-17
+
+| Check | Command | Exit | Evidence / limits |
+|---|---|---:|---|
+| Focused runtime checkpoint suite | `uv run --project python --locked pytest python/apps/quant-engine/tests/test_runtime.py -q` | 0 | 8 passed; tests assert v2 stores only reconnects, restart sets a fresh `started_at` and `stopped_at=None`, and v1 timestamps/queue are validated then ignored. |
+| Defined root Verify Gate, TS test types and diff check | `pnpm run verify && pnpm typecheck:tests && git diff --check` | 0 | Build/lint/typecheck/unit/bundle checks passed; Nx build/lint/typecheck were cache hits, unit and bundle tasks ran. |
+| Workspace Python lint/format | `pnpm python:lint` | 0 | Ruff passed; 13 files formatted. |
+| Workspace Python typecheck | `pnpm python:typecheck` | 0 | Pyright: 0 errors, warnings or information messages. |
+| Workspace Python tests | `pnpm python:test` | 0 | 21 passed. |
+
+The timestamp correction does not expand the recovery claim: only the reconnect counter survives process restart. The service supervisor, order state and exchange reconciliation are still absent.
 
 The first SQLite rehearsal command exited 1 because an inline JSON literal was parsed by SQLAlchemy as a bind parameter; it mutated no project file or database. The rerun used explicit bound parameters and exited 0 as recorded above.
 
