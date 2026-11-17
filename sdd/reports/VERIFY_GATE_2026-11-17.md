@@ -1,6 +1,32 @@
 # Verify Gate Evidence — 2026-11-17
 
-## Current integrated-service rerun — 2026-11-17
+## Current SDK/DSH/native/hooks rerun — 2026-11-17 (final integrated receipts)
+
+Committed/pushed baseline `f535981` precedes this new increment. Old green security/111-test results below belong to that earlier snapshot. SDK, DSH, native execution and hooks have independent scoped ACCEPT reviews; this is not a complete original-product PASS.
+
+| Check | Actual command / method | Exit | Current evidence / limits |
+|---|---|---:|---|
+| Initial aggregate | Root `pnpm run verify` | 1 | SDK Nx build invoked nested pnpm shim and failed ENOEXEC. Targets changed to direct installed tsc/node/oxlint/Vitest; never count this failure as pass. |
+| Corrected SDK scoped gate | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm exec nx run-many -t build,typecheck,test,lint,generate:check --projects=@bybit-quant/quant-api-client --skip-nx-cache` | 0 | Five tasks passed fresh; 9 Vitest cases. Aggregate later passed as recorded below. |
+| Second aggregate | Root corrected `pnpm run verify` | 1 | Child pnpm pack hit the same ENOEXEC. Shared sanitized pnpm environment helper added; real Nx bundle check passes afterward. |
+| Final aggregate after correction | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm run verify && NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm typecheck:tests && NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm exec nx show projects` | 0 | Fresh unit/pack/schema/SDK Vitest/tooling tasks ran; some build/type tasks cached. Six real projects include SDK/native. |
+| Python workspace | `pnpm python:lint`; `pnpm python:typecheck`; `pnpm python:test`; OpenAPI export `--check`; `git diff --check` | 0 | Ruff/format27 files; Pyright0 errors; 133 passed in6.67s including22 native/catalog cases, ten upstream Pandas deprecation warnings. Schema/diff match. Initial132/21 is historical. |
+| Real React19 SSR | `node apps/dsh-plugin/test/render.ts` | 0 | Real renderer, no skip; server render cannot prove browser effects/fetch/visual interaction. |
+| Hook fixture suite | `node scripts/test-git-hooks.ts` | 0 | Nine isolated fixtures, sensitive-path/partial staging/scanner redaction and monorepo failure guards. Actual hook installation not proven. |
+| Native execution | `uv run --project python --locked pytest python/packages/quant-execution/tests -q` | 0 | Final22 native BacktestEngine/catalog tests, no live/Testnet executor or exchange request. |
+| Initial dependency audit | Root dependency scan | 1 | fsspec 2026.2.0 vulnerability, fixed 2026.6.0, while Nautilus exact-pins vulnerable version. |
+| Patched environment scan | Explicit root uv fsspec 2026.6.0 override; pip-audit | 0 | Independent native re-review confirmed 22 native / 133 full and catalog compatibility; limited tested API scope, no blanket compatibility. |
+| Declared metadata compatibility | `uv pip check`; standalone pip resolution | 1 | Nautilus exact pin conflicts with patched override; use root uv workspace, no metadata-compatible/standalone install claim. |
+| Final dependency audit | `pnpm run security:deps` | 0 | No known TS/Python vulnerabilities; pip-audit skips three editable workspace packages. Patched override and metadata incompatibility remain explicit. |
+| Final SBOM generation | `UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache uv run --project python --locked cyclonedx-py environment --output-reproducible --output-file sbom.python.cdx.json && pnpm run sbom` | 0 | Python89 / TS200 components; recursive workspace SDK/runtime edges retained. |
+| Changed-file secrets | Root isolated `gitleaks dir` scan | 0 | 68 changed files,913521 bytes, no leaks. |
+| Repository history secrets | Root `gitleaks git` full-history scan | 0 | Seven commits, about1.59MB, no leaks. |
+| Source line cap | Root handwritten-source audit, generated artifacts excluded | 0 | 92 files, maximum497 lines, none>500. |
+| Root SDK/DSH real-service smoke | Bounded separate-process probe: built DSH engine facade → generated SDK → actual FastAPI public Testnet ETHUSDT service | 0 | health200/market200, partial=true, executionReady=false. Client close returns closed; independent server remains alive. Ordered SIGTERM/lifespan shutdown, listener closed; child -15 expected Uvicorn signal re-raise. No credentials/private account/order calls. |
+
+Final root aggregate, six-project discovery, Python/schema, dependency scan, SBOMs, secret/line/diff and SDK real-service smoke passed. Declared Nautilus/fsspec metadata mismatch remains an explicitly tested security override, not fully compatible package metadata. Remote baseline inspection and actual new commit/push are recorded separately by root. CI static config now shares comprehensive TS/SDK/tooling gates; no hosted CI execution claimed. Full original MUSTs, sole exchange execution authority, complete risk/OMS/portfolio/AI/research, official upgrade preservation/auth and browser UI remain unaccepted.
+
+## Historical integrated-service rerun — 2026-11-17
 
 Root integration receipts after supervisor/transport/service review fixes. The accepted slice reports are `sdd/reviews/REVIEW_ENGINE_SUPERVISOR_2026-11-17.md`, `REVIEW_ENGINE_TRANSPORT_2026-11-17.md` and `REVIEW_ENGINE_SERVICE_2026-11-17.md`. Prior counts and command outcomes below describe earlier source snapshots, not current totals.
 

@@ -1,0 +1,32 @@
+{
+  "name": "@bybit-quant/quant-api-client",
+  "sourceRoot": "packages/ts/quant-api-client/src",
+  "targets": {
+    "build": {
+      "command": "tsc -p packages/ts/quant-api-client/tsconfig.build.json",
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
+    },
+    "typecheck": {
+      "command": "tsc -p packages/ts/quant-api-client/tsconfig.json --noEmit"
+    },
+    "test": {
+      "command": "packages/ts/quant-api-client/node_modules/.bin/vitest run --root packages/ts/quant-api-client",
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "lint": {
+      "command": "oxlint packages/ts/quant-api-client/src packages/ts/quant-api-client/scripts packages/ts/quant-api-client/test"
+    },
+    "generate": {
+      "command": "node packages/ts/quant-api-client/scripts/generate.ts",
+      "cache": false
+    },
+    "generate:check": {
+      "command": "node packages/ts/quant-api-client/scripts/generate.ts --check",
+      "cache": false
+    }
+  }
+}

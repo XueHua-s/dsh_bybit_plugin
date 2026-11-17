@@ -59,7 +59,7 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 | `apps/dsh-plugin` Host | Register tools, services, prompt section and lifecycle effects | TypeScript ESM, deep runtime facade | DSH context/config/credentials | Tool results, health route, cleanup | `packages/ts/quant-contracts` |
 | `apps/dsh-plugin` Client | DSH slot UI and locale resources | TypeScript UI factory; no secrets | Host JSON snapshot | Dashboard view/actions | DSH client slots/locale |
 | `packages/ts/quant-contracts` | Stable domain and API types | TypeScript schemas/interfaces | DTO definitions | Shared types | none |
-| `packages/ts/quant-api-client` (planned, absent) | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
+| `packages/ts/quant-api-client` | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
 | `python/apps/quant-engine` | Long-running market/research/risk loop | uv project, FastAPI service, `quant_engine.market_data`, `quant_engine.supervisor` | Public Bybit Testnet ticker stream | normalized ticker events and typed lifecycle/health snapshot | `websockets`, Python packages |
 | `python/packages/quant-data` | Durable models and migration boundary | SQLAlchemy + Alembic | snapshots/orders/audit | queries and migrations | PostgreSQL/SQLite dev |
 | `python/packages/quant-risk` | Independent final veto | Pure deterministic functions | target/order/account state | allow/deny + reason | domain types |
@@ -70,7 +70,7 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 
 ### Software design philosophy review
 
-Current integrated control/data boundary score: **5/10**, as scoped in `sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md`; the accepted independent read-only service slice separately scores **10/10** in its review. The Nx migration is complete: root owns orchestration, plugin source lives in `apps/dsh-plugin`, and real project dependency edges are discoverable. Remaining integrated diagnostic failures are interface simplicity, replaceability, abstraction comments and newcomer-readable engine boundaries: generate a TS client from Python OpenAPI, connect DSH through that contract, and converge execution/risk on the required single authority. A service-local score does not certify these broader missing connections.
+Historical integrated control/data boundary score: **5/10**, as scoped in `sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md`; the accepted independent read-only service slice separately scores **10/10** in its review. The Nx migration is complete: root owns orchestration and plugin source lives in `apps/dsh-plugin`. The later generated SDK and demand-driven DSH integration now hide schema/transport/validation from Host tools; the native foundation hides BacktestEngine callbacks behind a finite interface. The original 5/10 assessment remains a historical control/data-boundary snapshot, not a fresh repository score. Remaining integrated work is converging exchange execution/risk on the required single authority; independently accepted slice scores do not certify the whole platform. A service-local score does not certify these broader missing connections.
 
 ---
 
@@ -189,8 +189,13 @@ Current integrated control/data boundary score: **5/10**, as scoped in `sdd/repo
 | 31 | `python/apps/quant-engine/tests/test_service.py` | Create | Actual adapter/consumer/supervisor + ASGI lifespan integration | engine service | 30 |
 | 32 | `contracts/openapi/quant-engine.v1.json`, `docs/runbooks/engine-service.md` | Create | Python-generated read-only contract and operational setup | engine service | 30 |
 | 33 | `python/apps/quant-engine/project.json`, `pyproject.toml`, `python/pyproject.toml`, `python/uv.lock` | Modify | CLI, serve/schema tasks and locked service/test dependencies | engine service | 30 |
+| 34 | `packages/ts/quant-api-client/*`, `sdd/features/DESIGN_ENGINE_CLIENT.md` | Create | OpenAPI-generated paths/runtime schema, bounded loopback transport, Ajv boundary and Vitest | SDK slice | 32 |
+| 35 | `apps/dsh-plugin/src/lib/engine.ts`, `host-tools-engine.ts`, `client-engine.ts`, `test/engine.ts`, `sdd/features/DESIGN_DSH_ENGINE.md` | Create | Demand-driven validated engine tools/card and authenticated bridge | DSH engine slice | 34 |
+| 36 | `apps/dsh-plugin/package.json`, `tsdown.config.ts`, `scripts/check-bundle.ts`, `scripts/sbom.ts`, `scripts/pnpm-environment.ts` | Modify/Create | Inline private SDK runtime, verify packed closure, recursive version-correct SBOM | DSH engine slice | 34,35 |
+| 37 | `python/packages/quant-execution/*`, `sdd/features/DESIGN_NAUTILUS_EXECUTION.md`, `docs/adr/nautilus-execution.md` | Create/Modify | Real native stable 1.231.0 offline fill/cancel/partial fixtures and compatibility evidence | native slice | 10 |
+| 38 | `.githooks/*`, `scripts/git-hooks.ts`, `scripts/test-git-hooks.ts`, `scripts/tsconfig.json`, `sdd/features/DESIGN_GIT_HOOKS.md`, `.github/workflows/ci.yml` | Create/Modify | Sensitive staged-path guards, redacted scanning, fixture safety and actual monorepo gate wiring | hooks/CI slice | workspace scripts |
 
-**Manifest:** 33 logical entries, including paired paths/globs; this is a phased plan rather than proof that planned packages exist. Each handwritten source file remains limited to 500 lines.
+**Manifest:** 38 logical entries, including paired paths/globs; this is a phased plan rather than proof that planned packages exist. Each handwritten source file remains limited to 500 lines.
 
 ### Agent Assignment Rationale
 
@@ -410,4 +415,20 @@ Execute o **SDD Build by RDD**.
 
 See `DESIGN_ENGINE_SERVICE.md` for the scoped contract and `../reviews/REVIEW_ENGINE_SERVICE_2026-11-17.md` for independent ACCEPT. FastAPI lifespan owns a supervisor and a real queue consumer; the worker restarts as a unit on consumer failure. Pydantic is the sole HTTP schema source. Exporting `contracts/openapi/quant-engine.v1.json` never enters lifespan. CLI requires explicit symbols and loopback binding; endpoints are only `/api/v1/health` and `/api/v1/market/{symbol}`. Readiness requires connected ingestion and receive/exchange freshness for every configured symbol; partial deltas remain explicitly partial, absent values null, and execution/reconciliation unknown.
 
-This slice hides composition, wire validation, freshness and transport within their owning modules. It does not implement the planned generated TS SDK, authenticated remote control, DSH service integration, full snapshot/persistence, Nautilus sole execution authority, portfolio/risk/AI/research platform or OS process recovery. The existing direct TypeScript order path remains DRIFT-ORIGINAL-003; it is not accepted as a replacement for the mandatory Nautilus architecture. Full original MUST acceptance remains open.
+At that service-only snapshot, SDK/DSH integration was absent; the next increment below implements the read-only portion. Authenticated remote control, full snapshot/persistence, Nautilus sole exchange execution authority, portfolio/risk/AI/research platform and OS process recovery remain incomplete. The existing direct TypeScript order path remains DRIFT-ORIGINAL-003; it is not accepted as a replacement for the mandatory Nautilus architecture. Full original MUST acceptance remains open.
+
+## Generated SDK, DSH, native foundation and hooks — 2026-11-17
+
+Supplements `DESIGN_ENGINE_CLIENT.md`, `DESIGN_DSH_ENGINE.md`, `DESIGN_NAUTILUS_EXECUTION.md` and `DESIGN_GIT_HOOKS.md` precede their implementation and record the detailed manifests. The Python OpenAPI remains schema authority: openapi-typescript emits paths, openapi-fetch owns typed calls, Ajv validates the same components at runtime. Transport hides numeric-loopback validation, bounded bytes/body deadlines/cancellation and fixed safe errors; readiness policy remains with Python.
+
+Host's `createEngine` facade receives configuration without credentials. Two read-only tools (`quant_get_engine_status`, `quant_get_market_snapshot`), authenticated bridge `view=engine` and an explicit Client card query share the SDK. Host environments other than Testnet return environment_mismatch without making a service request. Unload closes requests, not the independently running process. Existing REST candle/account/analysis paths are retained; partial ticker fields stay null. Private workspace packages become build-only dependencies and tsdown inlines their runtime. Packed outside-repository import validates closure but proves no Plugin Manager install/auth/upgrade behavior.
+
+Native `quant-execution` uses pinned stable NautilusTrader 1.231.0 for finite offline BacktestEngine simulations, with real accepted/fill/cancel/partial events, unique native IDs, run-local deduplication and dispose cleanup. Stationary L2 fixtures explicitly consume finite liquidity; they do not model historical replay. Only literal backtest is accepted. Live exchange adapter, durable uncertain-order recovery, complete final risk and TS REST cutover remain open; the existing direct-order authority drift is not resolved by adding offline native tests.
+
+Hooks encapsulate sensitive-path classification, redacted scanner execution and unchanged-index guarantees in one ESM TypeScript module; thin launchers delegate. Tests use isolated repositories. CI shares root SDK/tooling/full TS project checks; hosted CI and actual hook installation require separate evidence. Each new slice has independent ACCEPT, but full original MUST acceptance remains open. Current dependency-security status and aggregate execution receipts are tracked in Verify Gate rather than inferred from tests.
+
+### Security dependency override / tool subprocess correction
+
+The native package pins patched `fsspec==2026.6.0`; root `python/pyproject.toml` explicitly overrides Nautilus1.231.0's vulnerable exact2026.2.0 pin. Root uv lock is the required environment. Native Parquet catalog round-trip plus execution regressions scope compatibility; upstream metadata remains incompatible (`uv pip check` exits1, standalone pip rejects the conflict). This is an explicit security override, not a claim that all Nautilus APIs/remote filesystems are compatible. Revisit when upstream releases a patched compatible pin. Verify Gate owns final scan/test receipts.
+
+SDK Nx targets invoke installed root tools directly instead of nested package-manager switching. Bundle pack/SBOM subprocesses share `apps/dsh-plugin/scripts/pnpm-environment.ts`, hiding environment sanitation and workspace-root calculation. Two observed ENOEXEC gate failures drove this correction; fresh aggregate evidence is required rather than assuming scoped checks fix all callers.

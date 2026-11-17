@@ -4,12 +4,9 @@
  * division by zero, a missing field) fails here instead of blanking the slot in
  * the browser.
  *
- * React is not shipped with dsh, so point `BQ_REACT_MODULES` at a directory that
- * has `react` and `react-dom` installed; without it this test reports that it
- * was skipped. Example:
- *
- *   mkdir -p /tmp/bq-react && (cd /tmp/bq-react && npm i react@18 react-dom@18)
- *   BQ_REACT_MODULES=/tmp/bq-react/node_modules node test/render.ts
+ * React19 is a plugin build/test dependency; missing runtime fails this test.
+ * BQ_REACT_MODULES optionally selects a different installed runtime directory.
+ * SSR does not run effects: engine status must remain honestly unqueried.
  */
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -17,12 +14,7 @@ import { join } from 'node:path'
 import { assertDefined, installBundleLoader, type ClientSnapshot, type LoadedBundle, type PluginContext, type Registration, type ReactRuntime } from './client-fixtures.ts'
 
 const modules = process.env.BQ_REACT_MODULES
-if (modules === undefined) {
-  console.log('skipped: set BQ_REACT_MODULES to a node_modules directory with react and react-dom\n')
-  process.exit(0)
-}
-
-const require = createRequire(join(modules, 'noop.js'))
+const require = createRequire(modules === undefined ? import.meta.url : join(modules, 'noop.js'))
 const React = require('react') as ReactRuntime
 const { renderToStaticMarkup } = require('react-dom/server') as { renderToStaticMarkup(node: unknown): string }
 
@@ -173,6 +165,11 @@ assert.ok(populated.includes('aiTitle'), 'AI card title is missing')
 assert.ok(populated.includes('higher timeframe trend up'), 'AI thesis is missing')
 assert.ok(populated.includes('66.7'), 'AI hit rate is missing')
 assert.ok(populated.includes('0.21'), 'AI Brier score is missing')
+assert.ok(populated.includes('Quant engine / 量化引擎'), 'engine status card is missing')
+assert.ok(populated.includes('Linear Testnet'), 'engine environment/category label is missing')
+assert.ok(populated.includes('Not checked / 尚未检查'), 'SSR must not invent a completed engine request')
+assert.ok(populated.includes('account, reconciliation and execution readiness unknown'), 'unknown execution boundary is missing')
+assert.ok(!populated.includes('Unavailable / 无法连接'), 'SSR must not claim the unqueried engine is unavailable')
 
 const empty = render({ data: { ...snapshot({ withPosition: false }), klines: [], lastBacktest: null, lastSignal: null, ai: null }, error: null, at: 0 })
 assert.ok(empty.includes('noPositions'), 'empty paper book is not reported')
@@ -183,9 +180,11 @@ assert.ok(!empty.includes('NaN'), 'empty markup contains NaN')
 const failed = render({ data: null, error: 'HTTP 401', at: 0 })
 assert.ok(failed.includes('HTTP 401'), 'error detail is not shown')
 assert.ok(failed.includes('errorRoute'), 'error hint is not shown')
+assert.ok(failed.includes('Not checked / 尚未检查'), 'chart failure must not fabricate engine state')
+assert.ok(!failed.includes('Unavailable / 无法连接'), 'chart failure is not engine unavailability evidence')
 
 const loading = renderToStaticMarkup(React.createElement(Panel, { t: (key: string) => key }))
 assert.ok(loading.includes('bq-root'), 'loading state did not render')
 assert.ok(!loading.includes('NaN'), 'loading markup contains NaN')
 
-console.log('ok panel render: populated, empty, failed, and loading states\n')
+console.log('ok real React19 panel render: populated, empty, failed, loading, and honestly unqueried engine card (SSR effects do not run)\n')

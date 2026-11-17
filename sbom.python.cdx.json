@@ -491,6 +491,20 @@
       "version": "0.1.0"
     },
     {
+      "bom-ref": "bybit-quant-execution==0.1.0",
+      "description": "Offline native Nautilus execution foundation; no exchange connectivity",
+      "externalReferences": [
+        {
+          "comment": "PackageSource: Local",
+          "type": "distribution",
+          "url": "file:///Users/litlesnow/Desktop/Project/%E5%B9%BB%E6%96%B9%E9%87%8F%E5%8C%96/bybit-quant/python/packages/quant-execution"
+        }
+      ],
+      "name": "bybit-quant-execution",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
       "bom-ref": "certifi==2026.10.23",
       "description": "Python package for providing Mozilla's CA Bundle.",
       "externalReferences": [
@@ -913,6 +927,39 @@
       "purl": "pkg:pypi/fqdn@1.6.0",
       "type": "library",
       "version": "1.6.0"
+    },
+    {
+      "bom-ref": "fsspec==2026.6.0",
+      "description": "File-system specification",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Documentation",
+          "type": "documentation",
+          "url": "https://filesystem-spec.readthedocs.io/en/latest/"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Changelog",
+          "type": "release-notes",
+          "url": "https://filesystem-spec.readthedocs.io/en/latest/changelog.html"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://github.com/fsspec/filesystem_spec"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "fsspec",
+      "purl": "pkg:pypi/fsspec@2026.6.0",
+      "type": "library",
+      "version": "2026.6.0"
     },
     {
       "bom-ref": "h11==0.16.0",
@@ -1417,6 +1464,72 @@
       "version": "1.2.4"
     },
     {
+      "bom-ref": "msgspec==0.22.0",
+      "description": "A fast serialization and validation library, with builtin support for JSON, MessagePack, YAML, and TOML.",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Issue Tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/msgspec/msgspec/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Source",
+          "type": "other",
+          "url": "https://github.com/msgspec/msgspec"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://msgspec.dev"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "msgspec",
+      "purl": "pkg:pypi/msgspec@0.22.0",
+      "type": "library",
+      "version": "0.22.0"
+    },
+    {
+      "bom-ref": "nautilus_trader==1.231.0",
+      "description": "Production-grade Rust-native trading engine with deterministic event-driven architecture",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: docs",
+          "type": "documentation",
+          "url": "https://nautilustrader.io/docs"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Repository",
+          "type": "vcs",
+          "url": "https://github.com/nautechsystems/nautilus_trader"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://nautilustrader.io"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "LGPL-3.0-or-later"
+          }
+        }
+      ],
+      "name": "nautilus_trader",
+      "purl": "pkg:pypi/nautilus-trader@1.231.0",
+      "type": "library",
+      "version": "1.231.0"
+    },
+    {
       "bom-ref": "nodeenv==1.12.0",
       "description": "Node.js virtual environment builder",
       "externalReferences": [
@@ -1438,6 +1551,52 @@
       "purl": "pkg:pypi/nodeenv@1.12.0",
       "type": "library",
       "version": "1.12.0"
+    },
+    {
+      "bom-ref": "numpy==2.5.5",
+      "description": "Fundamental package for array computing in Python",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: download",
+          "type": "distribution",
+          "url": "https://pypi.org/project/numpy/#files"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: documentation",
+          "type": "documentation",
+          "url": "https://numpy.org/doc/"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: tracker",
+          "type": "issue-tracker",
+          "url": "https://github.com/numpy/numpy/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: source",
+          "type": "other",
+          "url": "https://github.com/numpy/numpy"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: release notes",
+          "type": "other",
+          "url": "https://numpy.org/doc/stable/release"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: homepage",
+          "type": "website",
+          "url": "https://numpy.org"
+        }
+      ],
+      "licenses": [
+        {
+          "acknowledgement": "declared",
+          "expression": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+        }
+      ],
+      "name": "numpy",
+      "purl": "pkg:pypi/numpy@2.5.5",
+      "type": "library",
+      "version": "2.5.5"
     },
     {
       "bom-ref": "opentelemetry-api==1.45.2",
@@ -1515,6 +1674,54 @@
       "purl": "pkg:pypi/packaging@26.3",
       "type": "library",
       "version": "26.3"
+    },
+    {
+      "bom-ref": "pandas==3.1.1",
+      "description": "Powerful data structures for data analysis, time series, and statistics",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: documentation",
+          "type": "documentation",
+          "url": "https://pandas.pydata.org/docs/"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/pandas-dev/pandas/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: source",
+          "type": "other",
+          "url": "https://github.com/pandas-dev/pandas"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: funding",
+          "type": "other",
+          "url": "https://opencollective.com/pandas"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: changelog",
+          "type": "release-notes",
+          "url": "https://pandas.pydata.org/docs/whatsnew/index.html"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: homepage",
+          "type": "website",
+          "url": "https://pandas.pydata.org"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "pandas",
+      "purl": "pkg:pypi/pandas@3.1.1",
+      "type": "library",
+      "version": "3.1.1"
     },
     {
       "bom-ref": "pip==26.3",
@@ -1735,6 +1942,54 @@
       "version": "1.7.0"
     },
     {
+      "bom-ref": "portion==2.6.3",
+      "description": "Python data structure and operations for intervals",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: documentation",
+          "type": "documentation",
+          "url": "https://github.com/AlexandreDecan/portion/blob/master/README.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/AlexandreDecan/portion/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: funding",
+          "type": "other",
+          "url": "https://github.com/sponsors/AlexandreDecan"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: changelog",
+          "type": "release-notes",
+          "url": "https://github.com/AlexandreDecan/portion/blob/master/CHANGELOG.md"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: repository",
+          "type": "vcs",
+          "url": "https://github.com/AlexandreDecan/portion"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: homepage",
+          "type": "website",
+          "url": "https://github.com/AlexandreDecan/portion"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "LGPL-3.0-or-later"
+          }
+        }
+      ],
+      "name": "portion",
+      "purl": "pkg:pypi/portion@2.6.3",
+      "type": "library",
+      "version": "2.6.3"
+    },
+    {
       "bom-ref": "psutil==7.2.2",
       "description": "Cross-platform lib for process and system monitoring.",
       "externalReferences": [
@@ -1805,6 +2060,44 @@
       "purl": "pkg:pypi/py-serializable@2.2.0",
       "type": "library",
       "version": "2.2.0"
+    },
+    {
+      "bom-ref": "pyarrow==26.0.1",
+      "description": "Python library for Apache Arrow",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: Documentation",
+          "type": "documentation",
+          "url": "https://arrow.apache.org/docs/python"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/apache/arrow/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Repository",
+          "type": "vcs",
+          "url": "https://github.com/apache/arrow"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Homepage",
+          "type": "website",
+          "url": "https://arrow.apache.org/"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "pyarrow",
+      "purl": "pkg:pypi/pyarrow@26.0.1",
+      "type": "library",
+      "version": "26.0.1"
     },
     {
       "bom-ref": "pydantic==2.14.3",
@@ -2033,6 +2326,44 @@
       "purl": "pkg:pypi/python-dateutil@4.0.0",
       "type": "library",
       "version": "4.0.0"
+    },
+    {
+      "bom-ref": "pytz==2026.6",
+      "description": "World timezone definitions, modern and historical",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata: Download-URL",
+          "type": "distribution",
+          "url": "https://pypi.org/project/pytz/"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/stub42/pytz/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: Source",
+          "type": "other",
+          "url": "https://github.com/stub42/pytz.git"
+        },
+        {
+          "comment": "from packaging metadata: Home-page",
+          "type": "website",
+          "url": "http://pythonhosted.org/pytz"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "pytz",
+      "purl": "pkg:pypi/pytz@2026.6",
+      "type": "library",
+      "version": "2026.6"
     },
     {
       "bom-ref": "referencing==0.37.0",
@@ -2470,6 +2801,42 @@
       "version": "1.2.0"
     },
     {
+      "bom-ref": "tqdm==4.70.1",
+      "description": "Fast, Extensible Progress Meter",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: wiki",
+          "type": "other",
+          "url": "https://github.com/tqdm/tqdm/wiki"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: changelog",
+          "type": "release-notes",
+          "url": "https://tqdm.github.io/releases"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: repository",
+          "type": "vcs",
+          "url": "https://github.com/tqdm/tqdm"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: homepage",
+          "type": "website",
+          "url": "https://tqdm.github.io"
+        }
+      ],
+      "licenses": [
+        {
+          "acknowledgement": "declared",
+          "expression": "MPL-2.0 AND MIT"
+        }
+      ],
+      "name": "tqdm",
+      "purl": "pkg:pypi/tqdm@4.70.1",
+      "type": "library",
+      "version": "4.70.1"
+    },
+    {
       "bom-ref": "typing-inspection==0.4.5",
       "description": "Runtime typing introspection tools",
       "externalReferences": [
@@ -2704,6 +3071,35 @@
       "version": "0.54.0"
     },
     {
+      "bom-ref": "uvloop==0.22.1",
+      "description": "Fast implementation of asyncio event loop on top of libuv",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: github",
+          "type": "vcs",
+          "url": "https://github.com/MagicStack/uvloop"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "name": "License :: OSI Approved :: Apache Software License"
+          }
+        }
+      ],
+      "name": "uvloop",
+      "purl": "pkg:pypi/uvloop@0.22.1",
+      "type": "library",
+      "version": "0.22.1"
+    },
+    {
       "bom-ref": "webcolors==25.10.0",
       "description": "A library for working with the color formats defined by HTML and CSS.",
       "externalReferences": [
@@ -2844,6 +3240,7 @@
       "dependsOn": [
         "pytest==9.2.0",
         "python-dateutil==4.0.0",
+        "pytz==2026.6",
         "tzdata==2026.6"
       ],
       "ref": "arrow==1.4.0"
@@ -2874,6 +3271,13 @@
         "websockets==15.0.1"
       ],
       "ref": "bybit-quant-engine==0.1.0"
+    },
+    {
+      "dependsOn": [
+        "fsspec==2026.6.0",
+        "nautilus_trader==1.231.0"
+      ],
+      "ref": "bybit-quant-execution==0.1.0"
     },
     {
       "ref": "certifi==2026.10.23"
@@ -2933,6 +3337,19 @@
     },
     {
       "ref": "fqdn==1.6.0"
+    },
+    {
+      "dependsOn": [
+        "numpy==2.5.5",
+        "pandas==3.1.1",
+        "pyarrow==26.0.1",
+        "pytest==9.2.0",
+        "requests==2.34.2",
+        "ruff==0.17.5",
+        "tqdm==4.70.1",
+        "urllib3==2.8.0"
+      ],
+      "ref": "fsspec==2026.6.0"
     },
     {
       "ref": "h11==0.16.0"
@@ -3031,9 +3448,36 @@
     },
     {
       "dependsOn": [
+        "tomli==2.5.0",
+        "tomli_w==1.2.0"
+      ],
+      "ref": "msgspec==0.22.0"
+    },
+    {
+      "dependsOn": [
+        "click==8.5.1",
+        "defusedxml==0.7.1",
+        "fsspec==2026.6.0",
+        "msgspec==0.22.0",
+        "numpy==2.5.5",
+        "pandas==3.1.1",
+        "portion==2.6.3",
+        "pyarrow==26.0.1",
+        "pytz==2026.6",
+        "tqdm==4.70.1",
+        "tzdata==2026.6",
+        "uvloop==0.22.1"
+      ],
+      "ref": "nautilus_trader==1.231.0"
+    },
+    {
+      "dependsOn": [
         "certifi==2026.10.23"
       ],
       "ref": "nodeenv==1.12.0"
+    },
+    {
+      "ref": "numpy==2.5.5"
     },
     {
       "dependsOn": [
@@ -3050,6 +3494,20 @@
     },
     {
       "ref": "packaging==26.3"
+    },
+    {
+      "dependsOn": [
+        "SQLAlchemy==2.1.8",
+        "fsspec==2026.6.0",
+        "lxml==6.1.3",
+        "numpy==2.5.5",
+        "pyarrow==26.0.1",
+        "pytest==9.2.0",
+        "python-dateutil==4.0.0",
+        "pytz==2026.6",
+        "tzdata==2026.6"
+      ],
+      "ref": "pandas==3.1.1"
     },
     {
       "dependsOn": [
@@ -3093,6 +3551,12 @@
     },
     {
       "dependsOn": [
+        "sortedcontainers==2.4.0"
+      ],
+      "ref": "portion==2.6.3"
+    },
+    {
+      "dependsOn": [
         "packaging==26.3",
         "pytest==9.2.0",
         "requests==2.34.2",
@@ -3105,6 +3569,9 @@
         "defusedxml==0.7.1"
       ],
       "ref": "py-serializable==2.2.0"
+    },
+    {
+      "ref": "pyarrow==26.0.1"
     },
     {
       "dependsOn": [
@@ -3137,6 +3604,7 @@
         "Pygments==2.21.0",
         "attrs==26.1.0",
         "iniconfig==2.3.1",
+        "numpy==2.5.5",
         "packaging==26.3",
         "pluggy==1.7.0",
         "requests==2.34.2",
@@ -3149,6 +3617,9 @@
         "tzdata==2026.6"
       ],
       "ref": "python-dateutil==4.0.0"
+    },
+    {
+      "ref": "pytz==2026.6"
     },
     {
       "dependsOn": [
@@ -3220,6 +3691,12 @@
     },
     {
       "dependsOn": [
+        "requests==2.34.2"
+      ],
+      "ref": "tqdm==4.70.1"
+    },
+    {
+      "dependsOn": [
         "typing_extensions==4.16.0"
       ],
       "ref": "typing-inspection==0.4.5"
@@ -3241,9 +3718,16 @@
         "click==8.5.1",
         "h11==0.16.0",
         "typing_extensions==4.16.0",
+        "uvloop==0.22.1",
         "websockets==15.0.1"
       ],
       "ref": "uvicorn==0.54.0"
+    },
+    {
+      "dependsOn": [
+        "psutil==7.2.2"
+      ],
+      "ref": "uvloop==0.22.1"
     },
     {
       "ref": "webcolors==25.10.0"

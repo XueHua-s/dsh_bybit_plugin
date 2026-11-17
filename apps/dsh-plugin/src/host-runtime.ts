@@ -18,6 +18,7 @@
  * bundle imports nothing from the dsh installation and installs as a
  * dependency-free linked directory.
  */
+import { createEngine } from './lib/engine.js'
 import { BybitClient, normalizeCategory } from './lib/bybit.js'
 
 
@@ -109,7 +110,10 @@ function tool(definition: ToolSpec): ToolDefinition {
  * @param {Record<string, unknown>} [config]
  */
 export function createHostRuntime(ctx: PluginContext, config: Record<string, unknown> = {}) {
+  // Validate the service destination before resolving any legacy credential source.
+  const engine = createEngine(config)
   const settings = resolveSettings(config)
+  ctx.effect(() => () => engine.close(), 'bybit-quant: engine client shutdown')
   const runtimeMonitor = createRuntimeMonitor({ websocketEnabled: false })
   const client = new BybitClient({
     env: settings.env,
@@ -327,7 +331,7 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
     }
   }
 
-  return { ctx, tool, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, keyAccount, assertLiveAccount, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, tradableSymbols, aiTrack, aiLimits, aiSummary, preview }
+  return { ctx, tool, engine, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, keyAccount, assertLiveAccount, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, tradableSymbols, aiTrack, aiLimits, aiSummary, preview }
 }
 
 export type HostRuntime = ReturnType<typeof createHostRuntime>

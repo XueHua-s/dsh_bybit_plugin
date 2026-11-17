@@ -2,15 +2,19 @@
 name = "bybit-quant-workspace"
 version = "0.1.0"
 description = "uv workspace for the Bybit AI Quant data plane"
-requires-python = ">=3.12"
-dependencies = ["bybit-quant-data", "bybit-quant-engine"]
+requires-python = ">=3.12,<3.15"
+dependencies = ["bybit-quant-data", "bybit-quant-engine", "bybit-quant-execution"]
 
 [tool.uv]
 package = false
+# Security override: PYSEC-2026-4217; upstream Nautilus 1.231.0 pins vulnerable 2026.2.0.
+# See DESIGN_NAUTILUS_EXECUTION.md for tested scope and metadata incompatibility.
+override-dependencies = ["fsspec==2026.6.0"]
 
 [tool.uv.sources]
 bybit-quant-data = { workspace = true }
 bybit-quant-engine = { workspace = true }
+bybit-quant-execution = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]

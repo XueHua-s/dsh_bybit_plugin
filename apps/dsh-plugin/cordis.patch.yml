@@ -4,6 +4,8 @@
       config:
         # 'demo' uses Bybit demo-trading funds, 'testnet' the testnet, 'live' real money.
         env: testnet
+        # Independently operated read-only public linear Testnet engine.
+        engineBaseUrl: http://127.0.0.1:8765
         # Live order tools refuse every call while this stays false.
         allowLiveTrading: false
         # Explicitly enabled for the authorized Testnet account only.

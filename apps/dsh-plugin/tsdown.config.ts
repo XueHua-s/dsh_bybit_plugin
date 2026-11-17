@@ -10,7 +10,8 @@ export default defineConfig([
     format: 'esm',
     target: 'node22',
     platform: 'node',
-    unbundle: true,
+    // Private workspace packages must travel inside the linked DSH Bundle.
+    deps: { alwaysBundle: [/^@bybit-quant\//, 'openapi-fetch', 'ajv', 'fast-deep-equal', 'fast-uri', 'json-schema-traverse', 'require-from-string'] },
     sourcemap: true,
     clean: true,
     outDir: 'dist',

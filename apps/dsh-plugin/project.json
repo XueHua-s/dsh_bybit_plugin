@@ -2,13 +2,35 @@
   "name": "@bybit-quant/dsh-plugin",
   "sourceRoot": "apps/dsh-plugin/src",
   "targets": {
-    "build": { "command": "./apps/dsh-plugin/node_modules/.bin/tsdown -c apps/dsh-plugin/tsdown.config.ts", "outputs": ["{projectRoot}/dist"] },
-    "lint": { "command": "oxlint apps/dsh-plugin" },
-    "typecheck": { "command": "tsc -p apps/dsh-plugin/tsconfig.json --noEmit", "dependsOn": ["^build"] },
-    "typecheck:tests": { "command": "tsc -p apps/dsh-plugin/tsconfig.tests.json --noEmit" },
-    "test:unit": { "command": "node apps/dsh-plugin/test/signals.ts && node apps/dsh-plugin/test/ai.ts && node apps/dsh-plugin/test/client.ts && node apps/dsh-plugin/test/render.ts && node apps/dsh-plugin/test/network-endpoint.ts && node apps/dsh-plugin/test/oauth.ts && node apps/dsh-plugin/test/backup.ts && node apps/dsh-plugin/test/sandbox-output.ts && node apps/dsh-plugin/test/trust.ts" },
-    "test:network": { "command": "node apps/dsh-plugin/test/smoke.ts" },
-    "bundle:check": { "command": "node apps/dsh-plugin/scripts/check-bundle.ts" },
-    "security": { "command": "pnpm audit --audit-level high" }
+    "build": {
+      "command": "./apps/dsh-plugin/node_modules/.bin/tsdown -c apps/dsh-plugin/tsdown.config.ts",
+      "outputs": [
+        "{projectRoot}/dist"
+      ]
+    },
+    "lint": {
+      "command": "oxlint apps/dsh-plugin"
+    },
+    "typecheck": {
+      "command": "tsc -p apps/dsh-plugin/tsconfig.json --noEmit",
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "typecheck:tests": {
+      "command": "tsc -p apps/dsh-plugin/tsconfig.tests.json --noEmit"
+    },
+    "test:unit": {
+      "command": "node apps/dsh-plugin/test/signals.ts && node apps/dsh-plugin/test/ai.ts && node apps/dsh-plugin/test/client.ts && node apps/dsh-plugin/test/render.ts && node apps/dsh-plugin/test/network-endpoint.ts && node apps/dsh-plugin/test/oauth.ts && node apps/dsh-plugin/test/backup.ts && node apps/dsh-plugin/test/sandbox-output.ts && node apps/dsh-plugin/test/trust.ts && node apps/dsh-plugin/test/engine.ts"
+    },
+    "test:network": {
+      "command": "node apps/dsh-plugin/test/smoke.ts"
+    },
+    "bundle:check": {
+      "command": "node apps/dsh-plugin/scripts/check-bundle.ts"
+    },
+    "security": {
+      "command": "pnpm audit --audit-level high"
+    }
   }
 }

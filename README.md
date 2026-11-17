@@ -2,7 +2,7 @@
 
 Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains the `quant-data` package and the independent read-only `quant-engine` market service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a read-only web panel.
 
-The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. The DSH panel still uses REST polling. Generated TypeScript SDK/DSH integration, Nautilus as sole execution authority, the full quant/AI/research platform, Plugin Manager upgrade preservation, and real OAuth remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
+The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Nautilus as sole exchange execution authority, the full quant/AI/research platform, Plugin Manager upgrade preservation, and real OAuth remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
 ## Install the Bundle
 
@@ -22,6 +22,7 @@ The Bundle patch inserts the `@bybit-quant/dsh-plugin` Host row and defaults to 
 - `quant_signals`, `quant_backtest`, and `quant_watchlist` provide deterministic indicators, long-only backtests, and an exchange-verified symbol list.
 - `quant_paper` operates a local simulated USDT book.
 - `quant_brief`, `quant_decide`, and `quant_review` build a market brief, apply code-side limits to an AI proposal, journal the decision, and score completed decisions.
+- `quant_get_engine_status` and `quant_get_market_snapshot` read independent engine facts through the generated SDK; market readiness never implies account or execution readiness.
 - `bybit_trade` previews or sends an order only after every configured safety check passes.
 
 Backtests are single-asset and long-only. They do not model leverage, funding, or profitability guarantees.
@@ -30,7 +31,7 @@ Backtests are single-asset and long-only. They do not model leverage, funding, o
 
 The Bundle defaults to `env: testnet`, `allowLiveTrading: false`, `allowTestnetTrading: true`, and a 24 USDT per-order notional ceiling. Mainnet is disabled by default. A real order also requires credentials, the correct environment switch, `confirm: "LIVE"`, and `dryRun: false`; account identity, balance, instrument precision, notional, and risk limits are checked in code. `allowMainAccount` is an additional explicit guard for a main-account key. Testnet authorization never authorizes Mainnet activity.
 
-The panel never places orders. It uses the authenticated DSH bridge and REST polling; it does not add an unauthenticated route.
+The panel never places orders. It uses the authenticated DSH bridge for REST views and demand-driven engine checks. The Python service itself remains loopback-only without authentication; authenticated remote access is not implemented.
 
 ## Testnet OAuth
 
@@ -51,11 +52,13 @@ Before clicking **Authorize**, review the agent name and requested scopes in Byb
 apps/dsh-plugin/       DSH Host, browser client, tools, scripts, tests
 python/packages/quant-data/  Alembic data package
 packages/ts/quant-contracts/ Shared market DTOs
+packages/ts/quant-api-client/ Generated engine SDK + runtime validation
+python/packages/quant-execution/ Offline native Nautilus foundation
 python/apps/quant-engine/   Independent read-only Testnet service
 sdd/                   Brainstorm, Define, Design, and evidence reports
 ```
 
-`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, and `quant-engine` as independent projects.
+`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, `@bybit-quant/quant-api-client`, `quant-execution`, and `quant-engine` as independent projects.
 
 ## Development and verification
 
@@ -66,6 +69,10 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm bundle:check
+pnpm sdk:check
+pnpm sdk:test
+pnpm typecheck:tooling
+pnpm test:tooling
 pnpm python:lint
 pnpm python:typecheck
 pnpm python:test
@@ -84,7 +91,15 @@ uv sync --project python --locked
 uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 ```
 
-The loopback-only service exposes read-only `/api/v1/health` and `/api/v1/market/{symbol}` at `127.0.0.1:8765`. It uses no credentials or order APIs. Health readiness describes fresh market ingestion; execution/reconciliation remain unknown. Partial ticker updates retain null fields. See the [engine runbook](docs/runbooks/engine-service.md) for readiness, shutdown, Nx commands and offline OpenAPI verification. The service is not yet connected to DSH through a generated TypeScript SDK.
+The loopback-only service exposes read-only `/api/v1/health` and `/api/v1/market/{symbol}` at `127.0.0.1:8765`. It uses no credentials or order APIs. Health readiness describes fresh market ingestion; execution/reconciliation remain unknown. Partial ticker updates retain null fields. See the [engine runbook](docs/runbooks/engine-service.md) for readiness, shutdown, Nx commands and offline OpenAPI verification. DSH defaults `engineBaseUrl` to `http://127.0.0.1:8765`; only numeric loopback HTTP origins are accepted. The two engine tools and authenticated `?view=engine` bridge view use this SDK. The panel offers an explicit engine check, with no background polling; unloading DSH cancels its requests while the independent process continues. Partial prices stay null and failures use bounded safe codes.
+
+## Offline native execution and verification limits
+
+`uv run --project python --locked pytest python/packages/quant-execution/tests -q` runs actual NautilusTrader 1.231.0 `BacktestEngine` fixtures, including market fills, resting cancellation and partial fill then cancellation. Only literal `backtest` is accepted by this package. It provides no live/Testnet executor, durable order recovery or complete final risk engine; the existing TS REST order path has not yet been cut over to Nautilus.
+
+Use the locked root `uv` workspace for native tests. It explicitly overrides fsspec to patched2026.6.0 while Nautilus1.231.0 still declares an exact2026.2.0 pin. The patched environment passes vulnerability scanning and compatibility fixtures, but `uv pip check` reports that declared mismatch and standalone pip resolution rejects it; metadata compatibility is not claimed.
+
+The generated SDK, DSH integration, native foundation and Git hooks have independent scoped ACCEPT reviews. Real React 19 server rendering runs without a skip; browser visuals, interaction, installed Harness authentication/upgrade and hosted CI remain unverified. Packed archive import proves bundle closure, not official installation. See the [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md) for current aggregate/security outcomes; a dependency scan finding must not be treated as green because scoped tests pass.
 
 ## State and credentials
 

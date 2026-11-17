@@ -90,9 +90,10 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
     }
 
     /** Diagnostics the panel's error state and a human can read. */
-    function health() {
+    async function health(request: Request) {
       return {
         ok: true,
+        engine: await runtime.engine.status(request.signal),
         version: VERSION,
         env: client.env,
         tradingBase: client.tradingBase,
@@ -107,7 +108,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         credentialsSource: settings.credentialsSource,
         paperStartingBalanceUsd: settings.paperBalanceUsd,
         tools: [
-          'bybit_market', 'bybit_account', 'bybit_trade', 'bybit_instruments', 'quant_backtest', 'quant_paper',
+          'quant_get_engine_status', 'quant_get_market_snapshot', 'bybit_market', 'bybit_account', 'bybit_trade', 'bybit_instruments', 'quant_backtest', 'quant_paper',
           'quant_watchlist', 'quant_signals', 'quant_brief', 'quant_decide', 'quant_review',
         ],
         ai: { startEquityUsd: settings.aiStartEquity, riskPerTradePct: settings.aiRiskPerTradePct, maxOpenPositions: settings.aiMaxOpenPositions },
@@ -127,9 +128,14 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
       path: PANEL_PATH,
       methods: ['GET', 'HEAD'],
       requestBody: 'buffered',
-      fetch: (request) => {
+      fetch: async (request) => {
         const view = new URL(request.url, 'http://localhost').searchParams.get('view')
-        return view === 'health' ? Response.json(health()) : snapshot(request)
+        if (view === 'engine') {
+          const symbol = new URL(request.url).searchParams.get('symbol')
+          if (symbol !== null && !/^[A-Z0-9]{2,32}$/.test(symbol)) return Response.json({ ok: false, code: 'invalid_arguments' }, { status: 400 })
+          return Response.json(symbol === null ? await runtime.engine.status(request.signal) : await runtime.engine.market(symbol, request.signal))
+        }
+        return view === 'health' ? Response.json(await health(request)) : snapshot(request)
       },
     }), 'bybit-quant: panel route')
 

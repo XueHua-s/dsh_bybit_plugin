@@ -10,24 +10,31 @@
   "scripts": {
     "build": "nx run @bybit-quant/dsh-plugin:build",
     "bundle:check": "nx run @bybit-quant/dsh-plugin:bundle:check",
-    "typecheck": "nx run @bybit-quant/dsh-plugin:typecheck",
+    "typecheck": "nx run-many -t typecheck --projects=@bybit-quant/dsh-plugin,@bybit-quant/quant-api-client,@bybit-quant/quant-contracts",
     "typecheck:tests": "nx run @bybit-quant/dsh-plugin:typecheck:tests",
-    "lint": "nx run @bybit-quant/dsh-plugin:lint",
+    "lint": "nx run-many -t lint --projects=@bybit-quant/dsh-plugin,@bybit-quant/quant-api-client && oxlint scripts packages/ts/quant-contracts",
     "test:unit": "nx run @bybit-quant/dsh-plugin:test:unit",
-    "verify": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm bundle:check",
+    "verify": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm bundle:check && pnpm sdk:check && pnpm sdk:test && pnpm typecheck:tooling && pnpm test:tooling",
     "sbom": "COREPACK_ENABLE_PROJECT_SPEC=0 COREPACK_ENABLE_AUTO_PIN=0 node apps/dsh-plugin/scripts/sbom.ts",
     "security:deps": "pnpm audit --audit-level high && uv run --project python --locked pip-audit --skip-editable",
     "python:lint": "uv run --project python --locked ruff check python/packages python/apps && uv run --project python --locked ruff format --check python/packages python/apps",
     "python:typecheck": "uv run --project python --locked pyright python/packages python/apps",
     "python:test": "uv run --project python --locked pytest python/packages python/apps",
     "db:upgrade": "uv run --project python --locked python -m quant_data.migrations",
-    "nx": "nx"
+    "nx": "nx",
+    "sdk:generate": "nx run @bybit-quant/quant-api-client:generate",
+    "sdk:check": "nx run @bybit-quant/quant-api-client:generate:check",
+    "sdk:test": "nx run @bybit-quant/quant-api-client:test",
+    "typecheck:tooling": "tsc -p scripts/tsconfig.json",
+    "test:tooling": "node scripts/test-git-hooks.ts"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^7.0.1",
     "nx": "^24.0.6",
     "oxlint": "^1.94.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/node": "^22.20.5"
   },
-  "packageManager": "pnpm@12.6.0"
+  "packageManager": "pnpm@12.6.0",
+  "type": "module"
 }

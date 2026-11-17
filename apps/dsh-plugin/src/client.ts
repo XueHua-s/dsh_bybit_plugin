@@ -1,3 +1,4 @@
+import { enginePanel } from './client-engine.js'
 type ReactRuntime = typeof import('react')
 import type { AiView, CurvePoint, PanelContext, PanelPayload, PanelProps, SnapshotInitial, Translate } from './client-types.js'
 
@@ -26,6 +27,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const h = React.createElement
+    const EnginePanel = enginePanel(React)
     const { useCallback, useEffect, useMemo, useState } = React
 
     /** Dictionary namespace owned by this plugin. */
@@ -299,6 +301,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'bq-hint' }, t('errorRoute')),
         ),
 
+        h(EnginePanel),
         h('div', { className: 'bq-controls' },
           h('div', { className: 'bq-field' },
             h('label', { className: 'bq-label', htmlFor: 'bq-symbol' }, t('symbol')),

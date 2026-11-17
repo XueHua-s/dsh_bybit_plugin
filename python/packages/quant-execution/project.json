@@ -1,0 +1,10 @@
+{
+  "name": "quant-execution",
+  "sourceRoot": "python/packages/quant-execution/src",
+  "targets": {
+    "lint": {"command": "uv run --project python --locked ruff check python/packages/quant-execution"},
+    "typecheck": {"command": "uv run --project python --locked pyright python/packages/quant-execution"},
+    "test": {"command": "uv run --project python --locked pytest python/packages/quant-execution/tests"},
+    "build": {"command": "uv build --project python/packages/quant-execution --out-dir /tmp/bybit-quant-execution-dist"}
+  }
+}

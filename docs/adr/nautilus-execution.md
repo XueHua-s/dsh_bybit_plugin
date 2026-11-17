@@ -10,7 +10,15 @@
 
 已读取 `apps/dsh-plugin/src/host-tools-trade.ts`：create/close 直接调用 TS `client.createOrder`，cancel/cancel_all 直接调用 `client.cancelOrder/cancelAll`，且以 `sent: true` 返回请求结果。这些路径是待消除的第二执行入口；本次文档修改没有改变运行行为，当前 drift 仍存在。迁移必须一次切断全部四个 mutation 分支，保留预览 UX 但将执行校验移入 Python 权威边界。撤单不应误要求开仓余额，但仍必须校验环境、账户身份、订单归属和授权。
 
-## 实际固定的上游与版本边界
+## 当前采用版本：稳定版 1.231.0（追加兼容性决策）
+
+**下一切片采用 `nautilus_trader==1.231.0`，保留 Python3.12，不为 2.x RC 升级运行时。** 官方 tag `v1.231.0` peeled commit `27a8e54e7ac3c57d6cbf8891f0283dfbaee97317` 已实际浅克隆读取；PyPI JSON 与已下载 macOS wheel 的 METADATA 均要求 `>=3.12,<3.15`。本机 macOS27.3 ARM64 与实际 `cp312-cp312-macosx_26_0_arm64` tag 下限匹配；LinuxCI 有 `manylinux_2_35_x86_64`/aarch64 wheel 元数据。未安装、未 import，兼容性仍需真实 smoke。
+
+权威 stable API 为 `BybitExecClientConfig`、`BybitLiveDataClientFactory`、`BybitLiveExecClientFactory`、`TradingNode(config=TradingNodeConfig(...))`；经 `node.add_data_client_factory` / `add_exec_client_factory` 注册后 `node.build()`。`LiveExecEngineConfig(reconciliation=True, ...)` 控制对账。Sandbox 使用 `SandboxExecutionClientConfig` 与 `SandboxLiveExecClientFactory`，starting_balances 为字符串列表；Backtest 使用 `nautilus_trader.backtest.engine.BacktestEngine` 和 `nautilus_trader.backtest.models.FillModel`。**下文 2.x LiveNode、ExecutionClientConfig/Factory 示例仅保留研究历史，不作为所选 stable 的实现 API。**
+
+详见 [稳定版兼容性报告](../../sdd/reports/NAUTILUS_STABLE_COMPATIBILITY_2026-11-17.md)：固定源码文件/测试、实际 wheel SHA256/依赖、macOS文档与wheel tag差异、Demo/Testnet配置、Mock未知提交对账、Sandbox/Backtest事件验证计划。stable METADATA 许可为 `LGPL-3.0-or-later`，不能沿用 2.x `-only` 元数据；发行义务仍按实际产物复核。
+
+## 先前 2.x 开发线研究（历史证据，不采用其 API）
 
 只读研究缓存 `/tmp/bybit-nautilus-research`；成功的 `git clone --depth 1 https://github.com/nautechsystems/nautilus_trader.git /tmp/bybit-nautilus-research` 退出码 0；`git rev-parse HEAD` 退出码 0，输出 **`ee28bfe123738d379166b123f1e142e8697c4bfb`**。缓存未进入项目发行物，未运行上游代码、安装脚本或测试。
 
@@ -21,9 +29,9 @@
 - 2.x 源码要求 CPython `>=3.13,<3.16`；安装文档支持 Python 3.13–3.15。
 - 官方测试平台：Ubuntu 22.04+ x86_64/ARM64（glibc >=2.35），macOS 15+ ARM64，Windows Server 2022+ x86_64。其他平台的可运行性不能据此保证。
 - 当前项目 `python/pyproject.toml`、engine pyproject 要求 `>=3.12`，pyright/ruff 目标 3.12，已存在 `.venv/lib/python3.12`；`python/uv.lock` 和 `pnpm-lock.yaml` 未匹配 `nautilus`，site-packages 未找到 Nautilus 元数据。**没有已安装、已锁定或已兼容的 Nautilus 证据**。
-- 下一切片优先在隔离 Python 3.13 环境做 2.x Mock/Sandbox 适配，不触碰凭证和生产环境。先验证可下载 wheel 的确切 RC 版本、hash、ABI、平台和对应源码；再选择精确依赖 pin、更新 uv.lock/SBOM、Python range/CI/类型配置。不能直接锁浮动 `--pre`、nightly 或把此开发 SHA 宣称可上 Mainnet。若选择稳定 1.x，需要另一份对应 release SHA/API/平台审计，不能沿用本 ADR 的 2.x 事实。
+- **已被后续 stable 研究取代的提案**：此前建议 Python3.13/2.x Mock 切片未实施；现选择稳定 1.231.0 与 Python3.12，已完成独立源码和 wheel metadata 研究。仍需真实依赖锁/安装/执行验证，不允许浮动 `--pre`、nightly 或将开发 SHA 用作生产 pin。
 
-## 原生配置与工厂
+## 先前 2.x 原生配置与工厂（不可用于 1.231.0）
 
 实际读取 `python/nautilus_trader/adapters/bybit/__init__.py`、Rust Python bindings 与 `examples/live/bybit/exec_tester.py`，API 为：
 
@@ -79,11 +87,11 @@ Spot 和 Linear 均支持 Market/Limit、IOC/GTC/FOK 与条件订单；reduce-on
 
 应用 software-design-philosophy：当前该切片设计诊断 **5/10（8 项中 4 项未满足；评估，不是测试分数）**：失败项是实现变化会影响 callers（TS 直接持有 Bybit payload）、接口注释/生命周期保证不足、order ownership 决策未被单一模块隐藏、仅读边界不足以理解恢复语义。上面的执行 service 隐藏环境、授权、ID 与恢复知识；generated contract 消除重复知识，runtime 隐藏 Nautilus API。达到 10/10 仍需实现这些边界、注释和独立审查，不靠增加 pass-through wrapper 数量。
 
-## 不联网交易的验证设计
+## 验证设计（2.x 历史表面；stable 以追加报告为准）
 
 上游已实际读取：`python/tests/unit/adapters/sandbox/test_sandbox_factories.py`（`SandboxExecutionClientFactory` + `LiveNode.builder(..., Environment.SANDBOX).add_simulated_exec_client(...)`）、`python/tests/unit/backtest/test_fill_models.py`（BacktestNode/FillModel）、`crates/adapters/bybit/tests/integration/exec_client.rs` 的 Mock venue Demo cancel-confirm 测试（含 partial fill），及 `tests/common/mock_venue.rs` 文件存在性。这说明存在可用测试表面，不代表这些测试本次运行或通过。
 
-下一 Verify Gate 必须在隔离环境真实运行：Python 3.13 wheel import/factory smoke；Sandbox submit/partial fill/cancel 与累计数量；Mock Bybit adapter 断线/重复事件、timeout→reconcile→禁止重复下单、cancel ack 未确认、启动未完成对账；spot/linear 精度和 reduce-only；Testnet/Demo URL/凭证引用隔离；Mainnet fail-closed；TS Tool 全部 mutation 只访问本地 API；OpenAPI regeneration 无 diff；Nx build/typecheck/test；secret scan、漏洞扫描与双语言 SBOM。CI 默认禁网并无凭证，必要外部 Demo/Testnet E2E 是单独授权的人工 gate。使用 Sandbox 不可声称已通过真实 Bybit E2E 或盈利验证。
+下一 Verify Gate 必须按追加 stable 报告在隔离环境真实运行：Python 3.12 + 1.231.0 wheel import/factory smoke；Sandbox submit/partial fill/cancel 与累计数量；Mock Bybit adapter 断线/重复事件、timeout→reconcile→禁止重复下单、cancel ack 未确认、启动未完成对账；spot/linear 精度和 reduce-only；Testnet/Demo URL/凭证引用隔离；Mainnet fail-closed；TS Tool 全部 mutation 只访问本地 API；OpenAPI regeneration 无 diff；Nx build/typecheck/test；secret scan、漏洞扫描与双语言 SBOM。CI 默认禁网并无凭证，必要外部 Demo/Testnet E2E 是单独授权的人工 gate。使用 Sandbox 不可声称已通过真实 Bybit E2E 或盈利验证。
 
 ## LGPL 发行边界
 
@@ -95,4 +103,4 @@ Spot 和 Linear 均支持 Market/Limit、IOC/GTC/FOK 与条件订单；reduce-on
 
 真实命令记录：初次 sandbox clone 因 DNS 失败退出 128；经网络权限重试 clone 退出 0；rev-parse/read/ripgrep 取证成功（`rg` 无匹配为退出 1，不能理解为已安装）；旧 SHA fetch 404；未执行第三方代码、未安装依赖、未访问 credentials、未发订单、未提交或推送。`git diff --check -- docs/research/github-repository-audit.md docs/adr/nautilus-execution.md` 退出码 0；新增 ADR 另用 trailing-whitespace 检查（未跟踪文件不计入普通 git diff）。
 
-未完成：确切发布 wheel/源码对应关系与 hash、1.x 稳定方案比较、平台本机 smoke、线程桥与事件 hook 具体 release API 验证、凭证 provider 注入方式、完整 rate-limit/retry 策略与 ID 限制、持久化/DB migration、全套恢复验证、供应链与发行许可审查、Demo/Testnet E2E。上述缺口保持 pending；不能据研究笔记把执行/实盘 gate 改为 PASS。
+后续报告已补齐 stable 选择、macOS wheel hash 与五个 Python 文件源码对应证据；仍未完成：完整 native wheel 可重现构建证明、平台本机 smoke、线程桥与事件 hook 具体 release API 验证、凭证 provider 注入方式、完整 rate-limit/retry 策略与 ID 限制、持久化/DB migration、全套恢复验证、供应链与发行许可审查、Demo/Testnet E2E。上述缺口保持 pending；不能据研究笔记把执行/实盘 gate 改为 PASS。
