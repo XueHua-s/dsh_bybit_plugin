@@ -1,12 +1,20 @@
 # Verify Gate Evidence — 2026-11-17
 
-## Local risk / command ledger increment — 2026-11-17 (verified scoped, overall PARTIAL)
+## Published risk / command ledger increment — 2026-11-17 (verified scoped, overall PARTIAL)
 
-Published baseline is `566092aa8ace2aff354469e8d01638e0bcfdd7d7`.
-Parent verified [hosted CI44077034140](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44077034140)
-completed successfully for both verify and public Testnet jobs. The following
-local risk/ledger delta is **not committed or pushed** and has no new hosted CI
-receipt. Older receipts below retain their historical source/count scope.
+Code `411de43f07984f8d2af163c6e95abd53c3d98dc9`
+(`feat: add deterministic risk and durable command ledger`) was committed and
+pushed. Actual pre-commit0 and pre-push0 (213 tests in6.88s), push0, and exact
+`git ls-remote` SHA match were verified by parent. [Hosted CI44081030699](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44081030699)
+completed **success** for that exact code SHA; `gh run watch` exited0 and parent
+inspected all jobs and steps: blocking verify, four Python projects, risk wheel,
+schema, dependency/SBOM/history scans all passed; nonblocking public Testnet job
+also succeeded. PR1 remains draft; no merge, deployment or order is claimed.
+
+Earlier published baseline566092a/CI44077034140 is historical. This four-file
+documentation follow-up is separate and is **not covered** by code411de43's CI;
+parent will commit/push it after checks and watch its exact-SHA CI. Older local
+receipts below retain their exact source/count scope.
 
 | Check | Command / method | Exit | Evidence / limits |
 |---|---|---:|---|
