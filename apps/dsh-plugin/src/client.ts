@@ -1,4 +1,5 @@
 import { enginePanel } from './client-engine.js'
+import { paperPanel } from './client-paper.js'
 type ReactRuntime = typeof import('react')
 import type { AiView, CurvePoint, PanelContext, PanelPayload, PanelProps, SnapshotInitial, Translate } from './client-types.js'
 
@@ -16,8 +17,7 @@ declare global {
  * Contributes a "Bybit" row to the sidebar and a global main panel that polls
  * the Host's authenticated bridge route (`/api/bybit-quant`): live ticker,
  * candles with two SMAs, the simulated paper book, and the last backtest. The
- * panel is read-only by design; acting on a view is the agent's job through the
- * plugin's tools, so no browser path can move money.
+ * native synthetic paper card separately offers explicit Host-authorized controls.
  */
 import { CSS, en, zh } from './client-assets.js'
 import { axisPrice, fmtBarTime, fmtPct, fmtPrice, fmtQty, fmtUsd, sma, tone } from './client-format.js'
@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const EnginePanel = enginePanel(React)
+    const PaperPanel = paperPanel(React)
     const { useCallback, useEffect, useMemo, useState } = React
 
     /** Dictionary namespace owned by this plugin. */
@@ -302,6 +303,7 @@ window.__ModuleLoader__.load({
         ),
 
         h(EnginePanel),
+        h(PaperPanel),
         h('div', { className: 'bq-controls' },
           h('div', { className: 'bq-field' },
             h('label', { className: 'bq-label', htmlFor: 'bq-symbol' }, t('symbol')),

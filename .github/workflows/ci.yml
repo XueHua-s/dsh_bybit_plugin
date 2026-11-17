@@ -44,6 +44,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv sync --project python --locked --all-groups
       - run: pnpm run verify
+      - name: Built Host to native internal-paper process
+        run: pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache
       - run: pnpm run typecheck:tests
       - run: pnpm exec nx run-many -p quant-data quant-engine quant-execution quant-risk -t lint typecheck test --parallel=1
       - run: pnpm exec nx run quant-risk:build

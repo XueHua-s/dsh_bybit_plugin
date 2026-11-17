@@ -19,6 +19,7 @@
  * dependency-free linked directory.
  */
 import { createEngine } from './lib/engine.js'
+import { createPaperEngine } from './lib/engine-paper.js'
 import { BybitClient, normalizeCategory } from './lib/bybit.js'
 
 
@@ -66,19 +67,19 @@ type PluginLogger = { info(message: string): void, warn?(message: string): void,
 type WebRoute = {
   path: string
   methods: string[]
-  requestBody: 'buffered'
+  requestBody: 'buffered' | 'streaming'
   fetch(request: Request): Response | Promise<Response>
 }
 type WebContext = {
-  effect(effect: () => void | (() => void), label?: string): void
-  connection: { fetch: { register(route: WebRoute): void | (() => void) } }
+  effect(effect: () => void | (() => void | Promise<void>), label?: string): void
+  connection: { fetch: { register(route: WebRoute): void | (() => void | Promise<void>) } }
 }
 export type PluginContext = {
   logger?(name: string): PluginLogger | undefined
   credentials?: { resolve(name: string): Promise<{ value?: string } | undefined> }
   systemPrompt: { section(section: { name: string, order: number, text: string }): void }
   tools: { register(definition: ToolDefinition): void }
-  effect(effect: () => void | (() => void), label?: string): void
+  effect(effect: () => void | (() => void | Promise<void>), label?: string): void
   inject(dependencies: string[], callback: (context: WebContext) => void): void
 }
 
@@ -98,6 +99,7 @@ function tool(definition: ToolSpec): ToolDefinition {
     timeoutMs: TOOL_TIMEOUT_MS,
     ...definition.concurrent === true ? { isConcurrencySafe: () => true } : {},
     async execute(args, exec) {
+      if (args !== undefined && (args === null || typeof args !== 'object' || Array.isArray(args))) return { ok: false, code: 'invalid_arguments' }
       const value = await definition.run(args ?? {}, exec)
       return clean(value)
     },
@@ -111,8 +113,10 @@ function tool(definition: ToolSpec): ToolDefinition {
  */
 export function createHostRuntime(ctx: PluginContext, config: Record<string, unknown> = {}) {
   // Validate the service destination before resolving any legacy credential source.
+  const paper = createPaperEngine(config)
   const engine = createEngine(config)
   const settings = resolveSettings(config)
+  ctx.effect(() => () => paper.close(), 'bybit-quant: native paper client shutdown')
   ctx.effect(() => () => engine.close(), 'bybit-quant: engine client shutdown')
   const runtimeMonitor = createRuntimeMonitor({ websocketEnabled: false })
   const client = new BybitClient({
@@ -331,7 +335,7 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
     }
   }
 
-  return { ctx, tool, engine, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, keyAccount, assertLiveAccount, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, tradableSymbols, aiTrack, aiLimits, aiSummary, preview }
+  return { ctx, tool, engine, paper, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, keyAccount, assertLiveAccount, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, tradableSymbols, aiTrack, aiLimits, aiSummary, preview }
 }
 
 export type HostRuntime = ReturnType<typeof createHostRuntime>

@@ -1,6 +1,6 @@
 # Bybit AI Quant
 
-Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains the `quant-data` package and the independent read-only `quant-engine` market service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a read-only web panel.
+Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains `quant-data`, the independent read-only `quant-engine` market service and an optional native synthetic paper service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a web panel with read-only market views and explicit native-paper controls.
 
 The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Nautilus as sole exchange execution authority, the full quant/AI/research platform, Plugin Manager upgrade preservation, and real OAuth remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
@@ -23,6 +23,7 @@ The Bundle patch inserts the `@bybit-quant/dsh-plugin` Host row and defaults to 
 - `quant_paper` operates a local simulated USDT book.
 - `quant_brief`, `quant_decide`, and `quant_review` build a market brief, apply code-side limits to an AI proposal, journal the decision, and score completed decisions.
 - `quant_get_engine_status` and `quant_get_market_snapshot` read independent engine facts through the generated SDK; market readiness never implies account or execution readiness.
+- `quant_get_paper_status`, `quant_start_paper`, `quant_stop_paper`, `quant_submit_paper_order` and `quant_get_paper_command` address the separate native synthetic service; mutations require explicit paper configuration and default-off control opt-in.
 - `bybit_trade` previews or sends an order only after every configured safety check passes.
 
 Backtests are single-asset and long-only. They do not model leverage, funding, or profitability guarantees.
@@ -31,7 +32,7 @@ Backtests are single-asset and long-only. They do not model leverage, funding, o
 
 The Bundle defaults to `env: testnet`, `allowLiveTrading: false`, `allowTestnetTrading: true`, and a 24 USDT per-order notional ceiling. Mainnet is disabled by default. A real order also requires credentials, the correct environment switch, `confirm: "LIVE"`, and `dryRun: false`; account identity, balance, instrument precision, notional, and risk limits are checked in code. `allowMainAccount` is an additional explicit guard for a main-account key. Testnet authorization never authorizes Mainnet activity.
 
-The panel never places orders. It uses the authenticated DSH bridge for REST views and demand-driven engine checks. The Python service itself remains loopback-only without authentication; authenticated remote access is not implemented.
+The panel provides REST views and demand-driven engine checks through the authenticated DSH bridge. Its separate native-paper card offers manual status, Start and Stop for the configured synthetic session, with no browser order-submission route or background polling. Python services remain loopback-only; authenticated remote deployment is not implemented. Installed carrier authentication and browser interaction acceptance remain pending.
 
 ## Testnet OAuth
 
@@ -69,6 +70,7 @@ pnpm build
 pnpm lint
 pnpm typecheck
 pnpm test:unit
+pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache
 pnpm bundle:check
 pnpm sdk:check
 pnpm sdk:test
@@ -110,9 +112,9 @@ Risk approval grants no trading authority, and the ledger sends or automatically
 
 ## Continuous native internal paper
 
-An optional separate paper application is implemented. It receives a service capability through an inherited private file descriptor; engine-owned admission serializes real risk evaluation, durable commands and reservations before dispatch to Nautilus `TradingNode` in a spawned process. Only an explicit synthetic BTC fixture with finite depth and LIMIT commands is supported. The default market application retains its two read-only routes; paper has a separate `quant-paper.v1` OpenAPI contract and generated SDK.
+An optional separate paper application runs Nautilus `TradingNode` in a spawned process. Engine-owned admission serializes real risk evaluation, durable commands and reservations before native dispatch. It supports only an explicit synthetic BTC fixture with finite depth and LIMIT commands. The default market application retains its two read-only routes; paper has a separate `quant-paper.v1` OpenAPI contract and generated SDK. A private Unix broker provisions its in-memory capability to the DSH Host for a fixed session and origin; the independent trusted-launcher FD mode remains supported. No token is configured, passed in argv/environment, persisted to a file or exposed to the browser/model.
 
-Native runtime, optional service and SDK have independent scoped ACCEPT reviews. Actual built SDK→CLI→risk/store→native-process E2E passed, including later fills, stable identities, SDK-close independence and protected restart. Perpetual wallet/realized/unrealized/available equity and parent-death containment have independent evidence; the data layer also has final scoped ACCEPT with 43 tests and Alembic metadata consistency, and all 252 Python tests pass. Final formatting/typing, source cap, secret/history scans and exact-byte wheel/sdist license checks pass. These are scoped acceptances; the full product remains PARTIAL. It connects to no exchange, sends no exchange orders and performs no real trades. Existing DSH paper/trading tools have not been cut over to this control path. Full recovery, strategies, AI and isolated research remain incomplete. The [paper service runbook](docs/runbooks/paper-service.md) documents the actual CLI, private FD protocol and temporary database workflow. This increment is included in published code `b75d73c`.
+Native runtime, optional service and SDK have independent scoped ACCEPT reviews. The [DSH native-paper process receipt](sdd/reports/DSH_PAPER_PROCESS_E2E_2026-11-17.md) exercises the actual built Host→private broker→SDK→CLI→native process, including risk veto, native fills, original-identity recovery after an injected post-dispatch503, Host-close independence and bounded cleanup. The native-paper card has explicit Check/Start/Stop controls and a permanent synthetic/no-exchange identity; configuration and control default off. This blocking process target is a current working-tree check and does not create a hosted CI receipt. Installed Harness authentication, real browser interaction and official upgrade preservation remain pending. Legacy `quant_paper`, AI books and the TS exchange trading path remain separate; Nautilus-only exchange execution, TS write cutover, full recovery, strategies, AI and isolated research remain incomplete. The full product remains PARTIAL. The [paper service runbook](docs/runbooks/paper-service.md) provides the explicit temporary migrated-DB broker workflow and retained FD mode.
 
 ## License scope
 
@@ -120,7 +122,7 @@ The repository root license is MIT. `quant-execution` is a mixed-license package
 
 ## State and credentials
 
-Paper state and journals default to `$DSH_HOME/bybit-quant/state.json`. API credentials come from the DSH credential store, the documented environment variables, or a local permission-restricted file; they must never be committed, logged, or placed in the Bundle patch. The Python Alembic schema and backup helpers are development components and require an explicit environment and backup plan before use against durable data.
+Legacy paper state and journals default to `$DSH_HOME/bybit-quant/state.json`; native paper uses the explicitly selected migrated SQLite database and service-owned session. Exchange API credentials come from the DSH credential store, the documented environment variables, or a local permission-restricted file; they must never be committed, logged, or placed in the Bundle patch. The native-paper capability uses only private in-memory provisioning, with no exchange-credential fallback. The Python Alembic schema and backup helpers require an explicit environment and backup plan before use against durable data.
 
 ## Limitations
 

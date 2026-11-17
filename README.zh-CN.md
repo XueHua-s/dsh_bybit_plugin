@@ -1,6 +1,6 @@
 # Bybit AI Quant
 
-Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data` 数据包和 `quant-engine` 独立只读行情服务。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 决策账本，以及只读 Web 面板。
+Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data`、独立只读行情服务 `quant-engine` 和可选的原生合成 paper 服务。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 决策账本，以及包含原生 paper 控制卡的行情面板。
 
 仓库仍处于开发阶段。SDD 目标中的完整自主量化平台尚未完成：Python 引擎已有公共 Testnet WebSocket、有界队列与受监督的持续消费，可独立于 DSH 运行；DSH 已通过生成式、运行时校验的 TypeScript SDK 提供引擎工具和只读面板卡片，原有 candle/account/analysis 页面保留 REST。离线原生 Nautilus 基础已验证有限回测成交与撤单。交易所订单的 Nautilus 唯一执行权、完整量化/AI/研究平台、官方升级状态保留与真实 OAuth 仍未完成或未验证，详见[原始范围审计](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md)。
 
@@ -23,6 +23,7 @@ Bundle patch 会插入 `@bybit-quant/dsh-plugin` Host 行，并默认使用 `[TE
 - `quant_paper`：操作本地模拟 USDT 账户。
 - `quant_brief`、`quant_decide`、`quant_review`：构建行情简报，对 AI 提议执行代码侧限额，记录决策并评估已完成决策。
 - `quant_get_engine_status`、`quant_get_market_snapshot`：通过生成式 SDK 读取独立引擎事实；行情 ready 不等于账户或执行 ready。
+- `quant_get_paper_status`、`quant_start_paper`、`quant_stop_paper`、`quant_submit_paper_order`、`quant_get_paper_command`：访问独立原生合成服务；必须提供 paper 配置，控制默认关闭。
 - `bybit_trade`：只有全部安全检查通过后才会预览或发送订单。
 
 回测不包含杠杆、资金费，也不保证盈利。
@@ -31,7 +32,7 @@ Bundle patch 会插入 `@bybit-quant/dsh-plugin` Host 行，并默认使用 `[TE
 
 Bundle 默认配置为 `env: testnet`、`allowLiveTrading: false`、`allowTestnetTrading: true`，单笔名义额上限为 24 USDT。Mainnet 默认关闭。真实订单还必须同时满足凭证、环境开关、`confirm: "LIVE"` 和 `dryRun: false`，并通过账户身份、余额、交易规则、名义额和风控检查。主账户凭证还需要额外的 `allowMainAccount` 开关。Testnet 授权不等于 Mainnet 授权。
 
-面板只读，不发送订单。它通过已认证 DSH bridge 提供 REST 视图及按需引擎查询；Python 服务本身仍只绑定 loopback，没有实现认证远程访问。
+面板通过已认证 DSH bridge 提供 REST 视图及按需引擎查询。独立的原生 paper 卡片只为已配置的合成会话提供手动状态检查、Start 和 Stop，不提供浏览器下单路由，也不后台轮询。Python 服务仍只绑定 loopback，认证远程部署尚未实现；已安装载体的认证和真实浏览器交互仍待验证。
 
 ## Testnet OAuth
 
@@ -69,6 +70,7 @@ pnpm build
 pnpm lint
 pnpm typecheck
 pnpm test:unit
+pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache
 pnpm bundle:check
 pnpm sdk:check
 pnpm sdk:test
@@ -110,9 +112,9 @@ SDK、DSH 接线、原生执行与命令准入层均有独立限定范围 ACCEPT
 
 ## 持续运行的原生内部模拟盘
 
-当前新增可选的独立 paper 应用：通过继承的私有文件描述符接收服务 capability，由引擎串行执行真实风险评估、持久命令及风险预留，再交给独立子进程中的 Nautilus `TradingNode`。它仅支持显式合成的 BTC 有限深度 fixture 与 LIMIT 命令；默认行情应用仍只有两个只读路由，paper 使用单独的 `quant-paper.v1` OpenAPI 与生成式 SDK。
+可选的独立 paper 应用在子进程中运行 Nautilus `TradingNode`。引擎串行执行风险评估、持久命令和风险预留，再进行原生派发；只支持显式合成 BTC 有限深度 fixture 与 LIMIT 命令。默认行情应用仍只有两个只读路由，paper 使用独立的 `quant-paper.v1` OpenAPI 和生成式 SDK。私有 Unix broker 为 DSH Host 提供固定会话、固定 origin 的内存 capability；可信启动器的私有 FD 模式仍受支持。Token 不会出现在配置、argv、环境变量、文件、浏览器或模型参数中。
 
-原生运行时、可选服务和 SDK 已取得限定范围的独立 ACCEPT；真实构建 SDK→CLI→风险/持久层→原生子进程 E2E 通过，覆盖后续成交、稳定标识、SDK 关闭独立性与受保护重启。永续钱包/已实现和未实现盈亏、保守可用权益及父进程死亡清理已有独立验证；数据层最终 43 项测试和 Alembic 元数据一致性审查也已 ACCEPT；全 Python 252 项测试通过，最终格式/类型、源码上限、secret/history 扫描及 wheel/sdist 许可证逐字节核验均通过；这些是局部验收，完整产品仍为 PARTIAL。它未连接交易所、发送交易所订单或执行真实交易，现有 DSH 模拟/交易工具也尚未切换到该控制路径。完整恢复、策略、AI 与隔离研究仍未完成。实际 CLI、私有 FD 协议和临时数据库流程见[内部模拟盘运行手册](docs/runbooks/paper-service.md)；该增量已包含在发布代码 `b75d73c` 中。
+[DSH 原生 paper 进程回执](sdd/reports/DSH_PAPER_PROCESS_E2E_2026-11-17.md)验证了真实构建 Host→私有 broker→SDK→CLI→原生进程链路，包括风控否决、原生成交、注入的 post-dispatch503 后按原 request ID 恢复、Host 关闭独立性及有界清理。原生 paper 卡片提供明确的 Check/Start/Stop，固定标识为 synthetic/no-exchange，配置和控制默认关闭。该进程目标是当前工作树的阻塞检查，不构成托管 CI 回执。已安装 Harness 认证、真实浏览器交互和官方升级状态保留仍待验证；旧 `quant_paper`、AI 账本和 TS 交易路径保持独立，Nautilus 唯一交易所执行权、TS 写路径切换、完整恢复、策略、AI 和隔离研究仍未完成。完整产品仍为 PARTIAL。实际 CLI、broker 和临时数据库流程见[内部模拟盘运行手册](docs/runbooks/paper-service.md)。
 
 ## 许可证范围
 
@@ -120,7 +122,7 @@ SDK、DSH 接线、原生执行与命令准入层均有独立限定范围 ACCEPT
 
 ## 状态与凭证
 
-模拟盘状态和账本默认位于 `$DSH_HOME/bybit-quant/state.json`。API 凭证来自 DSH credential store、文档规定的环境变量或权限受限的本地文件；不得提交、记录或写入 Bundle patch。Python Alembic schema 与备份工具属于开发组件，连接持久化环境前必须确认环境并制定备份方案。
+旧模拟盘状态和账本默认位于 `$DSH_HOME/bybit-quant/state.json`；原生 paper 使用明确选定、已迁移的 SQLite 数据库和服务拥有的会话。交易所 API 凭证来自 DSH credential store、文档规定的环境变量或权限受限的本地文件；不得提交、记录或写入 Bundle patch。原生 paper capability 只通过私有内存 broker 提供，不回退到交易所凭证。Python Alembic schema 与备份工具属于开发组件，连接持久化环境前必须确认环境并制定备份方案。
 
 ## 限制
 

@@ -1,26 +1,49 @@
 # HANDOFF: BYBIT_AI_QUANT
 
-## Latest continuation — shutdown CI correction and next design
+## Latest continuation — DSH paper integration and local gates — 2026-11-17
 
-Documentation/governance `ed1aaa5511f2060a4ab0507e7e2e3292367259ff` was pushed,
-remote exact SHA verified and all252 pre-push Python tests passed. Its
-CI44091570414 FAILED: engine114pass/1fail on immediate descendant PID absence
-after SIGTERM; later schema/security/SBOM steps skipped. Code CI44089248505
-remains historical success, not an override of this failure.
+The current worktree integrates the DSH native-paper manifest items 19–25
+(package/Nx targets, blocking process CI step, nonsecret Cordis opt-in and
+English/Chinese runbooks) around the frozen broker, Host, UI, SDK and process
+E2E slices. The scoped integration receipt is
+`sdd/reports/BUILD_REPORT_DSH_PAPER_INTEGRATION.md`.
 
-Scoped test-observation repair has independent ACCEPT in
-`REVIEW_PAPER_SHUTDOWN_OBSERVATION_2026-11-17.md`: native reaping remains strict;
-stdlib tracker exit is separately bounded and identity-aware. Final independent
-process4/native11 and static checks pass; parent root verify0. Application source
-unchanged. Exact repaired commit/push/CI still pending. Full goal remains active.
+The latest local evidence is real command output for the current tree:
 
-Local, not-yet-committed `DESIGN_DSH_PAPER.md` specifies optional service-owned private Unix capability
-broker, Host controls and native-paper card. Independent design review is in
-progress; required SDK post-dispatch503 uncertainty, EOF framing and UI action
-rules are being clarified before Build. The local, not-yet-committed `NATIVE_TESTNET_CUTOVER_GAPS_2026-11-17.md`
-audits TS signed POST bypasses and native permission/valuation/report gaps;
-it is read-only evidence, not implemented Testnet execution. No source for those
-new features is implemented or accepted by this continuation yet.
+| Check | Command | Exit / result | Boundary |
+|---|---|---:|---|
+| Nx discovery | `pnpm exec nx show projects` | 0; 7 projects | Project discovery only; it does not certify hosted CI or installed DSH. |
+| Root Verify | `pnpm run verify` | 0 | Build/lint/typecheck/unit/Bundle/SDK/tooling checks; this is not the full original product gate. |
+| TypeScript test types | `pnpm typecheck:tests` | 0 | Strict test-source types only. |
+| Built Host → native-paper process | `pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache` | 0; uncached | Real temporary process/broker/SDK/CLI/native path; synthetic only, no exchange orders. |
+| Python lint | `pnpm python:lint` | 0 | Ruff and formatting checks. |
+| Python typecheck | `pnpm python:typecheck` | 0 | Pyright diagnostics are clean. |
+| Python tests | `pnpm python:test` | 0; 289 passed, 11 warnings | Warnings are retained; this is workspace test evidence, not product-wide acceptance. |
+| Dependency security | `pnpm run security:deps` | 0 | No known findings within the command's stated editable-package scope. |
+| TypeScript SBOM | `pnpm run sbom` | 0 | Generated SBOM scope only; it does not prove runtime or release acceptance. |
+
+These are current local receipts; no hosted CI result is inferred from them.
+The prior documentation/governance CI `44091570414` remains a historical failure
+(engine114 passed/1 failed on immediate descendant PID absence; later schema,
+security and SBOM steps were skipped) and is not reclassified. The earlier
+published code CI `44089248505` remains a separate historical success.
+
+The shutdown-observation repair has an independent ACCEPT in
+`REVIEW_PAPER_SHUTDOWN_OBSERVATION_2026-11-17.md`: native reaping remains
+strict while stdlib tracker exit is separately bounded and identity-aware.
+The final independent process4/native11 and static checks pass; the repaired
+commit/push/hosted CI receipt remains pending.
+
+Host and UI implementation still lack an independent post-build review receipt;
+their scoped build reports and local tests do not substitute for that review.
+Official Plugin Manager install/upgrade/uninstall in a disposable Harness
+profile, before/after user-state preservation, and real authenticated browser
+owner/cross-origin/non-owner interaction are still pending. The full original
+quant scope also remains pending: Nautilus as sole exchange authority, native
+Testnet and TS write-path cutover, complete recovery/reconciliation, strategies,
+AI, isolated research and the remaining dashboard/control requirements. No
+Mainnet action, credential access, managed-profile edit, merge or deployment is
+claimed.
 
 ## Ficha
 
@@ -28,7 +51,7 @@ new features is implemented or accepted by this continuation yet.
 |---|---|
 | Feature | BYBIT_AI_QUANT |
 | Objective | Complete the original architecture MUSTs through independently verified increments; a scaffold is not the product. |
-| Status | IN PROGRESS / PARTIAL. SDK/DSH/native/hooks accepted at published baseline; risk/command-ledger foundations independently ACCEPTED within scope and published with passing CI; new optional native paper/runtime/SDK have scoped ACCEPT and actual process E2E; data accounting/metadata43 ACCEPT and fullPython252 pass; final local gates/scans/artifact checks pass; paper code b75d73c published with passing CI. Declared Nautilus/fsspec metadata mismatch remains. |
+| Status | IN PROGRESS / PARTIAL. SDK/DSH/native/hooks accepted at published baseline; risk/command-ledger foundations independently ACCEPTED within scope and published with passing CI; native paper/runtime/SDK have scoped ACCEPT and actual process E2E; current local integration records root Verify0, testtypes0, uncached paper-process0, Python lint/typecheck0, Python289 passed/11 warnings, security0, SBOM0 and Nx discovery7. Host/UI independent implementation review, official Plugin Manager disposable lifecycle, real browser/auth and the full original quant scope remain pending. Declared Nautilus/fsspec metadata mismatch remains. |
 | Date | 2026-11-17 |
 | Branch / folder | `codex/bybit-ai-quant-sdd` · `/Users/litlesnow/Desktop/Project/幻方量化/bybit-quant` |
 | Historical risk/ledger code | `411de43f07984f8d2af163c6e95abd53c3d98dc9`, pushed; exact remote SHA verified. CI44081030699 both jobs successful with steps inspected. Earlier566092a/4360381/f535981 are historical. This documentation follow-up is not covered by that code CI. |
@@ -102,6 +125,7 @@ No credential/.env reads or logging; no managed Harness profile edits. Mainnet d
 - 2026-11-17: monorepo/service/SDK/DSH/native-backtest/hooks increments accepted and published across f535981,4360381,566092a; exact historical receipts retained in Verify Gate.
 - 2026-11-17: risk/ledger code411de43 published, exact remote match/hooks0/CI44081030699 both jobs passed; docs baseline605fe70 CI44081766003 both jobs passed. PR1 remains draft, no main merge/deployment/orders.
 - 2026-11-17: current paper increment adds separate native process, optional authenticated app, transactional reservations and separate schema/SDK. Review found and corrected spot/perpetual economic mismatch, marked available-equity ambiguity, expiry/protection and orphan cleanup. Current scoped evidence above supersedes only those reviewed gaps; full original MUSTs remain open.
+- 2026-11-17: current local manifest19–25 integration recorded root verify0, testtypes0, uncached paper-process0, Python289 passed/11 warnings, Python lint/typecheck0, security0, SBOM0 and Nx discovery7. Host/UI independent review, official disposable Plugin Manager lifecycle, real browser/auth and the full original quant scope remain pending; no hosted CI is inferred.
 - User already authorizes feature-branch commit/push after sdd-release checks; never force, infer deployment or edit managed Harness profiles.
 
 ## Setup / next tasks
@@ -118,7 +142,7 @@ CLI/privateFD/tempDB: `docs/runbooks/paper-service.md`, explicit separate app.
 Read `DESIGN_EXECUTION_CUTOVER.md`, `DESIGN_PAPER_{NATIVE,ADMISSION,SDK,WORKSPACE}.md`
 and `DESIGN_ADMISSION_STORE.md` under `sdd/features/` for current contracts.
 
-1. Continue from published paper code b75d73c / Draft PR1. All scoped local gates and hosted CI pass. Record this separate documentation/governance commit and its exact CI before continuing.
+1. Continue from published paper code b75d73c / Draft PR1 plus the current local manifest19–25 integration. The current local receipts above pass, but this documentation/governance delta has no hosted CI receipt yet. Read `.agents/skills/sdd-release/SKILL.md`, inspect the final diff and run the release checks before committing or pushing.
 2. Continue authenticated DSH paper controls, native Testnet and TS mutation cutover, then original strategy/AI/research/recovery MUSTs in dependency order. Design/manifest first, independent review before integration. Latest model rule is conditional: only if the primary is GPT-6 Astra, it coordinates and children use `model="gpt-6.1-sol"`, `reasoning_effort="xhigh"`, `fork_turns="none"`. For other primary models ignore that model-role rule; all project safety/quality requirements remain. No primary-model switch is claimed.
 3. Read `.agents/skills/sdd-release/SKILL.md` before commit/push; inspect diff/staging/secrets/history/baseline, never force or claim merge/deployment. No worktree cleanup without user instruction.
 
@@ -126,7 +150,7 @@ and `DESIGN_ADMISSION_STORE.md` under `sdd/features/` for current contracts.
 
 ```text
 Continue BYBIT_AI_QUANT in /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant, branch codex/bybit-ai-quant-sdd. Read sdd/handoffs/HANDOFF_BYBIT_AI_QUANT.md, AGENTS.md, DEFINE/main DESIGN, ORIGINAL_SCOPE_AUDIT_2026-11-17.md and VERIFY_GATE_2026-11-17.md first.
-Published paper codeb75d73cb677e4c7beef82c9182ef6c955568f455 / Draft PR https://github.com/XueHua-s/dsh_bybit_plugin/pull/1; CI44089248505 both jobs/steps succeeded, hooks/push0 and remote exact SHA verified. This documentation/governance follow-up is separate. Paper native/admission/SDK/data scoped ACCEPT and actual SDK→CLI→risk/store→native process E2E pass; Python252, SDK21, root/types/format/schema/security/SBOM/scanners/artifacts pass. Runbook launcher actually executed without orders. The full goal remains incomplete: DSH authenticated paper controls, native Testnet and TS REST mutation removal, full strategy/AI/research/replay/private state and official upgrade/provider OAuth remain open. Read scoped designs and reports before dependent code.
+Published paper codeb75d73cb677e4c7beef82c9182ef6c955568f455 / Draft PR https://github.com/XueHua-s/dsh_bybit_plugin/pull/1; CI44089248505 both jobs/steps succeeded, hooks/push0 and remote exact SHA verified. This documentation/governance follow-up is separate. Current local integration evidence: Nx discovery7, root verify0, testtypes0, uncached paper-process0, Python lint/typecheck0, Python289 passed/11 warnings, security0 and SBOM0. Paper native/admission/SDK/data scoped ACCEPT and actual SDK→CLI→risk/store→native process E2E pass. Host/UI independent implementation review, official Plugin Manager disposable install/upgrade/uninstall/state preservation, real browser/auth and the full original quant scope remain open. Read scoped designs and reports before dependent code.
 Inspect git status --short --branch. Setup: pnpm install --frozen-lockfile; uv sync --project python --locked. Gates: NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify; same prefix pnpm typecheck:tests; pnpm python:lint; pnpm python:typecheck; pnpm python:test; pnpm sdk:check; uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json --check; regenerate SBOMs/security/secret/line/diff. Record actual commands/exits. Loopback mocks need binding permission. Runbook docs/runbooks/engine-service.md defines service/readiness/shutdown. Root uv fsspec override2026.6.0 remains metadata-incompatible with Nautilus1.231.0 exact pin, deliberately retained for security.
 Do not read/print credentials, enable Mainnet, send unauthorized orders, edit managed profiles or apply user/target migrations. User authorizes feature-branch commit/push after sdd-release checks; inspect safe remote baseline, never force or claim deployment. No scaffold scope reduction. Latest AGENTS conditional rule: only when primary is GPT-6 Astra, keep it coordinating and use gpt-6.1-sol/xhigh/fork-none children. Other primary models ignore that model-role rule. No model switch is claimed; do not restore the superseded unconditional medium rule.
 ```

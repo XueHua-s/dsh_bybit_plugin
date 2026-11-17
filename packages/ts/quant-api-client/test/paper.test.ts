@@ -56,13 +56,31 @@ test('untrusted input rejects extra risk truth and invalid IDs before capability
 });
 
 test('actual HTTP semantics stay distinct and server diagnostics never leave SDK', async () => {
-  for (const [http, code] of [[401, 'authentication_required'], [403, 'forbidden'], [409, 'conflict'], [422, 'invalid_request'], [503, 'unavailable']] as const) {
+  for (const [http, code] of [[401, 'authentication_required'], [403, 'forbidden'], [409, 'conflict'], [422, 'invalid_request']] as const) {
     const result = await client(async () => json({ detail: 'private server diagnostic' }, http)).paper.submit(input);
     assert.deepEqual(result, { ok: false, code, status: http });
     assert.equal(JSON.stringify(result).includes('private'), false);
   }
   assert.deepEqual(await client(async () => json({ detail: 'unknown_command' }, 404)).paper.request('request-1'), { ok: false, code: 'not_found', status: 404 });
+  assert.deepEqual(await client(async () => json({ detail: 'paper_unavailable' }, 503)).paper.status(), { ok: false, code: 'unavailable', status: 503 });
   assert.equal((await client(async () => json({ detail: 'bad', extra: true }, 422)).paper.status()).ok, false);
+});
+
+test('503 after a mutation preserves uncertainty and original recovery without retry', async () => {
+  let calls = 0;
+  const api = client(async raw => {
+    calls++;
+    assert.equal((raw as Request).method, 'POST');
+    return json({ detail: 'paper_unavailable' }, 503);
+  });
+  const session = { environment: 'internal_paper', session_id: 'session-1' } as const;
+  const statusRecovery = { ok: false, code: 'outcome_uncertain', cause: 'unavailable', recovery: { action: 'query_status' } };
+  assert.deepEqual(await api.paper.start(session), statusRecovery);
+  assert.equal(calls, 1);
+  assert.deepEqual(await api.paper.stop(session), statusRecovery);
+  assert.equal(calls, 2);
+  assert.deepEqual(await api.paper.submit(input), { ok: false, code: 'outcome_uncertain', cause: 'unavailable', recovery: { action: 'query_request', request_id: input.request_id } });
+  assert.equal(calls, 3);
 });
 
 test('strict generated response boundary rejects extra fields, wrong schema and status', async () => {

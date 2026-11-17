@@ -6,6 +6,12 @@
         env: testnet
         # Independently operated read-only public linear Testnet engine.
         engineBaseUrl: http://127.0.0.1:8765
+        # Optional independent native synthetic paper service; see the paper runbook.
+        # All settings below are nonsecret. Configure through supported DSH controls.
+        # paperBaseUrl: http://127.0.0.1:8766
+        # paperSessionId: native-paper-demo
+        # paperCapabilitySocket: /private/tmp/bqp-UID/session.sock
+        # paperControlEnabled: false
         # Live order tools refuse every call while this stays false.
         allowLiveTrading: false
         # Explicitly enabled for the authorized Testnet account only.

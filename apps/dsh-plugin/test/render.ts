@@ -6,7 +6,7 @@
  *
  * React19 is a plugin build/test dependency; missing runtime fails this test.
  * BQ_REACT_MODULES optionally selects a different installed runtime directory.
- * SSR does not run effects: engine status must remain honestly unqueried.
+ * SSR does not run effects: engine and native paper remain honestly unqueried.
  */
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -170,6 +170,13 @@ assert.ok(populated.includes('Linear Testnet'), 'engine environment/category lab
 assert.ok(populated.includes('Not checked / 尚未检查'), 'SSR must not invent a completed engine request')
 assert.ok(populated.includes('account, reconciliation and execution readiness unknown'), 'unknown execution boundary is missing')
 assert.ok(!populated.includes('Unavailable / 无法连接'), 'SSR must not claim the unqueried engine is unavailable')
+assert.ok(populated.includes('Native internal paper / 原生内部模拟'), 'native-paper card is missing')
+assert.ok(populated.includes('Synthetic · no exchange connection'), 'native synthetic identity is missing')
+assert.ok(populated.includes('Separate from legacy paper/AI books and Linear Testnet.'), 'native/legacy/Testnet distinction is missing')
+assert.ok(populated.includes('source: quant-engine-paper · environment: internal_paper'), 'native-paper source/environment must be explicit')
+assert.match(populated, /<button[^>]*disabled=""[^>]*>Start paper \/ 启动模拟<\/button>/u, 'SSR must disable unqueried Start')
+assert.match(populated, /<button[^>]*disabled=""[^>]*>Stop paper \/ 停止模拟<\/button>/u, 'SSR must disable unqueried Stop')
+assert.ok(!populated.includes('Session / 会话:'), 'SSR must not invent native session state')
 
 const empty = render({ data: { ...snapshot({ withPosition: false }), klines: [], lastBacktest: null, lastSignal: null, ai: null }, error: null, at: 0 })
 assert.ok(empty.includes('noPositions'), 'empty paper book is not reported')
@@ -187,4 +194,4 @@ const loading = renderToStaticMarkup(React.createElement(Panel, { t: (key: strin
 assert.ok(loading.includes('bq-root'), 'loading state did not render')
 assert.ok(!loading.includes('NaN'), 'loading markup contains NaN')
 
-console.log('ok real React19 panel render: populated, empty, failed, loading, and honestly unqueried engine card (SSR effects do not run)\n')
+console.log('ok real React19 panel render: populated, empty, failed, loading, honestly unqueried engine/native-paper cards and disabled native controls (SSR effects do not run)\n')

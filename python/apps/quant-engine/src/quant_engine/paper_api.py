@@ -13,10 +13,17 @@ from quant_data.commands import LedgerConflict
 
 from .paper_admission import PaperAdmission, PaperUnavailable
 from .paper_api_models import CommandResponse, Opaque, PaperError, PaperStatus, SessionRequest, SubmitRequest
+from .paper_capability import PaperCapabilityBroker
 from .paper_config import Capability, PaperConfig
 
 
-def create_paper_app(config: PaperConfig, capability: Capability, *, service: PaperAdmission | None = None) -> FastAPI:
+def create_paper_app(
+    config: PaperConfig,
+    capability: Capability,
+    *,
+    service: PaperAdmission | None = None,
+    broker: PaperCapabilityBroker | None = None,
+) -> FastAPI:
     """Construct offline; lifespan owns a single explicit paper service and no market network."""
     if capability.session_id != config.session_id:
         raise ValueError("principal_scope_mismatch")
@@ -26,9 +33,15 @@ def create_paper_app(config: PaperConfig, capability: Capability, *, service: Pa
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await engine.open()
         try:
+            if broker is not None:
+                await broker.open()
             yield
         finally:
-            await engine.close()
+            try:
+                if broker is not None:
+                    await broker.close()
+            finally:
+                await engine.close()
 
     app = FastAPI(title="Bybit Quant Internal Paper", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
     bearer = HTTPBearer(auto_error=False)

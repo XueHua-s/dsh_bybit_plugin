@@ -38,8 +38,8 @@ function httpCode(status: number): ClientErrorCode {
 }
 
 function uncertain<T, S extends number>(result: PaperResult<T, S>, recovery: PaperUncertain['recovery']): PaperResult<T, S> | PaperUncertain {
-  // A missing/malformed response may follow a committed dispatch. Failures never authorize retry.
-  if (!result.ok && ['timeout', 'network_error', 'cancelled', 'closed', 'response_too_large', 'invalid_response', 'redirect_rejected'].includes(result.code)) {
+  // A missing/malformed response or 503 may follow a committed dispatch. Never retry.
+  if (!result.ok && ['timeout', 'network_error', 'cancelled', 'closed', 'response_too_large', 'invalid_response', 'redirect_rejected', 'unavailable'].includes(result.code)) {
     return { ok: false, code: 'outcome_uncertain', cause: result.code, recovery };
   }
   return result;

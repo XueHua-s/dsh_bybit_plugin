@@ -1,5 +1,42 @@
 # Verify Gate Evidence — 2026-11-17
 
+## Current DSH paper integration receipt — 2026-11-17 (local current tree)
+
+This section records the latest local evidence after integrating the DSH
+native-paper manifest items 19–25 around the frozen broker, Host, UI, SDK and
+process E2E slices. These are actual command results for the current worktree;
+they do not create a hosted CI receipt or upgrade the complete product beyond
+its scoped acceptance.
+
+| Check | Actual command / method | Exit / result | Evidence and limits |
+|---|---|---:|---|
+| Nx discovery | `pnpm exec nx show projects` | 0; 7 projects | All seven workspace projects are discoverable; discovery does not prove installed DSH behavior. |
+| Root Verify | `pnpm run verify` | 0 | Build, lint, TypeScript typecheck, unit, Bundle, SDK and tooling checks passed. |
+| TypeScript test types | `pnpm typecheck:tests` | 0 | Strict test-source typecheck passed. |
+| Built Host → native-paper process | `pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache` | 0; uncached | Real temporary Host→private broker→SDK→CLI→native process path; synthetic only, no exchange request/order. |
+| Python lint / format | `pnpm python:lint` | 0 | Ruff and formatting checks passed. |
+| Python typecheck | `pnpm python:typecheck` | 0 | Pyright passed with no diagnostics. |
+| Python workspace tests | `pnpm python:test` | 0; 289 passed, 11 warnings | Warnings remain recorded; this is workspace evidence, not full original-product acceptance. |
+| Dependency security | `pnpm run security:deps` | 0 | No known findings within the command's stated editable-workspace scope. |
+| TypeScript SBOM | `pnpm run sbom` | 0 | SBOM generation passed for its documented scope; it is not a runtime or release receipt. |
+
+The scoped integration report is
+[`BUILD_REPORT_DSH_PAPER_INTEGRATION.md`](./BUILD_REPORT_DSH_PAPER_INTEGRATION.md).
+Host and UI have scoped build reports and local tests, but no independent
+post-build implementation review receipt yet. Official Plugin Manager
+install/upgrade/uninstall in a disposable Harness profile, before/after state
+preservation, and real authenticated browser owner/cross-origin/non-owner
+interaction remain pending. The full original quant scope remains pending,
+including Nautilus as sole exchange authority, native Testnet and TS write-path
+cutover, complete recovery/reconciliation, strategies, AI, isolated research
+and the remaining dashboard/control requirements.
+
+No hosted CI result is inferred from these local commands. The earlier
+documentation/governance CI `44091570414` remains a historical failure
+(engine114 passed/1 failed on immediate descendant PID absence; later schema,
+security and SBOM steps were skipped); it is not reclassified here. The earlier
+published code CI `44089248505` remains a separate historical success.
+
 ## Documentation publication and CI regression — 2026-11-17
 
 Documentation/governance commit `ed1aaa5511f2060a4ab0507e7e2e3292367259ff`
