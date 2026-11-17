@@ -1,5 +1,17 @@
 # Verify Gate Evidence — 2026-11-17
 
+## Published code and hosted CI receipt — 2026-11-17
+
+Code commit `4360381c86df468c1eb35a04c9eb880d515cb514` was committed and pushed; root verified an exact `git ls-remote` SHA match. [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) has `isDraft=true`; no main merge or production deployment is claimed.
+
+[GitHub Actions run44076026205](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44076026205) completed **success** for that exact head. `gh run watch` exited0 and detailed `gh run view` verified actual executed steps, not just overall status:
+
+- Blocking verify job134014150086: success, every step success, including root verification, Python/native checks, generated schema and security/SBOM.
+- Nonblocking public Testnet job134014149576: success.
+- Actual repository pre-commit and pre-push hooks ran successfully (exit0) during the code commit/push; this supersedes earlier installation/execution uncertainty.
+
+This receipt covers the exact code commit4360381. The following documentation-only update is a separate delta; do not attribute that earlier CI result to a future documentation commit. Full original platform MUSTs and remaining installed Harness/UI/auth/upgrade gates stay incomplete.
+
 ## Current SDK/DSH/native/hooks rerun — 2026-11-17 (final integrated receipts)
 
 Committed/pushed baseline `f535981` precedes this new increment. Old green security/111-test results below belong to that earlier snapshot. SDK, DSH, native execution and hooks have independent scoped ACCEPT reviews; this is not a complete original-product PASS.
@@ -12,7 +24,7 @@ Committed/pushed baseline `f535981` precedes this new increment. Old green secur
 | Final aggregate after correction | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm run verify && NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm typecheck:tests && NX_DAEMON=false NX_ISOLATE_PLUGINS=false UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm exec nx show projects` | 0 | Fresh unit/pack/schema/SDK Vitest/tooling tasks ran; some build/type tasks cached. Six real projects include SDK/native. |
 | Python workspace | `pnpm python:lint`; `pnpm python:typecheck`; `pnpm python:test`; OpenAPI export `--check`; `git diff --check` | 0 | Ruff/format27 files; Pyright0 errors; 133 passed in6.67s including22 native/catalog cases, ten upstream Pandas deprecation warnings. Schema/diff match. Initial132/21 is historical. |
 | Real React19 SSR | `node apps/dsh-plugin/test/render.ts` | 0 | Real renderer, no skip; server render cannot prove browser effects/fetch/visual interaction. |
-| Hook fixture suite | `node scripts/test-git-hooks.ts` | 0 | Nine isolated fixtures, sensitive-path/partial staging/scanner redaction and monorepo failure guards. Actual hook installation not proven. |
+| Hook fixture suite | `node scripts/test-git-hooks.ts` | 0 | Nine isolated fixtures, sensitive-path/partial staging/scanner redaction and monorepo failure guards. Subsequent actual pre-commit/pre-push execution during commit/push exits0, recorded below. |
 | Native execution | `uv run --project python --locked pytest python/packages/quant-execution/tests -q` | 0 | Final22 native BacktestEngine/catalog tests, no live/Testnet executor or exchange request. |
 | Initial dependency audit | Root dependency scan | 1 | fsspec 2026.2.0 vulnerability, fixed 2026.6.0, while Nautilus exact-pins vulnerable version. |
 | Patched environment scan | Explicit root uv fsspec 2026.6.0 override; pip-audit | 0 | Independent native re-review confirmed 22 native / 133 full and catalog compatibility; limited tested API scope, no blanket compatibility. |
@@ -24,7 +36,7 @@ Committed/pushed baseline `f535981` precedes this new increment. Old green secur
 | Source line cap | Root handwritten-source audit, generated artifacts excluded | 0 | 92 files, maximum497 lines, none>500. |
 | Root SDK/DSH real-service smoke | Bounded separate-process probe: built DSH engine facade → generated SDK → actual FastAPI public Testnet ETHUSDT service | 0 | health200/market200, partial=true, executionReady=false. Client close returns closed; independent server remains alive. Ordered SIGTERM/lifespan shutdown, listener closed; child -15 expected Uvicorn signal re-raise. No credentials/private account/order calls. |
 
-Final root aggregate, six-project discovery, Python/schema, dependency scan, SBOMs, secret/line/diff and SDK real-service smoke passed. Declared Nautilus/fsspec metadata mismatch remains an explicitly tested security override, not fully compatible package metadata. Remote baseline inspection and actual new commit/push are recorded separately by root. CI static config now shares comprehensive TS/SDK/tooling gates; no hosted CI execution claimed. Full original MUSTs, sole exchange execution authority, complete risk/OMS/portfolio/AI/research, official upgrade preservation/auth and browser UI remain unaccepted.
+Final root aggregate, six-project discovery, Python/schema, dependency scan, SBOMs, secret/line/diff and SDK real-service smoke passed. Declared Nautilus/fsspec metadata mismatch remains an explicitly tested security override, not fully compatible package metadata. Code commit/push, exact remote SHA and actual hosted CI success are recorded above; earlier static-only CI status is superseded for that commit. The subsequent documentation delta has its own diff check, not that earlier CI coverage. Full original MUSTs, sole exchange execution authority, complete risk/OMS/portfolio/AI/research, official upgrade preservation/auth and browser UI remain unaccepted.
 
 ## Historical integrated-service rerun — 2026-11-17
 

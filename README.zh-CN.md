@@ -99,7 +99,7 @@ uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 
 原生测试必须使用根目录锁定的 `uv` 工作区：它显式将 fsspec 覆盖为已修复2026.6.0，而 Nautilus1.231.0 元数据仍精确要求2026.2.0。修复环境通过漏洞扫描和兼容 fixtures，但 `uv pip check` 会报告声明冲突，standalone pip 拒绝解析；不能声称元数据完全兼容。
 
-SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实 React 19 SSR 已不再跳过；浏览器视觉/交互、已安装 Harness 认证/升级及 hosted CI 仍未验证。解包后 import 只证明打包闭合，不证明官方安装。最新整体检查及安全结果见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)；不能因局部测试通过而把依赖漏洞扫描写成通过。
+SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实 React 19 SSR 已不再跳过；浏览器视觉/交互、已安装 Harness 认证/升级仍未验证。代码提交 `4360381` 已推送，对应 [hosted CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44076026205) 的阻塞 verify job 和公共 Testnet smoke 均成功；[Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) 保持草稿供审查。实际 pre-commit/pre-push hooks 已成功执行。此 CI 收据仅覆盖该代码提交，不覆盖后续文档提交。解包后 import 只证明打包闭合，不证明官方安装。最新整体检查及安全结果见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)；不能因局部测试通过而把依赖漏洞扫描写成通过。
 
 ## 状态与凭证
 
