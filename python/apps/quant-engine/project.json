@@ -1,10 +1,29 @@
 {
   "name": "quant-engine",
   "sourceRoot": "python/apps/quant-engine/src",
-  "implicitDependencies": ["quant-data"],
+  "implicitDependencies": [
+    "quant-data"
+  ],
   "targets": {
-    "lint": { "command": "uv run --project python --locked ruff check python/apps/quant-engine" },
-    "typecheck": { "command": "uv run --project python --locked pyright python/apps/quant-engine/src" },
-    "test": { "command": "uv run --project python --locked pytest python/apps/quant-engine/tests" }
+    "lint": {
+      "command": "uv run --project python --locked ruff check python/apps/quant-engine"
+    },
+    "typecheck": {
+      "command": "uv run --project python --locked pyright python/apps/quant-engine"
+    },
+    "test": {
+      "command": "uv run --project python --locked pytest python/apps/quant-engine/tests"
+    },
+    "serve": {
+      "command": "uv run --project python --locked quant-engine",
+      "cache": false
+    },
+    "openapi": {
+      "command": "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json",
+      "cache": false
+    },
+    "openapi-check": {
+      "command": "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json --check"
+    }
   }
 }

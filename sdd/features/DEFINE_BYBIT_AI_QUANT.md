@@ -9,14 +9,14 @@
 | **Feature** | BYBIT_AI_QUANT |
 | **Date** | 2026-11-17 |
 | **Author** | SDD Define by RDD |
-| **Status** | Build in progress; local Verify Gate green, production gates partial |
+| **Status** | Requirements restored from original brief; implementation and acceptance coverage incomplete |
 | **Clarity Score** | 15/15 |
 
 ---
 
 ## Problem Statement
 
-The existing repository has useful plugin, simulation and safety scaffolding, but it does not yet meet the requested Nx + pnpm monorepo architecture or prove the official DSH installation lifecycle, complete quant data plane, operational recovery and external research audit. The project owner needs a verifiable path from the current partial implementation to a secure, autonomous Testnet quant system while Mainnet stays separately locked.
+The existing repository has useful plugin, simulation and safety scaffolding, but it does not yet implement the original complete quant architecture: the workspace now has separated projects, but an independently running FastAPI engine, generated cross-language client, Nautilus-only execution, data consumption, portfolio/risk pipeline and AI research lifecycle remain incomplete. The project owner needs a verifiable path from the current partial implementation to a secure, autonomous Testnet quant system while Mainnet stays separately locked.
 
 ---
 
@@ -39,8 +39,15 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 | **MUST** | Keep Mainnet trading disabled; permit Testnet-only unattended testing within account identity, available balance, instrument, idempotency and independent risk guards. |
 | **MUST** | Protect credentials and user state; migrate persistent data with Alembic; provide backup/restore; isolate generated algorithms; treat external text/code as untrusted. |
 | **MUST** | Provide real monitoring, graceful shutdown/recovery, SBOM and dependency vulnerability scanning; keep evidence for all checks and document actual capabilities in English and Chinese. |
-| **SHOULD** | Implement independently operable quant data/strategy/risk/execution modules and exercise them with deterministic tests and Testnet adapters. |
-| **COULD** | Add advanced AI research/strategy evolution only after data, backtest, out-of-sample and paper/Testnet gates exist. |
+| **MUST** | Deliver the original numbered brief §§1–26 in dependency-ordered phases. Phasing does not demote mandatory product capabilities to optional scope; original conditional/optional items remain conditional/optional. |
+| **MUST** | Run a Python modular-monolith quant engine independently of DSH conversations and Tool invocations, with FastAPI/Pydantic as the single `/api/v1` schema source and generated OpenAPI TypeScript client. |
+| **MUST** | Consume validated live market and account data into features, regime detection, validated strategy selection, target portfolio calculation, independent deterministic risk and a persistent audit ledger. Detect stale/missing/inconsistent data and protect trading. |
+| **MUST** | Use NautilusTrader as the sole exchange order execution authority and final event-driven backtest validator; remove the parallel direct TypeScript exchange-order path before trading acceptance. Distinguish Backtest, Internal Paper, Demo, Testnet and separately authorized Mainnet. |
+| **MUST** | Implement the original strategy registry metadata/lifecycle and required strategy families, dynamic selector with cooldown/hysteresis/cost/OOS scoring, portfolio weights and safe position transition. Not every strategy must enter live trading in the initial phase. |
+| **MUST** | Implement the original multi-role AI research team with structured decisions, provenance/expiry and no secret or execution access; implement isolated hypothesis/experiment/OOS/walk-forward/paper/review/approved-registry research progression and version rollback. |
+| **MUST** | Deliver required Bybit public/private recovery and reconciliation, all specified deterministic risk controls and emergency stop, faithful cost/validation/performance accounting, plugin Tools/Skills and DSH Dashboard, persistence, observability, tests and CI described in original §§11–22. |
+| **MUST** | Implement bounded learning/evolution of approved strategy weights/parameters, periodic degradation review and reproducible model/data/parameter versions; new algorithms/models and increased risk limits require the original validation and authorization gates (§23). |
+| **MUST** | Complete source-level audits of every original upstream reference; resolve incompatibility/license conflicts explicitly. A shallow audit or a convenience-based decision to omit mandatory NautilusTrader does not satisfy §6. |
 
 ---
 
@@ -61,6 +68,8 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 
 ---
 
+The following criteria remain **unchecked**: engine runs independently with a process/API integration test; a public stream is actually consumed and persisted; generated SDK matches Python OpenAPI; all exchange orders traverse Nautilus and independent risk; full strategy/regime/portfolio/backtest/AI/research/evolution acceptance in the original brief is evidenced. Detailed section-by-section coverage and gaps: [original scope audit](../reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md). Existing AT-001–009 alone do not cover the product.
+
 ## Acceptance Tests
 
 | ID | Pattern | Criterion (EARS) | Gate (`kind`) |
@@ -75,6 +84,31 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 | AT-008 | Event-driven | **When** the project release checks run, the system **shall** produce TypeScript and Python SBOMs and complete dependency and secret scans with recorded results. | test |
 | AT-009 | Event-driven | **When** a reader follows either README, the documentation **shall** describe only verified behavior and shall not contain credentials or environment-specific secrets. | smoke |
 
+| AT-010 | Event-driven | **When** the Python engine is started without DSH, it **shall** serve authenticated loopback `/api/v1/health` and complete bounded shutdown independently of a Tool lifecycle. | test |
+| AT-011 | Event-driven | **When** market events arrive for selected discovered instruments, the engine **shall** consume them into timestamped state and persistent provenance rather than only queue them. | test |
+| AT-012 | Unwanted | **If** market/account/order state is stale, missing or inconsistent, **then** the engine **shall** refuse new exposure and record the protection reason. | test |
+| AT-013 | Ubiquitous | The TypeScript engine client **shall** be generated from FastAPI/Pydantic OpenAPI and **shall** fail a drift check when generated artifacts differ. | test |
+| AT-014 | Event-driven | **When** an authorized order intent passes independent risk, the engine **shall** submit it exclusively through NautilusTrader with a persistent unique client order ID. | test |
+| AT-015 | Unwanted | **If** submission outcome is uncertain, **then** the execution authority **shall** reconcile exchange order status before deciding whether a retry is safe. | test |
+| AT-016 | Event-driven | **When** an environment is selected, the system **shall** isolate Backtest, Internal Paper, Demo, Testnet or separately authorized Mainnet configuration, credentials and ledgers. | test |
+| AT-017 | Event-driven | **When** a strategy is registered, the registry **shall** validate all §7 metadata, configuration, lifecycle and validation-status fields. | test |
+| AT-018 | Event-driven | **When** required §7 strategy-family fixtures execute, the strategies **shall** emit reproducible signals and target exposure through the common lifecycle without exchange access. | test |
+| AT-019 | Event-driven | **When** market regime changes, the selector **shall** record a validated strategy choice based on stability, OOS results, costs, confidence, cooldown and hysteresis. | test |
+| AT-020 | Event-driven | **When** selected strategies propose exposure, portfolio calculation **shall** produce auditable aggregate target weights and a safe transition plan. | test |
+| AT-021 | Unwanted | **If** any required §13 limit fails, **then** independent deterministic risk **shall** veto the intent with a recorded reason that an Agent cannot bypass. | test |
+| AT-022 | Event-driven | **When** emergency stop is invoked, the system **shall** freeze scheduling/new orders and reconcile cancellation while closing positions only under separate confirmation or explicit preauthorization. | test |
+| AT-023 | Event-driven | **When** the §9 research roles analyze a selected instrument, the team **shall** deliver schema-validated, expiring, timestamped decisions with role evidence and no credential access. | test |
+| AT-024 | Event-driven | **When** a candidate algorithm is proposed, research **shall** retain hypothesis, source/license, code/model/data versions, isolated experiment, backtest, OOS, walk-forward, paper and review results before eligible promotion. | test |
+| AT-025 | Unwanted | **If** candidate validation or required approval is missing, **then** the registry **shall** deny deployment and preserve the prior approved version for rollback. | test |
+| AT-026 | Event-driven | **When** candidate strategies are compared, validation **shall** use common data/cost assumptions, §15 applicable costs/metrics and bias checks, with final Nautilus event-driven validation. | test |
+| AT-027 | Event-driven | **When** required §17 Tools and Skills are loaded, the DSH plugin **shall** expose their strictly validated and permission-checked operations through supported DSH interfaces. | smoke |
+| AT-028 | Event-driven | **When** the user opens the DSH Dashboard, it **shall** provide §18 Overview, Instruments, AI Research, Strategy, Trading, Risk and Settings views from actual engine state without displaying secrets. | smoke |
+| AT-029 | Event-driven | **When** §19 domain state changes, persistence **shall** retain the specified metadata, versions, results, decisions, targets, orders, executions, positions, snapshots and append-only risk/audit records. | test |
+| AT-030 | Event-driven | **When** scheduled performance review detects degradation, learning **shall** record a bounded approved weight/parameter adjustment or candidate experiment with versioned rollback and unchanged user risk ceilings. | test |
+| AT-031 | Event-driven | **When** release validation runs, CI **shall** verify the complete §21–22 TS/Python/quant/exchange/schema/SDK/security matrix and record unavailable external gates as incomplete. | test |
+
+**Coverage status (2026-11-17):** AT-010–031 describe restored required acceptance; they are not claims of existing passing tests. The original brief remains the detailed coverage baseline, including its conditional requirements. The current `pnpm run verify` covers a subset of the plugin only and cannot certify these rows.
+
 ---
 
 ## Clarifications
@@ -84,6 +118,7 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 - [x] (architecture) Is the target a true Nx + pnpm monorepo? → Yes; the supplied brief requires it, and the current root single-package layout is a design deviation; integrated into Goals, Success Criteria and the File Manifest.
 - [x] (language) What language is used for handwritten code? → TypeScript; user corrected JavaScript drift; generated `dist/*.js` remains allowed.
 - [x] (integration) Which trading environment may be tested unattended? → Testnet only; Mainnet funds are out of scope and Mainnet remains disabled.
+- [x] (scope drift correction) The original brief requires the independent engine, Nautilus authority, quant pipeline, AI team, research and evolution. Their prior SHOULD/COULD classification had no user authorization; restored to MUST with incomplete coverage. This corrects documentation drift and adds no new product scope.
 - [x] (done signal) What indicates completion? → All listed acceptance evidence, bilingual READMEs, clean secret scan, and authorized release workflow; implementation gaps remain open until proved.
 
 ---
@@ -96,14 +131,14 @@ verify_gate:
   cmd: "pnpm run verify"
   pass_when: "exit 0"
   threshold: "—"
-  manual_fallback: "Official Plugin Manager lifecycle and installed DSH UI checks are complementary external smoke evidence; a missing DSH manager is inconclusive, never a pass."
+  manual_fallback: "Current command is a local plugin regression gate only. Product acceptance also requires AT-010–031 and original brief coverage evidence; missing engine/SDK/Nautilus/AI or external DSH evidence is incomplete, never a pass."
 ```
 
 ---
 
 ## Out of Scope
 
-- Mainnet trading or use of Mainnet funds in development/testing.
+- Mainnet trading execution or use of Mainnet funds in current development/testing. Separately authorized Mainnet capability remains mandatory final product scope; no Mainnet authorization is implied.
 - Claims of profitability, autonomous investment competence or production readiness without reproducible evidence.
 - Microservices before a measured operational need exists.
 - Automatically importing and executing unreviewed third-party GitHub algorithms.
@@ -127,7 +162,7 @@ verify_gate:
 
 | Aspect | Value | Notes |
 |---|---|---|
-| **Deployment Location** | Nx + pnpm workspace; DSH plugin under `apps/dsh-plugin` | Root package currently owns app code and is not the required package topology. |
+| **Deployment Location** | Nx + pnpm workspace; DSH plugin under `apps/dsh-plugin` | Separated app/package manifests now exist; actual graph and each acceptance gate still require recorded verification. |
 | **KB Domains** | DSH Bundle, Bybit V5, quantitative research, security, Python packaging | Record upstream versions and source refs. |
 | **IaC Impact** | Modify workspace and CI; no production deployment requested | Test profile only for Plugin Manager verification. |
 | **LLM Prompts** | true | AI research and agent decisions consume untrusted market/news/repository/user content. |
@@ -153,7 +188,7 @@ verify_gate:
 | Users | 3 | Owner/operator and DSH user are explicit. |
 | Goals | 3 | Priorities and trading boundary are explicit. |
 | Success | 3 | Workspace, test, safety, migration, monitoring and release signals are observable. |
-| Scope | 3 | Mainnet and speculative microservices are explicitly excluded. |
+| Scope | 3 | Original product scope restored; current Mainnet execution remains unauthorized, while final capability is conditional on explicit authorization. |
 | **Total** | **15/15** | |
 
 Minimum to proceed: **12/15**.
@@ -171,6 +206,7 @@ None - ready for Design.
 | Version | Date | Author | Changes |
 |---|---|---|---|
 | 1.0 | 2026-11-17 | SDD Define by RDD | Initial requirements from the project brief and explicit follow-up decisions. |
+| 1.1 | 2026-11-17 | Original scope audit | Restored mandatory original engine, data, Nautilus, quant/AI/research/evolution scope; added AT-010–031 and explicit incomplete gate coverage; corrected stale topology statement. |
 
 ---
 

@@ -1,5 +1,21 @@
 # BUILD REPORT: Bybit AI Quant
 
+## Current integrated service and original scope — 2026-11-17
+
+The original complete architecture remains authoritative. `ORIGINAL_SCOPE_AUDIT_2026-11-17.md` restores independent engine and AI research/evolution MUST scope and DEFINE AT-010–031. Prior scaffold task completion does not certify that product. Generated TS SDK/DSH integration, Nautilus as sole execution authority, the full strategy/features/regime/portfolio/risk pipeline and AI/research/evolution platform remain incomplete. Existing direct TS REST order creation/cancellation is DRIFT-ORIGINAL-003; it has not been approved as an architectural substitute.
+
+Delivered and independently accepted slices: hardened public Testnet transport, cancellation-safe finite-budget in-process supervisor, and independent read-only FastAPI service with real bounded consumer. Pydantic owns schema; `/api/v1/health` and `/api/v1/market/{symbol}` are loopback-only, expose fresh validated market updates and honest partial/null semantics. No credentials, account or order API exists in this service. The DSH panel remains on REST polling. See the three `sdd/reviews/REVIEW_ENGINE_*_2026-11-17.md` reports, `BUILD_REPORT_ENGINE_SERVICE.md`, generated `contracts/openapi/quant-engine.v1.json` and `docs/runbooks/engine-service.md`.
+
+Root verification receipts: `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify && NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm typecheck:tests` exit 0 under approved loopback permissions; `pnpm python:lint`, `pnpm python:typecheck`, `pnpm python:test` exit 0, 21 formatted files, 0 type errors and **111 tests passed**. Schema `--check` and source diff check exit 0. TS/Python SBOM generation exit 0 (241/78 components); `pnpm run security:deps` exit 0, no known vulnerabilities, two editable workspace packages skipped. Exact failures and reruns are preserved in Verify Gate, including Nx sandbox callback-bind failure and test-only optional-Task narrowing correction.
+
+Root's approved live public Testnet subprocess probe returned health 200 (`ready=true`, connected, execution unknown), then verified ordered uvicorn shutdown/lifespan completion markers and listener closure after SIGTERM. Probe exit 0; child -15 is uvicorn's documented-in-source signal re-raise after cleanup. Fixture lifecycle tests separately verify task/socket cleanup. This proves the bounded read-only process slice, not OS restart, trading readiness, complete market reconstruction or full original MUST acceptance. No real order or target migration was run. Official upgrade/state hashes and provider OAuth remain unverified. Git publication is separately owned by root; this report does not claim an unperformed commit/push.
+
+## Historical in-process worker supervisor increment — 2026-11-17
+
+Added `quant_engine.EngineSupervisor`, which owns one adapter/runtime pair, gracefully closes it, restarts a worker reporting `stopped`/`failed` up to a finite configured count, and exposes typed `SupervisorSnapshot` status. Fake-only pytest coverage checks restart, exhausted budget, close, and invalid configuration. The supervisor is in-process; it does not supervise processes, detect silent hangs, recover orders, reconcile exchange state, or establish live trading safety.
+
+Verification: `uv run --project python --locked pytest python/apps/quant-engine/tests/test_supervisor.py -q` → exit 0 (3 passed); `uv run --project python --locked ruff check python/apps/quant-engine/src/quant_engine/supervisor.py python/apps/quant-engine/tests/test_supervisor.py` → exit 0; `uv run --project python --locked pyright python/apps/quant-engine/src` → exit 0 (0 diagnostics). One initial pytest run exited 1 because `pytest-asyncio` is not installed; tests were converted to standard-library `asyncio.run` and rerun successfully. Workspace-wide Python suite and root Verify Gate were pending at that historical increment; current integration receipts below supersede that pending status.
+
 ## Metadata
 
 | Attribute | Value |
@@ -16,7 +32,7 @@
 
 Added `apps/dsh-plugin/test/backup.ts` for isolated checksum-backed restore and tamper rejection, covering strategy/watchlist, paper trade, AI track and audit marker data. It is included in the plugin unit command.
 
-Evidence: the targeted backup test and complete local chain `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exited 0. Separate temporary `SIGKILL` and SQLite restore rehearsals also exited 0. Recovery remains bounded to existing TS state, SQLite backup behavior and the Python health checkpoint; service supervision, order-state recovery and reconciliation remain open.
+Evidence: the targeted backup test and complete local chain `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test` exited 0. Separate temporary `SIGKILL` and SQLite restore rehearsals also exited 0. At that historical increment recovery was bounded to existing TS state, SQLite backup and the Python health checkpoint. The subsequent read-only service now has in-process supervision; order-state recovery, OS process recovery and reconciliation remain open.
 
 ## Nx unit target coverage correction — 2026-11-17
 
@@ -40,7 +56,7 @@ Evidence after the configuration change: `pnpm exec nx run @bybit-quant/dsh-plug
 
 | Metric | Value |
 |---|---:|
-| Tasks completed | 14/16 implementation groups |
+| Scope | Phased implementation; original MUST acceptance AT-010–031 remains incomplete |
 | Files created | Monorepo projects, SDD artifacts, reports, docs, SBOMs and tests |
 | Files modified | Workspace, DSH plugin, CI, READMEs and tests |
 | Files deleted/moved | Legacy root plugin sources moved under `apps/dsh-plugin` |
@@ -57,8 +73,8 @@ Evidence after the configuration change: `pnpm exec nx run @bybit-quant/dsh-plug
 | 4 | Add reusable `@bybit-quant/quant-contracts` deep package | Complete | package build/typecheck and app dependency edge |
 | 5 | Implement DSH Bundle metadata, patch, Host/Client and lifecycle wiring | Complete | build, strict typecheck, bundle check |
 | 6 | Fix packaged detail resource and fail-closed bundle check | Complete | Harness detail rendered; bundle check exit 0 |
-| 7 | Add Alembic, backup/restore, sandbox and trust boundaries | Partial for current scaffold | Python tests, bounded sandbox capture and runtime trust-envelope checks; provider image digest, full Docker review and service recovery remain open |
-| 8 | Add runtime metrics and health route | Complete for current scaffold | monitor/integration checks |
+| 7 | Add Alembic, backup/restore, sandbox and trust boundaries | Partial for bounded implementation | Python tests, bounded sandbox capture and runtime trust-envelope checks; provider image digest, full Docker review and service recovery remain open |
+| 8 | Add runtime metrics and health route | Complete for read-only scope | monitor/integration checks |
 | 9 | Update bilingual README and CI | Complete | docs review, YAML parse, diff check |
 | 10 | Pin and audit GitHub references | Complete for stated audit scope | `docs/research/github-repository-audit.md` |
 | 11 | Strictly type test sources and repair test fixtures | Complete | `pnpm typecheck:tests` exit 0 |
@@ -80,7 +96,7 @@ The working tree contains the Nx workspace, `apps/dsh-plugin`, `packages/ts/quan
 | Command | `pnpm run verify` |
 | Result | exit 0 |
 | Evidence | build, lint, strict production typecheck, unit tests and Bundle checks passed sequentially |
-| Complementary | `pnpm typecheck:tests`, Python lint/typecheck/test, isolated Alembic up/down, network smoke (7 + 27 checks), SBOM generation, dependency audit, gitleaks and line-count checks passed |
+| Complementary | Current service integration: 111 Python tests; TS test types, Python lint/types, schema, SBOM/dependency checks passed. Earlier 7+27 network result is historical Mainnet public data; corrected Testnet smoke had 8 checks. See timestamped Verify Gate for exact coverage. |
 
 ## Acceptance Test Verification
 
@@ -90,10 +106,10 @@ The working tree contains the Nx workspace, `apps/dsh-plugin`, `packages/ts/quan
 | AT-002 | Pass | strict TS checks and line cap; max handwritten source is 494 lines |
 | AT-003 | Partial | official Harness install, enable, uninstall, reinstall and re-enable recorded; upgrade and disposable-profile preservation remain unverified |
 | AT-004 | Pass for tested guards | 27 integration checks include disabled-live, missing-key, cap and paper/test paths; no order was sent |
-| AT-005 | Partial | queue, memory/CPU, reconnect and latency metrics exist; WebSocket adapter is disabled and reconnect wiring is not production-complete |
+| AT-005 | Partial | Independent public Testnet WebSocket service consumes through a bounded queue with supervised worker restart; actual RSS/CPU/freshness are exposed. OS restart, complete data/order recovery, heartbeat hardening, reconciliation and execution metrics remain open. |
 | AT-006 | Pass for isolated scaffold | Alembic upgrade/downgrade and checksum backup/restore tests pass; full user-history migration across versions remains unproven |
 | AT-007 | Partial | Docker runs with no network/read-only root/resource limits; bounded stdout/stderr and runtime untrusted-evidence envelopes are tested. Provider image is not digest-pinned and full isolation review remains open |
-| AT-008 | Pass | CycloneDX 1.6 TS (241 components) and Python (62 components), pnpm audit, pip-audit and gitleaks pass; editable Python packages are excluded by pip-audit |
+| AT-008 | Pass | CycloneDX 1.6 TS (241 components) and Python (78 components), pnpm audit, pip-audit and gitleaks pass; editable Python packages are excluded by pip-audit |
 | AT-009 | Pass | bilingual READMEs describe current verified behavior and contain no credentials |
 
 ## Drift Detected
@@ -106,7 +122,7 @@ The working tree contains the Nx workspace, `apps/dsh-plugin`, `packages/ts/quan
 
 ## Security and Operations Limits
 
-Mainnet remained disabled; no real order was sent. API credentials were never written to repository files, logs, reports or README. External news, GitHub content and agent inputs remain untrusted. The current Python engine is a lifecycle scaffold, and the plugin uses REST polling; production WebSocket, automatic recovery, upgrade migration preservation and upgrade receipt still require a later phase.
+Mainnet remained disabled; no real order was sent. API credentials were never written to repository files, logs, reports or README. External news, GitHub content and agent inputs remain untrusted. The Python engine now runs an independent read-only Testnet ingestion service with bounded worker restart; the DSH plugin still uses REST polling. OS recovery, complete data/order recovery, reconciliation, upgrade preservation and real upgrade evidence remain open.
 
 ## Official Plugin Manager Receipt
 
@@ -163,3 +179,9 @@ This increment is a bounded health-state checkpoint only. It does not provide a 
 **IN PROGRESS / NOT READY FOR PRODUCTION.**
 
 The repository is structurally buildable and the defined local Verify Gate is green, but the unresolved lifecycle-upgrade, WebSocket/recovery and account-state gates prevent claiming the full autonomous quant platform is complete.
+
+## Supervisor lifecycle hardening — 2026-11-17
+
+Closed three review gaps: restart-budget exhaustion now closes the failed adapter and stops its runtime; cleanup is serialized and cancellation-safe while close waits for adapter/runtime cleanup; unexpected ordinary factory/start failures become terminal `failed` status while `CancelledError` propagates. Regression coverage expanded to five fake-only tests, including cleanup leak checks, a close/restart race, and unexpected factory failure.
+
+Verification: focused supervisor pytest exit 0 (5 passed); workspace `pnpm python:lint` exit 0; `pnpm python:typecheck` exit 0; `pnpm python:test` exit 0 (26 passed); `pnpm run verify` exit 0; `pnpm typecheck:tests` exit 0; `git diff --check` exit 0. Limits remain unchanged: in-process lifecycle only, no OS process supervision, silent-hang detection, order recovery, exchange reconciliation, or live trading readiness.

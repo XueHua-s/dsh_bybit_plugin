@@ -1,8 +1,8 @@
 # Bybit AI Quant
 
-Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains the `quant-data` package and `quant-engine` application scaffolds. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a read-only web panel.
+Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains the `quant-data` package and the independent read-only `quant-engine` market service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a read-only web panel.
 
-The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete: WebSocket ingestion, reconnect wiring, long-running engine orchestration, Plugin Manager lifecycle receipts, and production readiness remain unverified. REST polling is the only market-data mode currently enabled.
+The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. The DSH panel still uses REST polling. Generated TypeScript SDK/DSH integration, Nautilus as sole execution authority, the full quant/AI/research platform, Plugin Manager upgrade preservation, and real OAuth remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
 ## Install the Bundle
 
@@ -50,11 +50,12 @@ Before clicking **Authorize**, review the agent name and requested scopes in Byb
 ```text
 apps/dsh-plugin/       DSH Host, browser client, tools, scripts, tests
 python/packages/quant-data/  Alembic data package
-python/apps/quant-engine/   Python engine scaffold
+packages/ts/quant-contracts/ Shared market DTOs
+python/apps/quant-engine/   Independent read-only Testnet service
 sdd/                   Brainstorm, Define, Design, and evidence reports
 ```
 
-`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, and `quant-engine` as independent projects.
+`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, and `quant-engine` as independent projects.
 
 ## Development and verification
 
@@ -74,10 +75,21 @@ pnpm run sbom
 
 `pnpm test:network` is not a root script; the read-only public Testnet smoke is run with `pnpm exec nx run @bybit-quant/dsh-plugin:test:network`. It binds market reads to `api-testnet.bybit.com`, uses no credentials, and never sends orders; it may be unavailable when the network is offline. Host integration tests remain separate and are not part of this network target. The release Verify Gate is `pnpm run verify`; a green documentation or CI job does not replace official Plugin Manager lifecycle evidence.
 
+## Independent Testnet engine
+
+Run from the repository root with an explicit symbol set:
+
+```sh
+uv sync --project python --locked
+uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
+```
+
+The loopback-only service exposes read-only `/api/v1/health` and `/api/v1/market/{symbol}` at `127.0.0.1:8765`. It uses no credentials or order APIs. Health readiness describes fresh market ingestion; execution/reconciliation remain unknown. Partial ticker updates retain null fields. See the [engine runbook](docs/runbooks/engine-service.md) for readiness, shutdown, Nx commands and offline OpenAPI verification. The service is not yet connected to DSH through a generated TypeScript SDK.
+
 ## State and credentials
 
 Paper state and journals default to `$DSH_HOME/bybit-quant/state.json`. API credentials come from the DSH credential store, the documented environment variables, or a local permission-restricted file; they must never be committed, logged, or placed in the Bundle patch. The Python Alembic schema and backup helpers are development components and require an explicit environment and backup plan before use against durable data.
 
 ## Limitations
 
-This release does not claim WebSocket streaming, automatic reconnect/recovery, a production-grade long-running Python service, autonomous investment competence, or Mainnet readiness. Use Testnet, mocks, or public endpoints for development and review the SDD evidence before enabling any additional capability.
+The independent service supports bounded public Testnet streaming/reconnect and in-process worker restart. OS process recovery, complete snapshot reconstruction/persistence, account/order recovery, reconciliation, autonomous investment competence, and Mainnet readiness remain unverified or unimplemented. Use Testnet, mocks, or public endpoints for development and review the SDD evidence before enabling any additional capability.

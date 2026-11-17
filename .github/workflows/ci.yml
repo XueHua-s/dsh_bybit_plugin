@@ -33,6 +33,7 @@ jobs:
       - run: pnpm exec nx run @bybit-quant/dsh-plugin:test:unit
       - run: pnpm exec nx run @bybit-quant/dsh-plugin:bundle:check
       - run: pnpm exec nx run-many -p quant-data quant-engine -t lint typecheck test --parallel=1
+      - run: pnpm exec nx run quant-engine:openapi-check
       - run: uv run --project python --locked ruff format --check python/packages python/apps
       - run: pnpm run security:deps
       - run: pnpm run sbom

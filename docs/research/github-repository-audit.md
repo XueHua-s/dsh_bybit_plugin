@@ -9,7 +9,7 @@
 
 | 仓库 | 固定 HEAD（`git ls-remote`） | 许可（提交内文件） | README/架构与依赖观察 | 安全/维护信号 | 本项目结论 |
 |---|---|---|---|---|---|
-| [nautechsystems/nautilus_trader](https://github.com/nautechsystems/nautilus_trader) | `33492c8135a5e0dceedc21d9ee3ff7432f04ff12` | LGPL-3.0（`LICENSE`；另有 python/LICENSE） | Rust 原生、多资产事件驱动引擎；Python 控制面；Cargo workspace 与 Python 包。 | CI/供应链目录可见；体量大，本次未逐文件审查。 | **借鉴架构**（事件/适配器边界）；不引入，避免 Rust/Python 运行时和 LGPL 组合复杂度。 |
+| [nautechsystems/nautilus_trader](https://github.com/nautechsystems/nautilus_trader) | **更正：`ee28bfe123738d379166b123f1e142e8697c4bfb`**（实际浅克隆；原 `33492c...` 本次读取 404） | LGPL-3.0-only（根 `LICENSE`、`python/pyproject.toml`） | 2.0 Rust-native Bybit Adapter/Python API，Python 3.13–3.15；2.x 文档明确 RC 与稳定 1.x API 不兼容。 | 已读取工厂/config/URL、执行 ID 与不确定提交对账逻辑、Mock/Sandbox 测试表面；未运行第三方代码或测试。 | **采用为唯一执行核心**；原拒绝决定违反附件 §6.1/12，已撤销。隔离常驻 Python engine，替换 TS 直接下单；版本/兼容/许可/运行验证仍 pending。见 [ADR](../adr/nautilus-execution.md)。 |
 | [bybit-exchange/pybit](https://github.com/bybit-exchange/pybit) | `826a5fe13ab1b38d67beb141bc0bf709b8873d16` | MIT（`LICENSE`） | Bybit 官方 Python HTTP/WebSocket 轻量连接器；`requests`、`websocket-client`。 | 官方维护信号；仍需自行验证签名、重试、超时和依赖 CVE。 | **参考协议语义**；本仓库保持 TypeScript 适配器，不复制代码，不引入 Python 运行时。 |
 | [hummingbot/hummingbot](https://github.com/hummingbot/hummingbot) | `9af100d6822da7d2d0291a906c730ef172284ee2` | Apache-2.0（`LICENSE`） | 多交易所自动化框架；Python/Cython，`pyproject.toml`、`setup.py`、`environment.yml`；含 hbot/Condor 入口。 | CI、Docker/脚本和大量连接器；大仓库，未做供应链或交易执行审计。 | **借鉴连接器/生命周期观测**；不整体引入，避免复杂依赖和策略执行面。 |
 | [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) | `9fa1196fffbcfd9de5146d2dd2869df84ab99838` | Apache-2.0（`LICENSE`） | LLM 多智能体金融分析框架；`tradingagents/` 图式编排；LangChain provider、Anthropic/Google/OpenAI 依赖。 | `.env.example`/多模型密钥面；提示词和外部数据必须视为不可信。 | **仅借鉴研究编排**；不接入交易执行，不复制 agent prompt/密钥流程。 |
@@ -26,10 +26,10 @@
 
 ## 适配边界与安全决策
 
-1. 当前仓库仅吸收可独立验证的概念：Bybit API 字段/签名语义、事件驱动生命周期、研究与执行分层、回测/dry-run、因子和环境测试矩阵。
-2. 不复制第三方源码、策略、提示词、模型权重、密钥处理脚本或交易执行器；任何后续采用都必须在本项目的 TypeScript/Python 边界内重写，并保留来源 SHA 与许可证记录。
+1. 除下述 Nautilus 强制采用项，其他参考仓库仅吸收可独立验证的概念。原始附件 §6.1/12 要求 NautilusTrader 为唯一交易执行核心；不允许以复杂度或现有 TS 实现取代该要求。当前直接 TS 下单路径仍是未修复 drift，不能声称完成执行集成。
+2. 不复制不可信策略、提示词、模型权重或密钥脚本。Nautilus 采用官方原生 Adapter/OMS/Execution Engine 依赖，不重写为第二套 REST 执行器；其他参考项目保持只读研究。所有引入保留来源、精确版本/hash、许可证和供应链记录。
 3. Mainnet 默认关闭；第三方代码不得在 Harness 进程内执行，也不得读取凭证。所有真实订单仍受独立账户、余额、精度、名义额和风控门禁约束。
-4. GPL-3.0 仓库（Freqtrade 两项）和 Commons Clause（vectorbt）不进入本项目发行物；Apache/MIT/LGPL 也不代表可直接复制，需逐文件保留版权/NOTICE 并复核传递依赖。
+4. GPL-3.0 仓库（Freqtrade 两项）和 Commons Clause（vectorbt）不进入本项目发行物；Apache/MIT/LGPL 不免除版权/NOTICE 和依赖审查。Nautilus 的 LGPL 组合发行、可替换性、对应源代码/重链接和安装信息等义务需按实际产物复核，独立进程不等于自动豁免；本报告不作法律结论。
 
 ## 可复核命令与结果
 
@@ -42,3 +42,9 @@ $ find /tmp/bybit-ref-audit -maxdepth 2 -type d | wc -l
 ```
 
 未完成项：未运行第三方测试或依赖漏洞扫描；未逐文件审查完整提交历史；未验证各项目当前默认分支的发布包与许可证元数据是否与该 SHA 一致。刷新审计时必须重新执行 `git ls-remote` 并生成新 SHA 记录。
+
+## Nautilus 决策更正的本轮证据
+
+2026-11-17 已实际读取用户原始附件 §6.1、§12、§16，以及仓库 `host-tools-trade.ts`、Python workspace/engine pyproject、uv/pnpm lock。成功的只读浅克隆位于 `/tmp/bybit-nautilus-research`，`git rev-parse HEAD` 为 `ee28bfe123738d379166b123f1e142e8697c4bfb`。先前 SHA 本次 GitHub API/web 404，原因未确定，不继续宣称其已复核。上文其他 13 仓库的历史记录未在本轮重新验证。
+
+[执行 ADR](../adr/nautilus-execution.md) 记录本轮实际读取的 upstream 文件、官方 Bybit 文档 URL、工厂/环境/产品 API、部分成交与撤单确认限制、幂等恢复、Mock/Sandbox 表面、下一切片 file manifest 及未完成项。当前无 Nautilus lock/安装证据；当前 Python 3.12 与研究的 2.x >=3.13 需要明确迁移；未下载/核验具体 wheel、未运行测试、未连接账户、未发订单。采用方向已修正不等于运行时 gate 通过。

@@ -13,7 +13,7 @@
 | **DEFINE** | `sdd/features/DEFINE_BYBIT_AI_QUANT.md` |
 | **UX REVIEW** | N/A; existing DSH panel is retained and verified separately |
 | **LLM Prompts** | true |
-| **Status** | Build in progress; WebSocket/recovery and lifecycle upgrade remain open |
+| **Status** | Build in progress; local worker supervision is verified, while process/order recovery and reconciliation remain open |
 
 ---
 
@@ -59,8 +59,8 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 | `apps/dsh-plugin` Host | Register tools, services, prompt section and lifecycle effects | TypeScript ESM, deep runtime facade | DSH context/config/credentials | Tool results, health route, cleanup | `packages/ts/quant-contracts` |
 | `apps/dsh-plugin` Client | DSH slot UI and locale resources | TypeScript UI factory; no secrets | Host JSON snapshot | Dashboard view/actions | DSH client slots/locale |
 | `packages/ts/quant-contracts` | Stable domain and API types | TypeScript schemas/interfaces | DTO definitions | Shared types | none |
-| `packages/ts/quant-api-client` | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
-| `python/apps/quant-engine` | Long-running market/research/risk loop | uv project, FastAPI service, `quant_engine.market_data` | Public Bybit Testnet ticker stream | normalized ticker events and adapter health | `websockets`, Python packages |
+| `packages/ts/quant-api-client` (planned, absent) | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
+| `python/apps/quant-engine` | Long-running market/research/risk loop | uv project, FastAPI service, `quant_engine.market_data`, `quant_engine.supervisor` | Public Bybit Testnet ticker stream | normalized ticker events and typed lifecycle/health snapshot | `websockets`, Python packages |
 | `python/packages/quant-data` | Durable models and migration boundary | SQLAlchemy + Alembic | snapshots/orders/audit | queries and migrations | PostgreSQL/SQLite dev |
 | `python/packages/quant-risk` | Independent final veto | Pure deterministic functions | target/order/account state | allow/deny + reason | domain types |
 | `python/packages/quant-sandbox` | Execute generated algorithms out of process | Docker/OS resource limits | reviewed source + fixture data | bounded result | Docker runtime |
@@ -70,7 +70,7 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 
 ### Software design philosophy review
 
-Current target score: **8/10**. Passing rows: describable module boundaries, simpler interfaces, hidden transport/protocol details, interface comments, explicit design discussion, information-owning modules, newcomer-readable boundaries, and strategic investment. Remaining risks: the current root package is still a shallow monorepo boundary and `client.ts` is near the 500-line limit. The build must move the application under `apps/dsh-plugin`, split any file that exceeds 500 lines, and keep transport/serialization inside adapters to reach 10/10.
+Current integrated control/data boundary score: **5/10**, as scoped in `sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md`; the accepted independent read-only service slice separately scores **10/10** in its review. The Nx migration is complete: root owns orchestration, plugin source lives in `apps/dsh-plugin`, and real project dependency edges are discoverable. Remaining integrated diagnostic failures are interface simplicity, replaceability, abstraction comments and newcomer-readable engine boundaries: generate a TS client from Python OpenAPI, connect DSH through that contract, and converge execution/risk on the required single authority. A service-local score does not certify these broader missing connections.
 
 ---
 
@@ -84,7 +84,7 @@ Current target score: **8/10**. Passing rows: describable module boundaries, sim
 | **Date** | 2026-11-17 |
 | **Source** | User clarification and supplied architecture brief |
 
-**Context:** The existing root package has Nx config but is not a discoverable multi-project monorepo.
+**Context at decision time (historical):** The original root package had Nx config but was not a discoverable multi-project monorepo. The subsequent migration created four discoverable projects and actual plugin → contracts / engine → data edges.
 
 **Choice:** Move DSH code into `apps/dsh-plugin`, introduce only packages with real shared contracts, and retain `python/` as a uv workspace with `apps/` and `packages/` boundaries as modules become real.
 
@@ -183,16 +183,22 @@ Current target score: **8/10**. Passing rows: describable module boundaries, sim
 | 25 | `sdd/reports/ADR_MIGRATION_BACKUP.md` | Create | Record the database safety boundary and SQLite-only scope | migration protection increment | 22 |
 | 26 | `apps/dsh-plugin/test/trust.ts` | Create | Prove bounded provenance envelopes and risk-gate independence for agent-provided prose | gpt-6.1-sol | 7 |
 | 27 | `apps/dsh-plugin/test/integration.ts` | Modify | Assert quant_decide and quant_review expose decision prose as untrusted evidence envelopes | gpt-6.1-sol | 26 |
+| 28 | `python/apps/quant-engine/src/quant_engine/supervisor.py`, `tests/test_supervisor.py` | Create | Bounded, cancellation-safe in-process worker lifecycle | supervisor increment | 19 |
+| 29 | `python/apps/quant-engine/tests/test_market_data_validation.py` | Create | Hostile wire values, timestamp bounds, lifecycle and parser regressions | transport hardening | 19 |
+| 30 | `python/apps/quant-engine/src/quant_engine/service.py`, `api.py`, `monitoring.py`, `bootstrap.py` | Create | Independent lifecycle, consumer, schema/HTTP, metrics and CLI ownership | engine service | 19,28 |
+| 31 | `python/apps/quant-engine/tests/test_service.py` | Create | Actual adapter/consumer/supervisor + ASGI lifespan integration | engine service | 30 |
+| 32 | `contracts/openapi/quant-engine.v1.json`, `docs/runbooks/engine-service.md` | Create | Python-generated read-only contract and operational setup | engine service | 30 |
+| 33 | `python/apps/quant-engine/project.json`, `pyproject.toml`, `python/pyproject.toml`, `python/uv.lock` | Modify | CLI, serve/schema tasks and locked service/test dependencies | engine service | 30 |
 
-**Total Files:** 27 manifest entries (20 logical groups where paired paths or globs are shown; each handwritten file remains ≤500 lines).
+**Manifest:** 33 logical entries, including paired paths/globs; this is a phased plan rather than proof that planned packages exist. Each handwritten source file remains limited to 500 lines.
 
 ### Agent Assignment Rationale
 
 | Agent / Owner | Files Assigned | Why |
 |---|---|---|
-| general | 1-18 | No active specialist agent is available; shared filesystem and explicit owner rules prevent conflicting edits. |
+| general (initial migration) | 1-18 | Initial sequential migration ownership; later slice ownership/review is recorded separately below. |
 
-**Agent Discovery:** Existing agent was interrupted; no code-writing specialist is assigned.
+**Historical assignment:** The initial migration had no active specialist. Later independently owned supervisor, transport and engine-service slices and their separate reviews are recorded under `sdd/reviews/`; this table does not describe current agent availability.
 
 ---
 
@@ -380,6 +386,10 @@ None — no formal external design review was executed. The installed `software-
 
 ## Revision History
 
+### In-process supervisor increment — 2026-11-17
+
+`quant_engine.EngineSupervisor` owns a single market-data adapter/runtime pair, exposes a typed `SupervisorSnapshot`, closes the worker gracefully, and retries a worker that reports `stopped`/`failed` up to a configured finite budget. This is an in-process async worker supervisor only: it cannot detect a hung worker that continues reporting healthy state, survive supervisor-process death, supervise OS processes, recover orders or reconcile exchange/account state. Default adapter construction remains the public Testnet adapter; tests inject fakes and make no network calls.
+
 | Version | Date | Author | Changes |
 |---|---|---|---|
 | 1.0 | 2026-11-17 | SDD Design by RDD | Initial design; records root-layout drift and true monorepo migration. |
@@ -388,9 +398,16 @@ None — no formal external design review was executed. The installed `software-
 | 1.3 | 2026-11-17 | runtime checkpoint increment | Defines the versioned, atomic health checkpoint contract, fail-closed malformed-state handling and explicit limits: no credentials, strategy state, order state, supervisor or exchange reconciliation. |
 | 1.4 | 2026-11-17 | checkpoint semantics correction | Removes queue depth from persisted state because it is process-local; startup resets backlog to zero and reads legacy v1 queue fields only for compatibility. |
 | 1.5 | 2026-11-17 | checkpoint timestamp correction | Narrows v2 persistence to reconnect count; v1 timestamps are validated for compatibility then ignored. Restart lifecycle timestamps are always fresh process state. |
+| 1.6 | 2026-11-17 | in-process supervisor increment | Defines finite restart semantics and typed health status, with explicit process supervision, hung-worker, order recovery and reconciliation limits. |
 
 ---
 
 ## Next Step
 
 Execute o **SDD Build by RDD**.
+
+## Independent read-only service integration — 2026-11-17
+
+See `DESIGN_ENGINE_SERVICE.md` for the scoped contract and `../reviews/REVIEW_ENGINE_SERVICE_2026-11-17.md` for independent ACCEPT. FastAPI lifespan owns a supervisor and a real queue consumer; the worker restarts as a unit on consumer failure. Pydantic is the sole HTTP schema source. Exporting `contracts/openapi/quant-engine.v1.json` never enters lifespan. CLI requires explicit symbols and loopback binding; endpoints are only `/api/v1/health` and `/api/v1/market/{symbol}`. Readiness requires connected ingestion and receive/exchange freshness for every configured symbol; partial deltas remain explicitly partial, absent values null, and execution/reconciliation unknown.
+
+This slice hides composition, wire validation, freshness and transport within their owning modules. It does not implement the planned generated TS SDK, authenticated remote control, DSH service integration, full snapshot/persistence, Nautilus sole execution authority, portfolio/risk/AI/research platform or OS process recovery. The existing direct TypeScript order path remains DRIFT-ORIGINAL-003; it is not accepted as a replacement for the mandatory Nautilus architecture. Full original MUST acceptance remains open.

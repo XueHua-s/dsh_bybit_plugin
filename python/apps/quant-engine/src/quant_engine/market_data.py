@@ -30,6 +30,9 @@ class WebSocketConnection(Protocol):
 Connector = Callable[[str], Awaitable[WebSocketConnection]]
 Sleeper = Callable[[float], Awaitable[None]]
 
+# Keep untrusted epoch milliseconds within datetime year 9999 and numeric consumer bounds.
+_MAX_EVENT_TIME_MS = 253402300799999
+
 
 @dataclass(frozen=True, slots=True)
 class TickerEvent:
@@ -82,7 +85,7 @@ class BybitMarketDataAdapter:
         self._jitter = jitter
         self._sleep = sleeper
         self._task: asyncio.Task[None] | None = None
-        self._socket: WebSocketConnection | None = None
+        self._close_task: asyncio.Task[None] | None = None
         self._closed = False
         self._state = "idle"
         self._received = 0
@@ -95,6 +98,8 @@ class BybitMarketDataAdapter:
         """Start the background subscription; symbols must be non-empty."""
         if not symbols:
             raise ValueError("at least one symbol is required")
+        if self._close_task is not None and not self._close_task.done():
+            raise RuntimeError("adapter is closing")
         if self._task is not None and not self._task.done():
             raise RuntimeError("adapter is already running")
         normalized = tuple(sorted({symbol.strip().upper() for symbol in symbols if symbol.strip()}))
@@ -108,18 +113,25 @@ class BybitMarketDataAdapter:
         return await self._events.get()
 
     async def close(self) -> None:
-        """Stop reads, close the socket, and wait for the worker to exit."""
-        self._closed = True
-        self._state = "closing"
-        socket = self._socket
-        if socket is not None:
-            await socket.close()
+        """Share an idempotent shutdown and wait for worker-owned cleanup.
+
+        Cancelling a caller leaves cleanup running. Start is rejected until
+        cleanup finishes; concurrent callers wait for the same shutdown.
+        """
+        if self._close_task is None or self._close_task.done():
+            self._closed = True
+            self._state = "closing"
+            self._close_task = asyncio.create_task(self._finish_close(), name="bybit-market-data-close")
+        # A cancelled caller must not interrupt worker-owned socket cleanup.
+        await asyncio.shield(self._close_task)
+
+    async def _finish_close(self) -> None:
         task = self._task
         if task is not None:
-            task.cancel()
+            if not task.done():
+                task.cancel()
             await asyncio.gather(task, return_exceptions=True)
         self._task = None
-        self._socket = None
         self._state = "closed"
 
     def health(self) -> MarketDataHealth:
@@ -136,36 +148,61 @@ class BybitMarketDataAdapter:
     async def _run(self, symbols: tuple[str, ...]) -> None:
         topics = [f"tickers.{symbol}" for symbol in symbols]
         backoff = 0.5
-        while not self._closed:
-            try:
-                self._state = "connecting"
-                self._socket = await self._connector(self.TESTNET_URL)
-                self._state = "connected"
-                await self._socket.send(json.dumps({"op": "subscribe", "args": topics}))
-                backoff = 0.5
-                while not self._closed:
-                    raw = await self._socket.recv()
-                    self._received += 1
-                    event = self._parse(raw)
-                    if event is None:
-                        self._discarded += 1
-                        continue
-                    await self._events.put(event)
-                    self._parsed += 1
-                    self._last_event_at = event.received_at
-            except asyncio.CancelledError:
-                raise
-            except (ConnectionError, OSError, RuntimeError, websockets.exceptions.WebSocketException):
-                if self._closed:
-                    break
-                self._state = "reconnecting"
-                self._reconnects += 1
-                delay = min(backoff, self._max_backoff) * (0.5 + self._jitter())
-                await self._sleep(delay)
-                backoff = min(backoff * 2, self._max_backoff)
-            finally:
-                self._socket = None
+        try:
+            while not self._closed:
+                socket: WebSocketConnection | None = None
+                try:
+                    self._state = "connecting"
+                    socket = await self._connector(self.TESTNET_URL)
+                    self._state = "connected"
+                    await socket.send(json.dumps({"op": "subscribe", "args": topics}))
+                    backoff = 0.5
+                    while not self._closed:
+                        raw = await socket.recv()
+                        self._received += 1
+                        event = self._parse(raw)
+                        if event is None:
+                            self._discarded += 1
+                            continue
+                        await self._events.put(event)
+                        self._parsed += 1
+                        self._last_event_at = event.received_at
+                except (ConnectionError, OSError, RuntimeError, websockets.exceptions.WebSocketException):
+                    if self._closed:
+                        break
+                    self._state = "reconnecting"
+                    self._reconnects += 1
+                finally:
+                    # Only this worker owns sockets, including during cancellation.
+                    if socket is not None:
+                        cleanup = asyncio.create_task(self._close_socket(socket), name="bybit-market-data-socket-close")
+                        cancelled = False
+                        while not cleanup.done():
+                            try:
+                                await asyncio.shield(cleanup)
+                            except asyncio.CancelledError:
+                                # Repeated cancellation must not interrupt socket cleanup.
+                                cancelled = True
+                        await cleanup
+                        if cancelled:
+                            raise asyncio.CancelledError
+                if not self._closed:
+                    delay = min(backoff, self._max_backoff) * (0.5 + self._jitter())
+                    await self._sleep(delay)
+                    backoff = min(backoff * 2, self._max_backoff)
+        except asyncio.CancelledError:
+            self._state = "closed" if self._closed else "stopped"
+            raise
+        except Exception:  # noqa: BLE001 - terminal boundary must redact every transport failure
+            # Transport and parser errors are untrusted; expose only safe state.
+            self._state = "failed"
+            return
         self._state = "closed" if self._closed else "stopped"
+
+    @staticmethod
+    async def _close_socket(socket: WebSocketConnection) -> None:
+        async with asyncio.timeout(5):
+            await socket.close()
 
     @staticmethod
     def _parse(raw: str | bytes) -> TickerEvent | None:
@@ -189,34 +226,37 @@ class BybitMarketDataAdapter:
         else:
             return None
         symbol = item.get("symbol")
-        if symbol is None:
+        if "symbol" not in item:
             symbol = topic_symbol
         elif not isinstance(symbol, str) or not symbol.strip():
             return None
         else:
             symbol = symbol.strip()
+        if symbol != topic_symbol:
+            return None
         event_time = decoded.get("ts")
         if (
             isinstance(event_time, bool)
             or not isinstance(event_time, (int, float))
             or event_time <= 0
+            or event_time > _MAX_EVENT_TIME_MS
             or (isinstance(event_time, float) and (not math.isfinite(event_time) or not event_time.is_integer()))
         ):
             return None
 
         def number(key: str) -> float | None:
             value = item.get(key)
-            if value is None:
+            if value is None or isinstance(value, bool):
                 return None
             try:
                 parsed = float(value) if isinstance(value, (int, float, str)) else None
             except (OverflowError, ValueError):
                 return None
-            return parsed if parsed is None or math.isfinite(parsed) else None
+            return parsed if parsed is not None and math.isfinite(parsed) and parsed > 0 else None
 
         prices = tuple(number(key) for key in ("lastPrice", "bid1Price", "ask1Price"))
         for key, price in zip(("lastPrice", "bid1Price", "ask1Price"), prices, strict=True):
-            if item.get(key) is not None and price is None:
+            if key in item and price is None:
                 return None
 
         return TickerEvent(

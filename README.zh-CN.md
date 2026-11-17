@@ -1,8 +1,8 @@
 # Bybit AI Quant
 
-Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data` 数据包和 `quant-engine` 应用骨架。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 决策账本，以及只读 Web 面板。
+Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data` 数据包和 `quant-engine` 独立只读行情服务。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 决策账本，以及只读 Web 面板。
 
-仓库仍处于开发阶段。SDD 目标中的完整自主量化平台尚未完成：WebSocket 行情接入与重连接线、长期运行的引擎编排、官方 Plugin Manager 生命周期回执和生产就绪性都没有得到完整验证。当前只启用 REST 轮询。
+仓库仍处于开发阶段。SDD 目标中的完整自主量化平台尚未完成：Python 引擎已有公共 Testnet WebSocket、有界队列与受监督的持续消费，可独立于 DSH 运行；DSH 面板仍使用 REST 轮询。生成式 TypeScript SDK/DSH 接线、Nautilus 唯一执行权、完整量化/AI/研究平台、官方升级状态保留与真实 OAuth 仍未完成或未验证，详见[原始范围审计](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md)。
 
 ## 安装 Bundle
 
@@ -50,11 +50,12 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 ```text
 apps/dsh-plugin/          DSH Host、浏览器客户端、工具、脚本和测试
 python/packages/quant-data/  Alembic 数据包
-python/apps/quant-engine/   Python 引擎骨架
+packages/ts/quant-contracts/ 共享行情 DTO
+python/apps/quant-engine/   独立只读 Testnet 服务
 sdd/                      Brainstorm、Define、Design 和验证报告
 ```
 
-`dist/` 是生成产物，也是插件唯一打包内容。手写 TypeScript 使用 strict，并保持每个文件不超过 500 行。Python 项目由 uv 管理；Nx 会发现 `@bybit-quant/dsh-plugin`、`quant-data` 和 `quant-engine` 三个独立项目。
+`dist/` 是生成产物，也是插件唯一打包内容。手写 TypeScript 使用 strict，并保持每个文件不超过 500 行。Python 项目由 uv 管理；Nx 会发现 `@bybit-quant/dsh-plugin`、`@bybit-quant/quant-contracts`、`quant-data` 和 `quant-engine` 四个独立项目。
 
 ## 开发与验证
 
@@ -72,7 +73,18 @@ pnpm run security:deps
 pnpm run sbom
 ```
 
-根目录没有 `pnpm test:network` 脚本；公开端点 smoke 使用 `pnpm exec nx run @bybit-quant/dsh-plugin:test:network`。它只访问公开/demo 端点，不发送 Mainnet 订单，网络不可用时可能跳过。发布 Verify Gate 是 `pnpm run verify`；文档或 CI 通过不等于已经取得官方 Plugin Manager 生命周期回执。
+根目录没有 `pnpm test:network` 脚本；公开端点 smoke 使用 `pnpm exec nx run @bybit-quant/dsh-plugin:test:network`。它固定访问 `api-testnet.bybit.com` 公共 Testnet 行情，无凭证、账户访问或订单；网络不可用时如实记录失败/未验证，不计为跳过后的通过。发布 Verify Gate 是 `pnpm run verify`；文档或 CI 通过不等于已经取得官方 Plugin Manager 生命周期回执。
+
+## 独立 Testnet 引擎
+
+在仓库根目录启动，并明确指定交易对：
+
+```sh
+uv sync --project python --locked
+uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
+```
+
+服务只绑定 loopback，默认地址为 `127.0.0.1:8765`，提供只读 `/api/v1/health` 和 `/api/v1/market/{symbol}`。它不读取凭证、不调用订单 API。ready 仅表示行情摄取新鲜可用；执行与对账仍标为 unknown。增量行情缺少的字段保持 null。就绪性、关闭、Nx 命令及离线 OpenAPI 校验详见[引擎运行手册](docs/runbooks/engine-service.md)。服务尚未通过生成式 TypeScript SDK 接入 DSH。
 
 ## 状态与凭证
 
@@ -80,4 +92,4 @@ pnpm run sbom
 
 ## 限制
 
-当前版本不声称具备 WebSocket 流式行情、自动重连/恢复、生产级长期运行 Python 服务、自主投资能力或 Mainnet 就绪性。开发和审查请使用 Testnet、Mock 或公开端点，并以 SDD 证据为准。
+独立服务已有公共 Testnet 流式行情、有界重连及进程内 worker 重启。OS 进程恢复、完整行情快照重建/持久化、账户/订单恢复、对账、自主投资能力和 Mainnet 就绪性仍未完成或未验证。开发和审查请使用 Testnet、Mock 或公开端点，并以 SDD 证据为准。
