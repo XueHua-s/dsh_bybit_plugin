@@ -227,58 +227,71 @@ class CommandLedger:
         allowed: set[S] | None,
         replay: bool = True,
     ) -> CommandRecord:
-        digest = fingerprint(
-            canonical(
-                {
-                    "state": state.value,
-                    "filled": decimal_text(filled),
-                    "risk_code": None if code is None else code.value,
-                }
-            )
-        )
         with self._sessions.begin() as session:
-            row = _required(session, command_id)
-            previous = session.scalar(
-                select(CommandEvent).where(CommandEvent.command_id == command_id, CommandEvent.event_id == event_id)
-            )
-            if previous is not None:
-                if not replay:
-                    raise InvalidTransition("dispatch was already claimed; reconciliation may be required")
-                if previous.fingerprint != digest:
-                    raise LedgerConflict("event ID reused with different payload")
-                return _record(row)
-            before = S(row.state)
-            if (allowed is not None and before not in allowed) or (
-                allowed is None and state not in _ALLOWED.get(before, set())
-            ):
-                raise InvalidTransition(f"forbidden transition {before.value} -> {state.value}; reconcile late reports")
-            command = _record(row).command
-            if filled < Decimal(row.cumulative_filled) or filled > command.quantity:
-                raise InvalidTransition("cumulative fill must not decrease or exceed order quantity")
-            if state == S.FILLED and filled != command.quantity:
-                raise InvalidTransition("filled state requires complete quantity")
-            if state == S.PARTIALLY_FILLED and not Decimal(0) < filled < command.quantity:
-                raise InvalidTransition("partial fill must be between zero and order quantity")
-            if state in {S.ACCEPTED, S.REJECTED} and filled != 0:
-                raise InvalidTransition("accepted/rejected cannot claim a fill")
-            version = row.version + 1
-            result = session.execute(
-                update(ExecutionCommand)
-                .where(
-                    ExecutionCommand.id == command_id,
-                    ExecutionCommand.version == row.version,
-                    ExecutionCommand.state == row.state,
-                )
-                .values(state=state.value, cumulative_filled=decimal_text(filled), version=version)
-                .returning(ExecutionCommand.id),
-                execution_options={"synchronize_session": False},
-            )
-            if result.scalar_one_or_none() is None:
-                raise InvalidTransition("concurrent transition won; reread state before continuing")
-            session.refresh(row)
-            session.add(_event(row, event_id, digest, code))
-            session.flush()
-            return _record(row)
+            return _transition_in_session(session, command_id, event_id, state, filled, code, allowed, replay)
+
+
+def _transition_in_session(
+    session: Session,
+    command_id: str,
+    event_id: str,
+    state: S,
+    filled: Decimal,
+    code: RiskCode | None,
+    allowed: set[S] | None,
+    replay: bool = True,
+) -> CommandRecord:
+    digest = fingerprint(
+        canonical(
+            {
+                "state": state.value,
+                "filled": decimal_text(filled),
+                "risk_code": None if code is None else code.value,
+            }
+        )
+    )
+    row = _required(session, command_id)
+    previous = session.scalar(
+        select(CommandEvent).where(CommandEvent.command_id == command_id, CommandEvent.event_id == event_id)
+    )
+    if previous is not None:
+        if not replay:
+            raise InvalidTransition("dispatch was already claimed; reconciliation may be required")
+        if previous.fingerprint != digest:
+            raise LedgerConflict("event ID reused with different payload")
+        return _record(row)
+    before = S(row.state)
+    if (allowed is not None and before not in allowed) or (
+        allowed is None and state not in _ALLOWED.get(before, set())
+    ):
+        raise InvalidTransition(f"forbidden transition {before.value} -> {state.value}; reconcile late reports")
+    command = _record(row).command
+    if filled < Decimal(row.cumulative_filled) or filled > command.quantity:
+        raise InvalidTransition("cumulative fill must not decrease or exceed order quantity")
+    if state == S.FILLED and filled != command.quantity:
+        raise InvalidTransition("filled state requires complete quantity")
+    if state == S.PARTIALLY_FILLED and not Decimal(0) < filled < command.quantity:
+        raise InvalidTransition("partial fill must be between zero and order quantity")
+    if state in {S.ACCEPTED, S.REJECTED} and filled != 0:
+        raise InvalidTransition("accepted/rejected cannot claim a fill")
+    version = row.version + 1
+    result = session.execute(
+        update(ExecutionCommand)
+        .where(
+            ExecutionCommand.id == command_id,
+            ExecutionCommand.version == row.version,
+            ExecutionCommand.state == row.state,
+        )
+        .values(state=state.value, cumulative_filled=decimal_text(filled), version=version)
+        .returning(ExecutionCommand.id),
+        execution_options={"synchronize_session": False},
+    )
+    if result.scalar_one_or_none() is None:
+        raise InvalidTransition("concurrent transition won; reread state before continuing")
+    session.refresh(row)
+    session.add(_event(row, event_id, digest, code))
+    session.flush()
+    return _record(row)
 
 
 def _required(session: Session, command_id: str) -> ExecutionCommand:

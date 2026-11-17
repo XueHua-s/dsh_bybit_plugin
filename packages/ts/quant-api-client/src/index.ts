@@ -1,3 +1,6 @@
+import { createPaperApi } from './paper.js';
+import type { PaperApi } from './paper.js';
+export type { PaperApi, PaperStatus, PaperSessionRequest, PaperSubmitRequest, PaperCommand, PaperResult, PaperFailure, PaperUncertain } from './paper.js';
 import createClient from 'openapi-fetch';
 import type { paths, components } from './generated/paths.js';
 import { boundedInteger, createTransport, localBaseUrl, TransportError } from './transport.js';
@@ -14,11 +17,14 @@ export interface ClientOptions {
   maxResponseBytes?: number;
   /** Injectable transport for deterministic tests; production defaults to global fetch. */
   fetch?: typeof globalThis.fetch;
+  /** Trusted Host injection, resolved outside model tools. Never ordinary configuration or DTO data. */
+  serviceCapability?: () => string | Promise<string>;
 }
 export interface ClientFailure { ok: false; code: ClientErrorCode; status?: number }
 export type HealthResult = { ok: true; status: 200 | 503; data: HealthResponse } | ClientFailure;
 export type MarketResult = { ok: true; status: 200; data: MarketResponse } | ClientFailure;
 export interface QuantApiClient {
+  readonly paper: PaperApi;
   health(options?: RequestOptions): Promise<HealthResult>;
   market(symbol: string, options?: RequestOptions): Promise<MarketResult>;
   close(): void;
@@ -40,6 +46,7 @@ export function createQuantApiClient(options: ClientOptions = {}): QuantApiClien
   const client = createClient<paths>({ baseUrl, fetch: (request) => transport.fetch(request), redirect: 'manual' });
   return {
     close: transport.close,
+    paper: createPaperApi(baseUrl, transport, options.serviceCapability),
     async health(requestOptions = {}) {
       try {
         const result = await client.GET('/api/v1/health', requestOptions.signal ? { signal: requestOptions.signal } : {});

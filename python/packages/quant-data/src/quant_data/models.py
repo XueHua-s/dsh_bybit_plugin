@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -16,6 +16,7 @@ class TradeEvent(Base):
     """Append-only execution, risk, and decision audit event."""
 
     __tablename__ = "trade_events"
+    __table_args__ = (Index("ix_trade_events_created_at", "created_at"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     environment: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -28,7 +29,7 @@ class StrategyVersion(Base):
     """Immutable candidate strategy metadata and validation state."""
 
     __tablename__ = "strategy_versions"
-    __table_args__ = (UniqueConstraint("strategy_id", "version", name="uq_strategy_versions_id_version"),)
+    __table_args__ = (UniqueConstraint("strategy_id", "version"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     strategy_id: Mapped[str] = mapped_column(String(128), nullable=False)

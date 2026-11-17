@@ -80,6 +80,12 @@ def test_upgrade_preserves_strategy_trade_and_audit_rows_and_backups(tmp_path: P
         "trade_events",
         "execution_commands",
         "command_events",
+        "paper_sessions",
+        "admission_decisions",
+        "paper_reservations",
+        "paper_positions",
+        "paper_native_events",
+        "paper_protection_events",
     }
     assert {"event_type", "environment", "payload_json"} <= {
         column["name"] for column in inspector.get_columns("trade_events")
@@ -202,5 +208,30 @@ def test_migration_preserves_special_characters_in_database_path(tmp_path: Path)
     assert result.database == database.resolve()
     engine = create_engine(URL.create("sqlite", database=str(database)))
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003_command_ledger"
+        assert (
+            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004_admission_state"
+        )
     engine.dispose()
+
+
+def test_current_head_metadata_matches_published_migrations(tmp_path: Path) -> None:
+    """A real Alembic comparison must discover every model and no schema drift."""
+    database = tmp_path / "metadata-consistency-test.sqlite"
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{database}")
+    command.upgrade(config, "head")
+    command.check(config)
+    engine = create_engine(f"sqlite:///{database}")
+    try:
+        inspector = inspect(engine)
+        assert {
+            "name": "ix_trade_events_created_at",
+            "column_names": ["created_at"],
+            "unique": 0,
+            "dialect_options": {},
+        } in inspector.get_indexes("trade_events")
+        assert {"name": None, "column_names": ["strategy_id", "version"]} in inspector.get_unique_constraints(
+            "strategy_versions"
+        )
+    finally:
+        engine.dispose()

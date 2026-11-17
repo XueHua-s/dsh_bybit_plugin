@@ -135,6 +135,8 @@ version = "0.1.0"
 source = { editable = "apps/quant-engine" }
 dependencies = [
     { name = "bybit-quant-data" },
+    { name = "bybit-quant-execution" },
+    { name = "bybit-quant-risk" },
     { name = "fastapi" },
     { name = "psutil" },
     { name = "pydantic" },
@@ -145,6 +147,8 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "bybit-quant-data", editable = "packages/quant-data" },
+    { name = "bybit-quant-execution", editable = "packages/quant-execution" },
+    { name = "bybit-quant-risk", editable = "packages/quant-risk" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "psutil", specifier = ">=6,<8" },
     { name = "pydantic", specifier = ">=2.10,<3" },

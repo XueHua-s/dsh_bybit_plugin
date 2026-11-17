@@ -28,6 +28,17 @@ from alembic import command
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def migration_config() -> Config:
+    """Resolve checked-in or wheel-packaged migrations without a default DB target."""
+    packaged = Path(__file__).resolve().parent
+    if (packaged / "_alembic.ini").is_file():
+        config = Config(str(packaged / "_alembic.ini"))
+        config.set_main_option("script_location", str(packaged / "_alembic").replace("%", "%%"))
+    else:
+        config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    return config
+
+
 @dataclass(frozen=True)
 class UpgradeResult:
     """Evidence returned after a protected upgrade completes."""
@@ -74,7 +85,7 @@ def upgrade_sqlite(database: Path, revision: str = "head") -> UpgradeResult:
             _assert_integrity(backup)
             shutil.copyfile(backup, candidate)
 
-            config = Config(str(PROJECT_ROOT / "alembic.ini"))
+            config = migration_config()
             config.set_main_option("sqlalchemy.url", _sqlite_url(candidate))
             _assert_forward_revision(candidate, config, revision)
             command.upgrade(config, revision)

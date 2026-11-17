@@ -492,12 +492,18 @@
     },
     {
       "bom-ref": "bybit-quant-execution==0.1.0",
-      "description": "Offline native Nautilus execution foundation; no exchange connectivity",
+      "description": "Native offline backtest and continuous synthetic paper execution; no exchange connectivity",
       "externalReferences": [
         {
           "comment": "PackageSource: Local",
           "type": "distribution",
           "url": "file:///Users/litlesnow/Desktop/Project/%E5%B9%BB%E6%96%B9%E9%87%8F%E5%8C%96/bybit-quant/python/packages/quant-execution"
+        }
+      ],
+      "licenses": [
+        {
+          "acknowledgement": "declared",
+          "expression": "MIT AND LGPL-3.0-only"
         }
       ],
       "name": "bybit-quant-execution",
@@ -3321,6 +3327,8 @@
     {
       "dependsOn": [
         "bybit-quant-data==0.1.0",
+        "bybit-quant-execution==0.1.0",
+        "bybit-quant-risk==0.1.0",
         "fastapi==0.163.1",
         "psutil==7.2.2",
         "pydantic==2.14.3",

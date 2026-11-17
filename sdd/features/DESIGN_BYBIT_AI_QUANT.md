@@ -464,3 +464,45 @@ contract, including authenticated engine admission, one durable account/session
 writer, native internal-paper node lifetime, dispatch uncertainty and protected
 restart. It is future design, not implemented runtime acceptance; finite
 BacktestEngine fixtures cannot substitute for a continuously operating node.
+
+
+## Continuous native internal-paper integration — 2026-11-17 (scoped verification)
+
+This increment supersedes earlier absence statements for synthetic internal-paper
+admission/reservations/native runtime only; exchange authority and full recovery
+remain open. Scoped contracts are `DESIGN_PAPER_NATIVE.md`, `DESIGN_ADMISSION_STORE.md`,
+`DESIGN_PAPER_ADMISSION.md`, `DESIGN_PAPER_SDK.md` and
+`DESIGN_PAPER_WORKSPACE.md`. Native ownership moved from the proposed thread to
+an explicit spawned process/main-thread loop: installed TradingNode signal
+ownership conflicted with the API thread design. A bounded private IPC facade
+hides node lifetime, native OMS and event mapping; handlers do not own lifetime.
+This recorded design evolution now has scoped native/service lifecycle ACCEPT receipts, including owner-death watchdog containment independently of a blocked native loop; it does not establish durable recovery.
+
+The optional authenticated paper app owns one writer, trusted context, actual
+risk evaluation, durable decision/reservation and native event projection.
+AdmissionStore0004 adds atomic state and packaged migration resources; Python's
+separate quant-paper.v1 schema owns the wire contract and generated TS client.
+Default market app remains two read-only routes. Explicit synthetic BTC finite
+depth and LIMIT-only admission prevent partial public tickers from inventing
+liquidity. No Bybit execution client or real account is involved.
+
+Review found spot-style notional cash debits inconsistent with native linear
+perpetual margin equity. Final acceptance requires explicit accounting model,
+wallet/realized/unrealized/fee reconciliation, and safe parent-death native-child
+cleanup. Native/service/SDK scoped reviews now ACCEPT the corrected wallet/net-realized/
+marked equity and conservative available-equity behavior. The independent
+built-SDK process E2E proves later LIMIT fills in the same native owner, stable
+IDs, durable wallet continuity, stop/cleanup and protected restart. Data final
+43-test accounting/metadata review is ACCEPT with a real Alembic command.check
+showing no new operations; full Python252 and dependency scans pass. Final
+format/types/source-cap/secret/history checks and exact-byte MIT/LGPL/GPL/NOTICE
+plus adapted-source/SPDX wheel/sdist inspection pass. Overall original product
+acceptance remains PARTIAL; current local delta is not committed or pushed. No DSH mutation cutover, complete replay/recovery, exchange readiness,
+strategy/AI/generated-code/research acceptance follows from this increment.
+
+The native finite-liquidity Sandbox adaptation retains upstream LGPL-3.0-only
+in paper_sandbox.py; quant-execution declares mixed MIT AND LGPL-3.0-only and
+ships LICENSES/NOTICE, including LGPLv3 and its incorporated GPLv3 base terms.
+The companion GPL text does not relicense original MIT files. Root MIT does not
+override the adapted file provenance. Operational CLI/FD and uncertainty
+semantics are in `docs/runbooks/paper-service.md`.

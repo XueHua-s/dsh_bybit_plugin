@@ -96,7 +96,7 @@ uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 
 ## 离线原生执行及验证边界
 
-`uv run --project python --locked pytest python/packages/quant-execution/tests -q` 使用真实 NautilusTrader 1.231.0 `BacktestEngine`，覆盖市场成交、挂单撤销及部分成交后撤销。此包只接受 `backtest`，没有实现 live/Testnet 执行器、持久订单恢复或完整最终风控；当前 TS REST 订单路径尚未切换到 Nautilus。
+`uv run --project python --locked pytest python/packages/quant-execution/tests -q` 使用真实 NautilusTrader 1.231.0 `BacktestEngine`，覆盖市场成交、挂单撤销及部分成交后撤销。离线模拟 API 只接受 `backtest`，另有下文说明的独立合成 paper 运行时；没有实现 live/Testnet 执行器、持久订单恢复或完整最终风控；当前 TS REST 订单路径尚未切换到 Nautilus。
 
 原生测试必须使用根目录锁定的 `uv` 工作区：它显式将 fsspec 覆盖为已修复2026.6.0，而 Nautilus1.231.0 元数据仍精确要求2026.2.0。修复环境通过漏洞扫描和兼容 fixtures，但 `uv pip check` 会报告声明冲突，standalone pip 拒绝解析；不能声称元数据完全兼容。
 
@@ -104,9 +104,19 @@ SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实
 
 ## 风控与持久命令基础
 
-新增 `quant-risk` 包提供独立的纯函数风险否决：使用引擎拥有的快照、待执行预留和显式策略，校验后以 Decimal 计算保守总敞口。`quant-data` 新增本地 SQLite 持久命令账本，用于命令幂等、生命周期、单次派发认领及追加审计事件。二者均取得限定范围的独立 ACCEPT；当前 Python 工作区 213 项测试及类型、格式检查通过。此结论仅覆盖基础模块，不能视为已接入订单执行的最终风控。
+新增 `quant-risk` 包提供独立的纯函数风险否决：使用引擎拥有的快照、待执行预留和显式策略，校验后以 Decimal 计算保守总敞口。`quant-data` 新增本地 SQLite 持久命令账本，用于命令幂等、生命周期、单次派发认领及追加审计事件。二者均取得限定范围的独立 ACCEPT；已发布风险/账本基线的 Python 213 项测试及类型、格式检查通过；当前集成 paper 的工作区为 252 项。此结论仅覆盖基础模块，不能视为已接入订单执行的最终风控。
 
-风险批准不授予交易权限，账本也不会发送或自动重发订单。原子风险预留/账户锁、Nautilus 唯一提交权、TS REST 切换、长期 paper/private 状态及未知订单对账仍未完成。新 Alembic 迁移仅限隔离测试，未迁移用户数据库。详见 [risk 设计](sdd/features/DESIGN_QUANT_RISK.md)、[命令账本设计](sdd/features/DESIGN_COMMAND_LEDGER.md)与 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
+风险批准不授予交易权限，账本也不会发送或自动重发订单。下述可选合成 paper 服务现已接入串行账户所有权、原子风险预留与持久原生成交证据；交易所订单的 Nautilus 唯一提交权、TS REST 切换、完整长期 private 状态及未知订单对账仍未完成。新 Alembic 迁移仅限隔离测试，未迁移用户数据库。详见 [risk 设计](sdd/features/DESIGN_QUANT_RISK.md)、[命令账本设计](sdd/features/DESIGN_COMMAND_LEDGER.md)与 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
+
+## 持续运行的原生内部模拟盘
+
+当前新增可选的独立 paper 应用：通过继承的私有文件描述符接收服务 capability，由引擎串行执行真实风险评估、持久命令及风险预留，再交给独立子进程中的 Nautilus `TradingNode`。它仅支持显式合成的 BTC 有限深度 fixture 与 LIMIT 命令；默认行情应用仍只有两个只读路由，paper 使用单独的 `quant-paper.v1` OpenAPI 与生成式 SDK。
+
+原生运行时、可选服务和 SDK 已取得限定范围的独立 ACCEPT；真实构建 SDK→CLI→风险/持久层→原生子进程 E2E 通过，覆盖后续成交、稳定标识、SDK 关闭独立性与受保护重启。永续钱包/已实现和未实现盈亏、保守可用权益及父进程死亡清理已有独立验证；数据层最终 43 项测试和 Alembic 元数据一致性审查也已 ACCEPT；全 Python 252 项测试通过，最终格式/类型、源码上限、secret/history 扫描及 wheel/sdist 许可证逐字节核验均通过；这些是局部验收，完整产品仍为 PARTIAL。它未连接交易所、发送交易所订单或执行真实交易，现有 DSH 模拟/交易工具也尚未切换到该控制路径。完整恢复、策略、AI 与隔离研究仍未完成。实际 CLI、私有 FD 协议和临时数据库流程见[内部模拟盘运行手册](docs/runbooks/paper-service.md)；当前增量尚未提交或推送。
+
+## 许可证范围
+
+仓库根许可证为 MIT。`quant-execution` 是混合许可证包，元数据为 `MIT AND LGPL-3.0-only`：其中 [paper_sandbox.py](python/packages/quant-execution/src/quant_execution/paper_sandbox.py) 改编自固定 NautilusTrader 1.231.0 上游，保留 LGPL-3.0-only；本项目其他原始执行代码采用 MIT。包的 [NOTICE](python/packages/quant-execution/NOTICE.md) 和 `LICENSES/` 随源码与 wheel 分发，包含 LGPLv3 及其引用的 GPLv3 基础条款；附带 GPL 文本不改变其他原始文件的 MIT 许可。根 MIT 许可证不会将该改编文件或第三方依赖重新许可为 MIT。
 
 ## 状态与凭证
 

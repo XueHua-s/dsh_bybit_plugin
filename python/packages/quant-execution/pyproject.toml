@@ -1,7 +1,9 @@
 [project]
 name = "bybit-quant-execution"
 version = "0.1.0"
-description = "Offline native Nautilus execution foundation; no exchange connectivity"
+description = "Native offline backtest and continuous synthetic paper execution; no exchange connectivity"
+license = "MIT AND LGPL-3.0-only"
+license-files = ["LICENSES/*.txt", "NOTICE.md"]
 requires-python = ">=3.12,<3.15"
 dependencies = ["nautilus-trader==1.231.0", "fsspec==2026.6.0"]
 

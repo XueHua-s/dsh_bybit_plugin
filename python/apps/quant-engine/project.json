@@ -2,7 +2,9 @@
   "name": "quant-engine",
   "sourceRoot": "python/apps/quant-engine/src",
   "implicitDependencies": [
-    "quant-data"
+    "quant-data",
+    "quant-risk",
+    "quant-execution"
   ],
   "targets": {
     "lint": {
@@ -19,11 +21,25 @@
       "cache": false
     },
     "openapi": {
-      "command": "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json",
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json",
+          "uv run --project python --locked quant-engine-openapi --paper --output contracts/openapi/quant-paper.v1.json"
+        ],
+        "parallel": false
+      },
       "cache": false
     },
     "openapi-check": {
-      "command": "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json --check"
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json --check",
+          "uv run --project python --locked quant-engine-openapi --paper --output contracts/openapi/quant-paper.v1.json --check"
+        ],
+        "parallel": false
+      }
     }
   }
 }

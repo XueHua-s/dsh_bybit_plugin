@@ -1,5 +1,57 @@
 # Verify Gate Evidence — 2026-11-17
 
+## Local continuous paper increment — 2026-11-17 (verified scoped / overall PARTIAL)
+
+Parent verified latest published documentation baseline
+`605fe709461e7157885da07216654a1da677926c` and
+[CI44081766003](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44081766003),
+both jobs successful. The new paper delta is not committed or pushed and has no
+hosted CI receipt. All scoped reviews, final metadata/economic review, full Python252, root/TS/
+format/types/schema/dependency/SBOM/scanner and license-artifact checks pass.
+Overall original platform acceptance remains PARTIAL. Older counts retain their
+source scope; current hosted CI still covers only baseline605fe70.
+
+| Check | Actual receipt / method | Exit / result | Limits |
+|---|---|---|---|
+| Native runtime delta | `REVIEW_PAPER_NATIVE_2026-11-17.md` | Scoped ACCEPT | 33 execution tests plus actual derivative wallet/net-realized/unrealized/equity/available checks; owner death removes child even with blocked native loop. Containment is not graceful SIGKILL recovery. |
+| Optional admission/API | `REVIEW_PAPER_ADMISSION_2026-11-17.md` | Scoped ACCEPT | 15 combined tests and seven independent final expiry/economic/persistence/native-fault probes. |
+| Authenticated generated SDK | `REVIEW_PAPER_SDK_2026-11-17.md` | Scoped ACCEPT | 21 tests; canonical separate paper schema, private bounded capability transport, no mutation retry. |
+| True compiled SDK/process E2E | `PAPER_SDK_PROCESS_E2E_2026-11-17.md` | 0 | 31 allowlisted checks, actual built SDK→real CLI→risk/store→spawned Nautilus; stable IDs, fills/later command continuity, replay/conflict, SDK close, clean stop/reap/listener closure and protected restart; no capability output. |
+| Exact runbook launcher | Independent extracted heredoc AST parse and locked-environment execution | 0 | No-submit native start/stop, only allowlisted synthetic_native_start_stop_ok output; protocol/temporary upgrade verified. External PID/listener checks remain separate E2E scope. |
+| Data accounting / metadata | `REVIEW_ADMISSION_STORE_2026-11-17.md` | Scoped ACCEPT | 43 tests, real Alembic command.check produces no new operations; perpetual economics, backup and independent probes. |
+| Parent root Verify | `pnpm run verify` | 0 | New SDK21 cases included; hooks9. |
+| TS test types | `pnpm typecheck:tests` | 0 | Strict test-source types. |
+| Python lint / format / types | `pnpm python:lint`; `pnpm python:typecheck` | 0 | Final59 formatted files, Pyright0 after the tiny metadata fix. |
+| Handwritten source / whitespace | Parent audit; `git diff --check` | 0 | 125 handwritten files, maximum497, none>500; final metadata-fix diff0. |
+| Full Python workspace | `pnpm python:test` | 0 | 252 passed,11 warnings,35.43s after economic/expiry/metadata fixes: service115/native33/risk61/data43. |
+| Actual schema contracts | Parent uncached Nx composite OpenAPI target | 0 | Both actual market and separate paper contracts match. |
+| Dependency scan | `pnpm run security:deps` | 0 | No known findings; four local editables skipped. Existing fsspec metadata mismatch unchanged. |
+| Initial SBOM command | `pnpm sbom` | 2 | pnpm12 builtin required its own format argument; command-name collision, not application code failure. |
+| Corrected TS SBOM | `pnpm run sbom` | 0 | 200 components. |
+| Python SBOM | Parent existing quant-data SBOM target | 0 | 91 components; quant-execution records MIT AND LGPL-3.0-only expression. |
+| Changed-file secrets | Parent isolated redacted gitleaks scan | 0 | 71 files/1,136,198 bytes; snapshot before latest report append, not a claim that future text was scanned. |
+| Full history secrets | Parent redacted gitleaks history scan | 0 | 11 commits/about2.25MB. |
+| Native license artifacts | Parent independent final wheel/sdist inspection | PASS | Exact bytes of four assets MIT/LGPL/GPL/NOTICE in each archive, adapted source and SPDX MIT AND LGPL-3.0-only expression verified. |
+| Remote baseline | Parent fetch plus HEAD versus origin/main and origin/feature | 0 | Both ahead/behind0/0 at inspection; no staged files then. Publication remains a separate next step. |
+
+Initial actual SDK E2E used an incorrect root `.venv` path (127, no test), then
+sandbox socket creation failed (1); approved loopback rerun0 is the passing
+receipt. Native/service reviews retain the earlier spot-notional accounting,
+raw-free-margin, expiry-protection and orphan-cleanup findings and corrections.
+No pre-fix economic acceptance is implied. Native net realized includes fees;
+durable gross realized minus cumulative fees reconciles it. Public paper status
+does not expose wallet/equity; E2E claims no such wire field.
+
+Default market app stays two read-only paths. Optional separate paper app uses
+only server-configured finite synthetic BTC LIMITs and inherited private pipeFD;
+actual protocol/temporary database recipe is in `docs/runbooks/paper-service.md`.
+No exchange connection/orders/trades, target DB migration, DSH mutation cutover
+or full original-platform acceptance. Mandatory authenticated DSH controls,
+native Testnet plus TS exchange-write cutover, full replay/reconciliation,
+strategies/AI/generated-code/isolated research remain incomplete. LGPL adapted
+source and companion GPLv3 base terms accompany mixed-license package artifacts;
+root MIT does not relicense the adapted source or original MIT files.
+
 ## Published risk / command ledger increment — 2026-11-17 (verified scoped, overall PARTIAL)
 
 Code `411de43f07984f8d2af163c6e95abd53c3d98dc9`

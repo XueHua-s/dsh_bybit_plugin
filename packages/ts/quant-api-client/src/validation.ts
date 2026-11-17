@@ -1,11 +1,19 @@
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { schema } from './generated/schema.js';
+import { schema as paperSchema } from './generated/paper-schema.js';
+import type { components as PaperComponents } from './generated/paper-paths.js';
 import type { components } from './generated/paths.js';
 
 const ajv = new Ajv2020({ strict: false, allErrors: false, validateFormats: false });
 ajv.addSchema(schema);
+ajv.addSchema(paperSchema);
 const validators = {
   HealthResponse: ajv.compile({ $ref: `${schema.$id}#/components/schemas/HealthResponse` }),
+  SessionRequest: ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/SessionRequest` }),
+  SubmitRequest: ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/SubmitRequest` }),
+  PaperStatus: ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/PaperStatus` }),
+  CommandResponse: ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/CommandResponse` }),
+  PaperError: ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/PaperError` }),
   MarketResponse: ajv.compile({ $ref: `${schema.$id}#/components/schemas/MarketResponse` }),
 };
 
@@ -22,6 +30,9 @@ function bounded(value: unknown, depth = 0): boolean {
   return value === null || typeof value === 'boolean';
 }
 
-export function validateResponse<T extends keyof typeof validators>(name: T, value: unknown): value is components['schemas'][T] {
+export function validateResponse<T extends keyof typeof validators>(name: T, value: unknown): value is (components['schemas'] & PaperComponents['schemas'])[T] {
   return bounded(value) && validators[name](value);
 }
+
+const requestId = ajv.compile({ $ref: `${paperSchema.$id}#/components/schemas/SubmitRequest/properties/request_id` });
+export function validateRequestId(value: unknown): value is string { return bounded(value) && requestId(value); }

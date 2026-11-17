@@ -6,75 +6,65 @@
 |---|---|
 | Feature | BYBIT_AI_QUANT |
 | Objective | Complete the original architecture MUSTs through independently verified increments; a scaffold is not the product. |
-| Status | IN PROGRESS / PARTIAL. SDK/DSH/native/hooks accepted at published baseline; risk/command-ledger foundations independently ACCEPTED within scope and published with passing CI; no integrated execution acceptance. Declared Nautilus/fsspec metadata mismatch remains. |
+| Status | IN PROGRESS / PARTIAL. SDK/DSH/native/hooks accepted at published baseline; risk/command-ledger foundations independently ACCEPTED within scope and published with passing CI; new optional native paper/runtime/SDK have scoped ACCEPT and actual process E2E; data accounting/metadata43 ACCEPT and fullPython252 pass; final local gates/scans/artifact checks pass; current paper delta unpublished. Declared Nautilus/fsspec metadata mismatch remains. |
 | Date | 2026-11-17 |
 | Branch / folder | `codex/bybit-ai-quant-sdd` · `/Users/litlesnow/Desktop/Project/幻方量化/bybit-quant` |
-| Published code | `411de43f07984f8d2af163c6e95abd53c3d98dc9`, pushed; exact remote SHA verified. CI44081030699 both jobs successful with steps inspected. Earlier566092a/4360381/f535981 are historical. This documentation follow-up is not covered by that code CI. |
+| Historical risk/ledger code | `411de43f07984f8d2af163c6e95abd53c3d98dc9`, pushed; exact remote SHA verified. CI44081030699 both jobs successful with steps inspected. Earlier566092a/4360381/f535981 are historical. This documentation follow-up is not covered by that code CI. |
 | Authority | `AGENTS.md`, `sdd/features/DEFINE_BYBIT_AI_QUANT.md`, main DESIGN and `sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md` |
 
-## Current risk / ledger increment — 2026-11-17
+## Current paper integration — 2026-11-17 (VERIFIED SCOPED / overall PARTIAL)
 
-**VERIFIED SCOPED / overall PARTIAL; code411de43 is committed and pushed.**
-`quant-risk` pure deterministic veto and `quant-data` durable command ledger
-have independent ACCEPT in `REVIEW_QUANT_RISK_2026-11-17.md` and
-`REVIEW_COMMAND_LEDGER_2026-11-17.md` under `sdd/reviews/`. Risk61 tests plus
-501 independent adversarial assertions; ledger28 plus 15×8 dispatch races and
-crash/audit/migration/restore probes. Final seed-only risk follow-up independently
-verified61 tests0 in0.19s/Ruff0/Pyright0: four seed20261117/databaseNone
-decorators preserve assertions; test455lines, current hashes/Build report checked.
-ACCEPT unchanged. Approval is evidence, not trading authorization.
+Published baseline605fe709461e7157885da07216654a1da677926c has parent-verified
+CI44081766003 success for both jobs. New local paper integration is uncommitted
+and unpushed, with no new hosted CI receipt.
 
-Parent root verify/testtypes0 (TS cache hits; nine hook fixtures fresh), Python
-lint/format36/typecheck0/tests213 in6.83s (ten existing upstream warnings),
-uncached OpenAPI0. Logs: `/private/tmp/bybit-risk-root-verify.log` and
-`/private/tmp/bybit-risk-root-testtypes.log`. Workspace discovery/actual graph7,
-root import/lock/sync and risk wheel/CI targets passed; no fake engine→risk edge.
-Dependency audit0 skips four local editables; SBOM TS200/Python91. Gitleaks34files
-833069bytes0/history9commits~1.98MB0;101 handwritten files max497;diff0. Parent
-rescans final docs before their separate commit. Initial lint formatting failure and
-intermediate212 tests remain historical in Verify. Nautilus/fsspec metadata
-check1 remains an explicit security override, not compatibility success.
+Scoped independent ACCEPTs: PAPER_NATIVE (33 execution tests plus actual
+wallet/realized/unrealized/available-equity and owner-death blocked-loop probes),
+PAPER_ADMISSION (15 combined and seven independent final expiry/economic/fault
+probes), PAPER_SDK (21 tests), under `sdd/reviews/`, suffix `_2026-11-17.md`.
+Data final scoped ACCEPT43 includes economic/backup/probes and actual Alembic
+command.check with no new operations; native metadata alignment is corrected.
+`PAPER_SDK_PROCESS_E2E_2026-11-17.md` records31 allowlisted real built-SDK→CLI→
+risk/store→spawned-Nautilus checks0: later fills, stable IDs/idempotency/conflict,
+SDK-close independence, native stop/reap, closed listener and protected restart;
+capability never output. Public status does not expose native wallet/equity.
 
-No final account/risk/reservation/submission transaction, engine command route,
-private state/reconciliation or TS REST cutover is delivered. Engine still has
-two read-only routes. No Mainnet test/private account/order call or user database
-migration. Older133-test/security receipts do not certify this worktree.
+Parent root verify0 (SDK21/hooks9), TS testtypes0, fullPython252/11warnings
+in35.43s0 (service115/native33/risk61/data43), both actual OpenAPI contracts
+uncached0; final Python lint/format59/typecheck0 after metadata correction. Security0/four editables skipped; SBOM200/91 includes mixed execution
+license. Initial `pnpm sbom` invoked pnpm12 builtin and exited2; corrected
+`pnpm run sbom`0. Final changed-file gitleaks71files1,136,198bytes0 (before latest report append),
+history11commits~2.25MB0, source125/max497/diff0. Parent wheel/sdist exact-byte
+MIT/LGPL/GPL/NOTICE four-assets, adapted-source and SPDX inspection PASS.
+Fetch0, main/feature ahead-behind both0/0 at inspection; no staged files yet. Native lifecycle uses a
+spawned process; paper auth uses inherited private pipeFD; separatepaper schema/
+SDK leaves defaultmarket2 paths unchanged. Corrected perpetual wallet tracks
+realized PnL/fees, not opening notional; risk consumes marked/native conservative
+available equity. Native watchdog contains orphan child even when its loop hangs;
+SIGKILL containment is not graceful disposal/recovery.
 
-## Published delivered state
+Actual CLI/FD and temporary database recipe: `docs/runbooks/paper-service.md`.
+Native paper_sandbox.py retains LGPL-3.0-only; mixed MIT AND LGPL-3.0-only package
+ships LICENSES/NOTICE and companion GPLv3 base terms without relicensing original
+MIT files. No exchange connection/real trades or DSH mutation cutover. Next
+mandatory work remains authenticated DSH paper controls, native Testnet plus TS
+exchange-write cutover, full replay/recovery, strategies/AI/isolated research.
+Mainnet untested; no user database migration.
 
-- Genuine Nx/pnpm/uv monorepo; root owns orchestration. Risk is the seventh discovered project; published SDK/native baseline had six.
-- Independent loopback FastAPI service owns bounded public Testnet WebSocket ingestion, consumer and finite in-process supervisor. Only two read-only routes; market freshness readiness, execution/reconciliation unknown. Checkpoint v2 restores reconnect count only; no account/private API/order route.
-- Python-schema-generated TS SDK uses openapi-typescript/openapi-fetch/Ajv, numeric-loopback restriction, bounded bytes/deadline/cancellation and safe errors. DSH tools, authenticated bridge and explicit card share it. REST views retained, no polling, Host unload leaves independent service running. Non-Testnet Host rejects before HTTP; no credentials passed.
-- Build-only private TS runtimes are inlined. External packed import proves closure; real React19 SSR runs without skip. Neither proves official install/auth/upgrade, effects or browser interaction/visuals.
-- Native Nautilus1.231.0 BacktestEngine proves finite fills/cancel/partial-cancel, stable run-local identity/deduplication and cleanup, backtest only. No live/Testnet executor or TS REST cutover.
-- Nine isolated hook fixtures and actual pre-commit/pre-push exit0. Published code4360381 CI44076026205 both jobs passed; earlier baseline566092a CI44077034140 both jobs passed. Risk/ledger code411de43 CI44081030699 both jobs passed, including actual four-project Python/risk wheel/security steps.
-- Scoped independent ACCEPTs: ENGINE_CLIENT, DSH_ENGINE, NAUTILUS_EXECUTION, GIT_HOOKS, ENGINE_TRANSPORT, ENGINE_SUPERVISOR and ENGINE_SERVICE reviews under `sdd/reviews/`, suffix `_2026-11-17.md`; full-product acceptance remains open.
+## Historical accepted foundations and receipts
 
-## Historical SDK/DSH/native/hooks gate and failures
-
-Full historical commands/exits are retained in `sdd/reports/VERIFY_GATE_2026-11-17.md`.
-The SDK and pack nested-pnpm ENOEXEC failures both exited1 before correction;
-final root/testtypes/discovery passed with six projects at that snapshot.
-Cross-process DSH facade/SDK → actual public Testnet service returned health and
-market200; partial=true/executionReady=false. Client close preserved the server;
-ordered SIGTERM/lifespan and listener closure passed (Uvicorn child -15 is signal
-re-raise, not standalone lifecycle evidence). SDK9/hooks9/React19 SSR passed.
-
-Historical Python133/native22, security0, SBOM89/200, secret/history/source/diff0
-receipts certify that earlier source only. Initial audit failed fsspec2026.2.0;
-explicit uv override2026.6.0 fixed the vulnerability, with catalog compatibility
-fixtures. Declared Nautilus exact-pin mismatch remains (`uv pip check`1;
-standalone pip refuses resolution); require locked root uv environment.
-
-Target DB is not migrated. Official install/reinstall does not prove upgrade
-state hashes; fake OAuth does not prove provider consent/revoke. CLI has no
-revoke. Source/hosted CI facts and full commands remain in Verify Gate.
+- Risk/ledger code411de43f07984f8d2af163c6e95abd53c3d98dc9 was committed/pushed with exact remote match, hooks0 and CI44081030699 both jobs success. Risk61/ledger28 scoped ACCEPTs, Python213, SBOM200/91, scans and original failures are retained in Verify Gate. This historical snapshot had no engine admission route; the current optional synthetic paper app above supersedes that absence only in its scoped environment.
+- Read-only service/SDK/DSH/native-backtest/hooks scoped ACCEPTs remain in `sdd/reviews/REVIEW_{ENGINE_CLIENT,DSH_ENGINE,NAUTILUS_EXECUTION,GIT_HOOKS,ENGINE_TRANSPORT,ENGINE_SUPERVISOR,ENGINE_SERVICE}_2026-11-17.md`. Default market service owns bounded public Testnet streaming/consumer/supervisor; checkpoint persists reconnect count only. No account/private API route or full snapshot/recovery.
+- DSH read tools/bridge/card share Python-generated validated SDK, numeric-loopback/byte/deadline/cancellation guards. Non-Testnet Host rejects before HTTP; no credentials passed, no polling, Host unload does not stop independent service. Private TS runtimes inlined; external archive import and real React19 SSR prove closure/render only, not installed authentication, upgrade or browser effects/visuals.
+- Offline native BacktestEngine fixtures remain separate from the new continuous native synthetic runtime. No native Demo/Testnet executor or sole exchange authority is accepted. TS exchange-write drift stays open.
+- Historical code4360381/CI44076026205, baseline566092a/CI44077034140 and docs605fe70/CI44081766003 both-job successes remain exact-snapshot receipts. Earlier Python133/native22 and later213 do not certify current paper source.
+- Two nested-pnpm ENOEXEC aggregate failures exited1 before correction. Vulnerable fsspec2026.2.0 was explicitly overridden to2026.6.0 with catalog fixtures/security0. Nautilus1.231.0 exact-pin metadata still fails uv pip check1 and standalone pip resolution; require root locked uv, never downgrade merely to clear metadata. Full historical commands/exits are in Verify Gate.
 
 ## Remaining original MUSTs / Definition of Done
 
 - [x] Preserve complete original MUST/AT-010–031 and audit initial snapshot plus latest delta.
 - [x] Accepted read-only service, generated SDK/DSH, native backtest foundation and safe tooling increments.
-- [x] Current root/Python/schema/security/SBOM/secret/line/diff scoped receipts recorded; dependency metadata mismatch explicit. Final seed follow-up independently verified; release docs rescan tracked separately. Earlier real-service probe remains historical.
+- [x] Risk/ledger foundations and native/admission/SDK paper scopes have independent review; final paper aggregate receipts tracked above, not inferred from old scans.
 - [ ] Nautilus sole exchange order authority and direct TS REST cutover. DRIFT-ORIGINAL-003 remains OPEN; offline native tests do not resolve live authority.
 - [ ] Full features/strategies/regime/portfolio/final-risk, AI team, isolated research/controlled evolution, durable uncertain orders/reconciliation and recovery.
 - [ ] Complete market snapshot/history/provenance/persistence, authenticated remote control/events, OTel and OS process recovery.
@@ -87,17 +77,11 @@ No credential/.env reads or logging; no managed Harness profile edits. Mainnet d
 
 ## Events
 
-- 2026-11-17: code411de43f07984f8d2af163c6e95abd53c3d98dc9 (`feat: add deterministic risk and durable command ledger`) committed/pushed; pre-commit0/pre-push0 (213 tests in6.88s), push0, exact `ls-remote` match. [CI44081030699](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44081030699) success, `gh run watch`0 and full jobs/steps inspected: blocking verify, four Python projects, risk wheel, schema, dependencies/SBOM/history and public Testnet job all success. PR1 remains draft; no merge/deployment/orders. This four-file documentation follow-up requires its own exact-SHA CI.
-
-- 2026-11-17: baseline566092aa8ace2aff354469e8d01638e0bcfdd7d7 published; hosted CI44077034140 both jobs succeeded (parent verified). At that historical snapshot risk/ledger foundations were unpublished; code411de43 now publishes them. Full execution cutover remains open.
-
-- 2026-11-17: monorepo migration, corrected Testnet8 public smoke and migration/backup/checkpoint/trust/sandbox/supervisor hardening; historical receipts retained in Build/Verify.
-- 2026-11-17: original scope audit restored independent engine/AI research MUSTs; no approved reduction to scaffold.
-- 2026-11-17: independent service/transport/supervisor accepted, baseline f535981 committed/pushed verified.
-- 2026-11-17: new generated SDK/DSH/native/hooks accepted; root ENOEXEC fixed and new dependency audit finding requires remediation.
-- 2026-11-17: user already authorizes feature branch commit/push; old blanket prohibition is not additional policy. Run sdd-release checks first, never force or infer deployment.
-
-- 2026-11-17: code4360381 committed/pushed, exact remote SHA verified; [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) created. [CI44076026205](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44076026205) completed success; detailed steps executed, `gh run watch` exit0. This documentation delta is separate and has not been tested by that earlier run.
+- 2026-11-17: original scope audit restored independent engine/AI research MUSTs; no scaffold scope reduction authorized.
+- 2026-11-17: monorepo/service/SDK/DSH/native-backtest/hooks increments accepted and published across f535981,4360381,566092a; exact historical receipts retained in Verify Gate.
+- 2026-11-17: risk/ledger code411de43 published, exact remote match/hooks0/CI44081030699 both jobs passed; docs baseline605fe70 CI44081766003 both jobs passed. PR1 remains draft, no main merge/deployment/orders.
+- 2026-11-17: current paper increment adds separate native process, optional authenticated app, transactional reservations and separate schema/SDK. Review found and corrected spot/perpetual economic mismatch, marked available-equity ambiguity, expiry/protection and orphan cleanup. Current scoped evidence above supersedes only those reviewed gaps; full original MUSTs remain open.
+- User already authorizes feature-branch commit/push after sdd-release checks; never force, infer deployment or edit managed Harness profiles.
 
 ## Setup / next tasks
 
@@ -108,17 +92,20 @@ uv sync --project python --locked
 uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 ```
 
-Service runbook: `docs/runbooks/engine-service.md`, loopback8765. Design supplements: `DESIGN_ENGINE_CLIENT.md`, `DESIGN_DSH_ENGINE.md`, `DESIGN_NAUTILUS_EXECUTION.md`, `DESIGN_GIT_HOOKS.md`, `DESIGN_QUANT_RISK.md`, `DESIGN_COMMAND_LEDGER.md` and `DESIGN_RISK_WORKSPACE.md` under `sdd/features/`. `DESIGN_EXECUTION_CUTOVER.md` is the future integration contract: authenticated engine admission, account serialization, durable reservations and a continuously running native internal-paper node; it is not implemented or accepted runtime evidence.
+Market runbook: `docs/runbooks/engine-service.md`, loopback8765. Synthetic paper
+CLI/privateFD/tempDB: `docs/runbooks/paper-service.md`, explicit separate app.
+Read `DESIGN_EXECUTION_CUTOVER.md`, `DESIGN_PAPER_{NATIVE,ADMISSION,SDK,WORKSPACE}.md`
+and `DESIGN_ADMISSION_STORE.md` under `sdd/features/` for current contracts.
 
-1. Continue from published code411de43 / Draft PR1. Publish this separate documentation follow-up only after its own checks; watch exact docs-SHA CI. Current scoped review/root/Python/security/schema/SBOM/secret/line/diff receipts pass; finish final release rescan; seed reviewer acknowledgement complete. Earlier133 receipts are historical. Retain two ENOEXEC and initial vulnerability failures plus metadata conflict.
-2. Continue dependency-ordered original MUST implementation: `DESIGN_EXECUTION_CUTOVER.md` defines the next runtime boundary. New design/manifest before code, independent review before integration. User-selected future subagents: `model="gpt-6.1-sol"`, `reasoning_effort="medium"`, `fork_turns="none"`; include concrete task context. This work does not change the primary chat model.
-3. Before authorized feature-branch commit/push run `.agents/skills/sdd-release/SKILL.md`, inspect diff/staging/secret/history/baseline. No force, no main merge or deployment claim. Root records actual SHA/remote result. No worktree cleanup without user instruction.
+1. Inspect local paper delta from published docs605fe70/Draft PR1. All local gates, scoped reviews and license artifacts pass; perform final release staging/diff checks before authorized publication; root records actual SHA/remote/CI. This paper delta is not published yet.
+2. Continue authenticated DSH paper controls, native Testnet and TS mutation cutover, then original strategy/AI/research/recovery MUSTs in dependency order. Design/manifest first, independent review before integration. Future subagents explicitly `model="gpt-6.1-sol"`, `reasoning_effort="medium"`, `fork_turns="none"`, with self-contained task context. Primary orchestrator remains parent; primary model unchanged.
+3. Read `.agents/skills/sdd-release/SKILL.md` before commit/push; inspect diff/staging/secrets/history/baseline, never force or claim merge/deployment. No worktree cleanup without user instruction.
 
 ## Resume prompt
 
 ```text
 Continue BYBIT_AI_QUANT in /Users/litlesnow/Desktop/Project/幻方量化/bybit-quant, branch codex/bybit-ai-quant-sdd. Read sdd/handoffs/HANDOFF_BYBIT_AI_QUANT.md, AGENTS.md, DEFINE/main DESIGN, ORIGINAL_SCOPE_AUDIT_2026-11-17.md and VERIFY_GATE_2026-11-17.md first.
-Published code411de43f07984f8d2af163c6e95abd53c3d98dc9 / Draft PR https://github.com/XueHua-s/dsh_bybit_plugin/pull/1; CI44081030699 both jobs and inspected steps succeeded, actual hooks/push0 and exact remote SHA verified. Risk/ledger foundations have scoped ACCEPT; this documentation follow-up is separate and requires exact docs-SHA CI. Use Current risk / ledger increment and Verify, not historical133 counts. quant-risk is pure veto; ledger scoped ACCEPT is local durability, not execution authority. DESIGN_EXECUTION_CUTOVER.md is future native continuous internal-paper/admission/auth/transaction contract. TS REST bypass, full risk/OMS/strategy/AI/research, private state/recovery and official upgrade/provider OAuth remain open.
+Published documentation baseline605fe709461e7157885da07216654a1da677926c / Draft PR https://github.com/XueHua-s/dsh_bybit_plugin/pull/1; CI44081766003 both jobs succeeded (parent verified). New local paper native/admission/SDK scoped reviews and actual built-SDK CLI process E2E pass; data43/fullPython252/security/SBOM now pass; final source/secret/history and GPL artifact checks pass; current delta remains uncommitted/unpushed with no current hosted CI. Runbook docs/runbooks/paper-service.md covers actual CLI/privateFD and disposable SQLite. No publication of this paper delta yet; older risk/ledger receipts do not certify new source. quant-risk is pure veto; ledger scoped ACCEPT is local durability, not execution authority. DESIGN_EXECUTION_CUTOVER.md and DESIGN_PAPER_* plus DESIGN_ADMISSION_STORE.md govern this in-progress native paper implementation; a design is not runtime acceptance. TS REST bypass, full risk/OMS/strategy/AI/research, private state/recovery and official upgrade/provider OAuth remain open.
 Inspect git status --short --branch. Setup: pnpm install --frozen-lockfile; uv sync --project python --locked. Gates: NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify; same prefix pnpm typecheck:tests; pnpm python:lint; pnpm python:typecheck; pnpm python:test; pnpm sdk:check; uv run --project python --locked quant-engine-openapi --output contracts/openapi/quant-engine.v1.json --check; regenerate SBOMs/security/secret/line/diff. Record actual commands/exits. Loopback mocks need binding permission. Runbook docs/runbooks/engine-service.md defines service/readiness/shutdown. Root uv fsspec override2026.6.0 remains metadata-incompatible with Nautilus1.231.0 exact pin, deliberately retained for security.
 Do not read/print credentials, enable Mainnet, send unauthorized orders, edit managed profiles or apply user/target migrations. User authorizes feature-branch commit/push after sdd-release checks; inspect safe remote baseline, never force or claim deployment. No scaffold scope reduction. Future subagents explicitly use gpt-6.1-sol, reasoning_effort medium, fork_turns none; provide self-contained task context. Primary chat model was not changed.
 ```

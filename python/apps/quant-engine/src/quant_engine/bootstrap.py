@@ -43,8 +43,19 @@ def export_openapi() -> None:
     parser = argparse.ArgumentParser(description="Export deterministic engine OpenAPI without starting ingestion")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--paper", action="store_true", help="Export the separate optional internal-paper application")
     args = parser.parse_args()
-    serialized = json.dumps(create_app(("BTCUSDT",)).openapi(), indent=2, sort_keys=True) + "\n"
+    if args.paper:
+        from .paper_api import create_paper_app
+        from .paper_config import Capability, synthetic_config
+
+        app = create_paper_app(
+            synthetic_config(Path("/nonexistent/schema-only"), "schema-session"),
+            Capability(b"x" * 32, "schema-session"),
+        )
+    else:
+        app = create_app(("BTCUSDT",))
+    serialized = json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
     if args.check:
         if not args.output.exists() or args.output.read_text() != serialized:
             parser.exit(1, "OpenAPI schema is out of date\n")
