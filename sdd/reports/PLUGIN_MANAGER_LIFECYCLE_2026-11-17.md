@@ -74,3 +74,23 @@ The disposable profile's post-install manifest contained only the safe fields `n
 ### Acceptance boundary
 
 This proves the official CLI can install, remove, and reinstall the local Bundle in a disposable profile. It does **not** prove the Host service's `install_bundle` tool action or a version-to-version `updateBundle` run. Upgrade remains **blocked** because the public registry has no `@bybit-quant/dsh-plugin` package (`ERR_PNPM_FETCH_404`), and the local path is not an update-eligible registry dependency. Do not upgrade the overall acceptance verdict until an official second version (or a reachable registry source) and a disposable-profile `updateBundle` receipt are available. No managed Harness `package.json` or `cordis.patch.yml` was manually edited.
+
+## Follow-up disposable CLI upgrade receipt
+
+The earlier public-registry lookup was blocked because this private package is
+not published there. A later isolated run served locally packed copies of
+versions `1.4.5` and `1.4.6` from a loopback-only temporary registry. The
+official DSH CLI completed both package operations in the disposable profile,
+without reading or changing the active Harness profile:
+
+| Step | Exact command | Exit | Observed state |
+|---|---|---:|---|
+| Install | `dsh plugin --profile sdk add '@bybit-quant/dsh-plugin@1.4.5' --save-exact --registry http://127.0.0.1:4873` | 0 | Profile dependency and selected bundle were `1.4.5`. |
+| Upgrade | `dsh plugin --profile sdk update '@bybit-quant/dsh-plugin' --latest --registry http://127.0.0.1:4873` | 0 | Profile dependency and installed package manifest changed to `1.4.6`. |
+
+This upgrades the disposable profile through the installed official CLI's
+package-manager path. The Host service `plugin_manager.updateBundle` method
+was not directly exposed as a callable tool in this session, so activation,
+rollback, and state-preservation behavior for that service method remain
+unverified. The prior “upgrade blocked” statement applies to the
+public-registry attempt only.
