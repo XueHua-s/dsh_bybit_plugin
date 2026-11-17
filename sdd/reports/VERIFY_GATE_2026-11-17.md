@@ -1,5 +1,40 @@
 # Verify Gate Evidence — 2026-11-17
 
+## Documentation publication and CI regression — 2026-11-17
+
+Documentation/governance commit `ed1aaa5511f2060a4ab0507e7e2e3292367259ff`
+was pushed to the existing feature branch; `git ls-remote` verified the exact
+SHA. Actual pre-push checks passed, including252 Python tests/11warnings in33.60s.
+However, [CI44091570414](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44091570414)
+**failed** in quant-engine:test:114 passed/1failed. The graceful SIGTERM process
+test observed one descendant PID still present immediately after service exit.
+The CI log does not identify that PID's role. Root TS checks and public Testnet
+smoke succeeded; downstream schema/security/SBOM steps were skipped, not passed.
+This is a current regression under investigation; earlier code CI success does
+not override it. Log: `/private/tmp/bybit-paper-docs-ci-failed.log` (local receipt).
+No merge, deployment, exchange order or user-database migration occurred.
+
+### Scoped shutdown-observation correction (local verification)
+
+`REVIEW_PAPER_SHUTDOWN_OBSERVATION_2026-11-17.md` independently ACCEPTS
+the final234-line test source, SHA256
+`eabc56743dac53e3569d81fa6ba6adec6c15734cd3e4051d0214cecb57ff1fab`.
+Application behavior is unchanged. The unmodified eight-cycle probe reproduced
+a tracker lingering1.438ms while the native worker was already reaped; it does
+not identify the historical CI PID. Final tests require immediate native reaping
+on SIGTERM, bounded tracker inactivity, identity-aware SIGKILL containment, and
+deliberately pause/resume the tracker to reproduce exit ordering. Independent
+review rejected the initial broad tracker matcher; the exact invocation matcher
+and adversarial unknown-process/failure-cleanup probes now pass.
+
+Final independent process4/native11 checks, Ruff/format/Pyright all exit0.
+Parent `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` exits0
+(`/private/tmp/bybit-shutdown-root-verify.log`); unchanged deterministic TS tasks
+may use Nx cache and hook safety9 ran. Author's earlier repeated20 process cases
+and engine116 suite preceded the final matcher refinement and remain attributed
+to that snapshot in the Build report. Final repair commit/push/hosted CI are
+pending; no failed or skipped hosted step above is reclassified as passed.
+
 ## Published continuous paper increment — 2026-11-17 (verified scoped / overall PARTIAL)
 
 Code `b75d73cb677e4c7beef82c9182ef6c955568f455` was committed and pushed. Actual pre-commit/pre-push hooks passed (252 Python tests in33.54s during push); exact remote SHA verified. [CI44089248505](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44089248505) completed success for both jobs; parent inspected every step, including blocking root verification, four Python projects, native tests, both actual schemas, security/SBOM/history checks and the public Testnet smoke. No merge, deployment or exchange order occurred.

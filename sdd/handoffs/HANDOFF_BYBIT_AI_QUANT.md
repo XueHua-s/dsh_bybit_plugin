@@ -1,5 +1,27 @@
 # HANDOFF: BYBIT_AI_QUANT
 
+## Latest continuation — shutdown CI correction and next design
+
+Documentation/governance `ed1aaa5511f2060a4ab0507e7e2e3292367259ff` was pushed,
+remote exact SHA verified and all252 pre-push Python tests passed. Its
+CI44091570414 FAILED: engine114pass/1fail on immediate descendant PID absence
+after SIGTERM; later schema/security/SBOM steps skipped. Code CI44089248505
+remains historical success, not an override of this failure.
+
+Scoped test-observation repair has independent ACCEPT in
+`REVIEW_PAPER_SHUTDOWN_OBSERVATION_2026-11-17.md`: native reaping remains strict;
+stdlib tracker exit is separately bounded and identity-aware. Final independent
+process4/native11 and static checks pass; parent root verify0. Application source
+unchanged. Exact repaired commit/push/CI still pending. Full goal remains active.
+
+Local, not-yet-committed `DESIGN_DSH_PAPER.md` specifies optional service-owned private Unix capability
+broker, Host controls and native-paper card. Independent design review is in
+progress; required SDK post-dispatch503 uncertainty, EOF framing and UI action
+rules are being clarified before Build. The local, not-yet-committed `NATIVE_TESTNET_CUTOVER_GAPS_2026-11-17.md`
+audits TS signed POST bypasses and native permission/valuation/report gaps;
+it is read-only evidence, not implemented Testnet execution. No source for those
+new features is implemented or accepted by this continuation yet.
+
 ## Ficha
 
 | Attribute | Value |
