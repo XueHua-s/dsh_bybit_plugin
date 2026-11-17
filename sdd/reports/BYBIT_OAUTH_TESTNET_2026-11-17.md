@@ -39,3 +39,24 @@ attempted. The implementation never auto-selects or creates an account.
 
 No Testnet order, transfer, withdrawal, Mainnet request, or credential value
 was sent to the repository, logs, reports, or remote Git history.
+
+## Disposable Bundle upgrade receipt
+
+After the OAuth checks, a separate disposable `DSH_HOME` was used with the
+installed official DSH CLI at
+`/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`.
+A loopback-only temporary registry served two locally packed copies of the
+Bundle, versions `1.4.5` and `1.4.6`. The active Harness profile was not read
+or changed.
+
+| Step | Exact operation | Result |
+|---|---|---|
+| Install | `dsh plugin --profile sdk add '@bybit-quant/dsh-plugin@1.4.5' --save-exact --registry http://127.0.0.1:4873` | Exit 0; profile dependency became `1.4.5` and the DSH bundle list included the plugin. |
+| Upgrade | `dsh plugin --profile sdk update '@bybit-quant/dsh-plugin' --latest --registry http://127.0.0.1:4873` | Exit 0; profile dependency changed from `1.4.5` to `1.4.6`, and the installed package manifest reported `1.4.6`. |
+
+This is a disposable official CLI install and upgrade receipt. The separate
+Host service `plugin_manager.updateBundle` action was not directly callable
+from this session, so the report does not claim that service-level activation
+or rollback behavior was exercised. The earlier official CLI install,
+uninstall, and reinstall receipt remains in
+`sdd/reports/PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md`.
