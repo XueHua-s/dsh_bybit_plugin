@@ -432,3 +432,35 @@ Hooks encapsulate sensitive-path classification, redacted scanner execution and 
 The native package pins patched `fsspec==2026.6.0`; root `python/pyproject.toml` explicitly overrides Nautilus1.231.0's vulnerable exact2026.2.0 pin. Root uv lock is the required environment. Native Parquet catalog round-trip plus execution regressions scope compatibility; upstream metadata remains incompatible (`uv pip check` exits1, standalone pip rejects the conflict). This is an explicit security override, not a claim that all Nautilus APIs/remote filesystems are compatible. Revisit when upstream releases a patched compatible pin. Verify Gate owns final scan/test receipts.
 
 SDK Nx targets invoke installed root tools directly instead of nested package-manager switching. Bundle pack/SBOM subprocesses share `apps/dsh-plugin/scripts/pnpm-environment.ts`, hiding environment sanitation and workspace-root calculation. Two observed ENOEXEC gate failures drove this correction; fresh aggregate evidence is required rather than assuming scoped checks fix all callers.
+
+
+## Independent risk and local command ledger foundations — 2026-11-17
+
+`DESIGN_QUANT_RISK.md`, `DESIGN_COMMAND_LEDGER.md` and
+`DESIGN_RISK_WORKSPACE.md` define this increment before code. `quant-risk` owns
+strict snapshot/policy validation and deterministic conservative gross-risk
+arithmetic, with no transport or execution dependency. `quant-data` owns durable
+command identity, idempotent admission, lifecycle transitions, single dispatch
+claim and append-only local SQLite audit. Callers must treat an approved risk
+plan as data, not authorization. Neither package submits an exchange order.
+
+The future engine transaction boundary must bind server-owned account/market
+state, current risk generation, atomic exposure reservation and durable command
+audit to sole Nautilus submission and uncertain-order reconciliation. These
+foundations do not implement that boundary, account locking, long-lived paper or
+private account state. The service still has only two read-only routes. Existing
+TS REST submission remains DRIFT-ORIGINAL-003; no scope reduction or Mainnet
+acceptance follows from local risk/ledger tests. Independent scoped risk/ledger ACCEPT reviews and current
+aggregate/security receipts are recorded in Verify Gate; they do not accept
+the missing execution transaction or full product requirements.
+
+The package is a genuine discoverable Nx/uv project only after discovery, real
+graph edges, root import and build receipts; a directory alone is insufficient.
+The local schema migration is exercised against disposable SQLite fixtures,
+not a deployed/user database. PostgreSQL and power-loss recovery are unverified.
+
+`DESIGN_EXECUTION_CUTOVER.md` records the next dependency-ordered integration
+contract, including authenticated engine admission, one durable account/session
+writer, native internal-paper node lifetime, dispatch uncertainty and protected
+restart. It is future design, not implemented runtime acceptance; finite
+BacktestEngine fixtures cannot substitute for a continuously operating node.

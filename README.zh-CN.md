@@ -50,7 +50,8 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 
 ```text
 apps/dsh-plugin/          DSH Host、浏览器客户端、工具、脚本和测试
-python/packages/quant-data/  Alembic 数据包
+python/packages/quant-data/  Alembic 数据包与本地持久命令账本
+python/packages/quant-risk/  纯函数确定性风险否决基础
 packages/ts/quant-contracts/ 共享行情 DTO
 packages/ts/quant-api-client/ 生成式 SDK 和运行时校验
 python/packages/quant-execution/ 离线原生 Nautilus 基础
@@ -58,7 +59,7 @@ python/apps/quant-engine/   独立只读 Testnet 服务
 sdd/                      Brainstorm、Define、Design 和验证报告
 ```
 
-`dist/` 是生成产物，也是插件唯一打包内容。手写 TypeScript 使用 strict，并保持每个文件不超过 500 行。Python 项目由 uv 管理；Nx 会发现 `@bybit-quant/dsh-plugin`、`@bybit-quant/quant-contracts`、`@bybit-quant/quant-api-client`、`quant-execution`、`quant-data` 和 `quant-engine` 六个独立项目。
+`dist/` 是生成产物，也是插件唯一打包内容。手写 TypeScript 使用 strict，并保持每个文件不超过 500 行。Python 项目由 uv 管理；Nx 会发现 `@bybit-quant/dsh-plugin`、`@bybit-quant/quant-contracts`、`@bybit-quant/quant-api-client`、`quant-execution`、`quant-data`、`quant-risk` 和 `quant-engine` 七个独立项目（发现和实际依赖图均已验证）。
 
 ## 开发与验证
 
@@ -99,7 +100,13 @@ uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 
 原生测试必须使用根目录锁定的 `uv` 工作区：它显式将 fsspec 覆盖为已修复2026.6.0，而 Nautilus1.231.0 元数据仍精确要求2026.2.0。修复环境通过漏洞扫描和兼容 fixtures，但 `uv pip check` 会报告声明冲突，standalone pip 拒绝解析；不能声称元数据完全兼容。
 
-SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实 React 19 SSR 已不再跳过；浏览器视觉/交互、已安装 Harness 认证/升级仍未验证。代码提交 `4360381` 已推送，对应 [hosted CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44076026205) 的阻塞 verify job 和公共 Testnet smoke 均成功；[Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) 保持草稿供审查。实际 pre-commit/pre-push hooks 已成功执行。此 CI 收据仅覆盖该代码提交，不覆盖后续文档提交。解包后 import 只证明打包闭合，不证明官方安装。最新整体检查及安全结果见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)；不能因局部测试通过而把依赖漏洞扫描写成通过。
+SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实 React 19 SSR 已不再跳过；浏览器视觉/交互、已安装 Harness 认证/升级仍未验证。最近发布基线 `566092a` 已推送，对应 [hosted CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44077034140) 的阻塞 verify job 和公共 Testnet smoke 均成功；[Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) 保持草稿供审查。实际 pre-commit/pre-push hooks 已成功执行。此 CI 收据仅覆盖该精确基线，不覆盖后续本地风险/账本改动。解包后 import 只证明打包闭合，不证明官方安装。最新整体检查及安全结果见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)；不能因局部测试通过而把依赖漏洞扫描写成通过。
+
+## 风控与持久命令基础
+
+新增 `quant-risk` 包提供独立的纯函数风险否决：使用引擎拥有的快照、待执行预留和显式策略，校验后以 Decimal 计算保守总敞口。`quant-data` 新增本地 SQLite 持久命令账本，用于命令幂等、生命周期、单次派发认领及追加审计事件。二者均取得限定范围的独立 ACCEPT；当前 Python 工作区 213 项测试及类型、格式检查通过。此结论仅覆盖基础模块，不能视为已接入订单执行的最终风控。
+
+风险批准不授予交易权限，账本也不会发送或自动重发订单。原子风险预留/账户锁、Nautilus 唯一提交权、TS REST 切换、长期 paper/private 状态及未知订单对账仍未完成。新 Alembic 迁移仅限隔离测试，未迁移用户数据库。详见 [risk 设计](sdd/features/DESIGN_QUANT_RISK.md)、[命令账本设计](sdd/features/DESIGN_COMMAND_LEDGER.md)与 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
 
 ## 状态与凭证
 

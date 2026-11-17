@@ -45,7 +45,8 @@ jobs:
       - run: uv sync --project python --locked --all-groups
       - run: pnpm run verify
       - run: pnpm run typecheck:tests
-      - run: pnpm exec nx run-many -p quant-data quant-engine quant-execution -t lint typecheck test --parallel=1
+      - run: pnpm exec nx run-many -p quant-data quant-engine quant-execution quant-risk -t lint typecheck test --parallel=1
+      - run: pnpm exec nx run quant-risk:build
       - run: pnpm exec nx run quant-engine:openapi-check
       - run: uv run --project python --locked ruff format --check python/packages python/apps
       - run: pnpm run security:deps

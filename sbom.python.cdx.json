@@ -505,6 +505,20 @@
       "version": "0.1.0"
     },
     {
+      "bom-ref": "bybit-quant-risk==0.1.0",
+      "description": "Independent pure deterministic risk veto; no execution or exchange access",
+      "externalReferences": [
+        {
+          "comment": "PackageSource: Local",
+          "type": "distribution",
+          "url": "file:///Users/litlesnow/Desktop/Project/%E5%B9%BB%E6%96%B9%E9%87%8F%E5%8C%96/bybit-quant/python/packages/quant-risk"
+        }
+      ],
+      "name": "bybit-quant-risk",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
       "bom-ref": "certifi==2026.10.23",
       "description": "Python package for providing Mozilla's CA Bundle.",
       "externalReferences": [
@@ -1060,6 +1074,49 @@
       "purl": "pkg:pypi/httpx@0.28.1",
       "type": "library",
       "version": "0.28.1"
+    },
+    {
+      "bom-ref": "hypothesis==6.170.15",
+      "description": "The property-based testing library for Python",
+      "externalReferences": [
+        {
+          "comment": "from packaging metadata Project-URL: documentation",
+          "type": "documentation",
+          "url": "https://hypothesis.readthedocs.io"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: issues",
+          "type": "issue-tracker",
+          "url": "https://github.com/HypothesisWorks/hypothesis/issues"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: source",
+          "type": "other",
+          "url": "https://github.com/HypothesisWorks/hypothesis"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: changelog",
+          "type": "release-notes",
+          "url": "https://hypothesis.readthedocs.io/en/latest/changelog.html"
+        },
+        {
+          "comment": "from packaging metadata Project-URL: homepage",
+          "type": "website",
+          "url": "https://hypothesis.works"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "acknowledgement": "declared",
+            "id": "MPL-2.0"
+          }
+        }
+      ],
+      "name": "hypothesis",
+      "purl": "pkg:pypi/hypothesis@6.170.15",
+      "type": "library",
+      "version": "6.170.15"
     },
     {
       "bom-ref": "idna==3.20",
@@ -3280,6 +3337,9 @@
       "ref": "bybit-quant-execution==0.1.0"
     },
     {
+      "ref": "bybit-quant-risk==0.1.0"
+    },
+    {
       "ref": "certifi==2026.10.23"
     },
     {
@@ -3376,6 +3436,22 @@
     },
     {
       "dependsOn": [
+        "click==8.5.1",
+        "lark==1.3.1",
+        "numpy==2.5.5",
+        "pandas==3.1.1",
+        "pytest==9.2.0",
+        "python-dateutil==4.0.0",
+        "pytz==2026.6",
+        "rich==15.0.0",
+        "sortedcontainers==2.4.0",
+        "tzdata==2026.6"
+      ],
+      "ref": "hypothesis==6.170.15"
+    },
+    {
+      "dependsOn": [
+        "hypothesis==6.170.15",
         "pytest==9.2.0",
         "ruff==0.17.5"
       ],
@@ -3603,6 +3679,7 @@
       "dependsOn": [
         "Pygments==2.21.0",
         "attrs==26.1.0",
+        "hypothesis==6.170.15",
         "iniconfig==2.3.1",
         "numpy==2.5.5",
         "packaging==26.3",

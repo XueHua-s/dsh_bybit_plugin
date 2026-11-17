@@ -1,6 +1,51 @@
 # Verify Gate Evidence — 2026-11-17
 
-## Published code and hosted CI receipt — 2026-11-17
+## Local risk / command ledger increment — 2026-11-17 (verified scoped, overall PARTIAL)
+
+Published baseline is `566092aa8ace2aff354469e8d01638e0bcfdd7d7`.
+Parent verified [hosted CI44077034140](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44077034140)
+completed successfully for both verify and public Testnet jobs. The following
+local risk/ledger delta is **not committed or pushed** and has no new hosted CI
+receipt. Older receipts below retain their historical source/count scope.
+
+| Check | Command / method | Exit | Evidence / limits |
+|---|---|---:|---|
+| Root aggregate | Parent `pnpm run verify` | 0 | `/private/tmp/bybit-risk-root-verify.log`; TS Nx cache hits included, nine hook fixtures fresh. Python semantics are evidenced separately below. |
+| Strict TS test types | Parent `pnpm typecheck:tests` | 0 | `/private/tmp/bybit-risk-root-testtypes.log`. |
+| Independent command ledger review | `sdd/reviews/REVIEW_COMMAND_LEDGER_2026-11-17.md` | ACCEPT | Scoped: 28 unit tests plus independent 15×8 dispatch races, crash/audit/migration/restore probes; no exchange or account transaction acceptance. |
+| Independent risk review | `sdd/reviews/REVIEW_QUANT_RISK_2026-11-17.md` | ACCEPT | 61 tests, including four properties; 501 independent adversarial assertions. Decimal discovery, full-price-envelope slippage and lower-envelope SELL minimum-notional findings corrected. Final seed-only follow-up independently verified61 tests0 in0.19s/Ruff0/Pyright0: four seed20261117/databaseNone decorators preserve property assertions, test file455lines; current hashes and Build report checked in review, ACCEPT unchanged. |
+| Final parent Python workspace | `pnpm python:lint`; `pnpm python:typecheck`; `pnpm python:test` | 0 each | Ruff/format36 files, Pyright0; 213 passed in6.83s, ten existing Nautilus/Pandas warnings. Seed-only follow-up is tracked separately. |
+| OpenAPI drift | Parent uncached Nx engine OpenAPI target | 0 | Existing read-only schema matches; no command route added. |
+| Actual workspace integration | Commands in `BUILD_REPORT_RISK_WORKSPACE.md`: locked sync/import, `pnpm exec nx graph --file=/private/tmp/bybit-risk-workspace-graph.json`, risk CI targets and wheel build | 0 | Seven real nodes; actual existing edges retained, no invented engine→risk edge. Fresh risk lint/typecheck/test61 and wheel build passed. |
+| Nx discovery | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm exec nx show projects --json` | 0 | Seven independent projects: risk/data/engine/execution and three TS projects. |
+| Dependency audit | `UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache pnpm run security:deps` | 0 | pnpm audit/pip-audit report no known vulnerabilities; four local editable Python packages skipped. |
+| Declared metadata compatibility | `uv pip check --python python/.venv/bin/python` | 1 | Sole known incompatibility: Nautilus1.231.0 requires fsspec2026.2.0, explicit security override installs2026.6.0; no metadata-compatible install claim. |
+| TS SBOM | `pnpm run sbom` | 0 | 200 components, JSON count confirmed by parent. |
+| Python SBOM | `UV_CACHE_DIR=/private/tmp/bybit-engine-uv-cache NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm exec nx run quant-data:sbom` | 0 | 91 components, JSON count confirmed by parent. |
+| Changed-file secrets | Parent isolated redacted gitleaks scan | 0 | 34 files /833069 bytes; parent will rescan final docs before commit. |
+| Repository history secrets | Parent redacted history gitleaks scan | 0 | Nine commits /about1.98MB. |
+| Handwritten source cap | Parent source audit | 0 | 101 files, maximum497 lines, none>500. |
+| Remote baseline | Parent fetch and ahead/behind checks | 0 | HEAD versus origin/main and origin/feature both0/0 at inspection; recheck before publication if baseline moves. |
+| Diff whitespace | Parent `git diff --check` | 0 | Rerun after final documentation/seed edits. |
+
+**Retained failures and superseded counts:** initial Python lint exited1 on
+`test_migrations.py` formatting; author corrected that file and the final
+aggregate36-file check passed. Intermediate Python212/typecheck0 preceded the
+final SELL minimum-notional correction; Python213 above supersedes that source
+receipt. Risk review originally withheld acceptance for malformed Decimal field
+discovery and unsafe price envelopes; corrected regressions/reviewer probes now
+pass. uv metadata failure remains unresolved explicitly, not counted as green.
+
+The risk package is a pure deterministic veto foundation; the data package adds
+local durable commands/audit. Final account locks, atomic risk reservations,
+sole Nautilus submission, TS REST cutover, long-lived paper/private state,
+uncertain-order reconciliation and full strategy/AI/research remain incomplete.
+`DESIGN_EXECUTION_CUTOVER.md` is a future integration contract, not runtime
+acceptance. Only disposable SQLite test databases are in scope; target DB is not
+migrated. Engine HTTP remains two read-only routes. Mainnet is untested; no
+exchange order or private account access is authorized by these fixtures.
+
+## Historical published code and hosted CI receipt — 2026-11-17
 
 Code commit `4360381c86df468c1eb35a04c9eb880d515cb514` was committed and pushed; root verified an exact `git ls-remote` SHA match. [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) has `isDraft=true`; no main merge or production deployment is claimed.
 

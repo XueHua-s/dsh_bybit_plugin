@@ -50,7 +50,8 @@ Before clicking **Authorize**, review the agent name and requested scopes in Byb
 
 ```text
 apps/dsh-plugin/       DSH Host, browser client, tools, scripts, tests
-python/packages/quant-data/  Alembic data package
+python/packages/quant-data/  Alembic data package and local durable command ledger
+python/packages/quant-risk/  Pure deterministic risk veto foundation
 packages/ts/quant-contracts/ Shared market DTOs
 packages/ts/quant-api-client/ Generated engine SDK + runtime validation
 python/packages/quant-execution/ Offline native Nautilus foundation
@@ -58,7 +59,7 @@ python/apps/quant-engine/   Independent read-only Testnet service
 sdd/                   Brainstorm, Define, Design, and evidence reports
 ```
 
-`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, `@bybit-quant/quant-api-client`, `quant-execution`, and `quant-engine` as independent projects.
+`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, `@bybit-quant/quant-api-client`, `quant-execution`, `quant-risk`, and `quant-engine` as seven independent projects (discovery and actual dependency graph verified).
 
 ## Development and verification
 
@@ -99,7 +100,13 @@ The loopback-only service exposes read-only `/api/v1/health` and `/api/v1/market
 
 Use the locked root `uv` workspace for native tests. It explicitly overrides fsspec to patched2026.6.0 while Nautilus1.231.0 still declares an exact2026.2.0 pin. The patched environment passes vulnerability scanning and compatibility fixtures, but `uv pip check` reports that declared mismatch and standalone pip resolution rejects it; metadata compatibility is not claimed.
 
-The generated SDK, DSH integration, native foundation and Git hooks have independent scoped ACCEPT reviews. Real React 19 server rendering runs without a skip; browser visuals, interaction and installed Harness authentication/upgrade remain unverified. Code commit `4360381` is pushed and its [hosted CI run](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44076026205) passed both the blocking verify job and public Testnet smoke. [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) remains open for review. Actual pre-commit/pre-push hooks ran successfully. This CI receipt covers that code commit, not subsequent documentation commits. Packed archive import proves bundle closure, not official installation. See the [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md) for current aggregate/security outcomes; a dependency scan finding must not be treated as green because scoped tests pass.
+The generated SDK, DSH integration, native foundation and Git hooks have independent scoped ACCEPT reviews. Real React 19 server rendering runs without a skip; browser visuals, interaction and installed Harness authentication/upgrade remain unverified. Latest published baseline `566092a` is pushed and its [hosted CI run](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44077034140) passed both the blocking verify job and public Testnet smoke. [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) remains open for review. Actual pre-commit/pre-push hooks ran successfully. This CI receipt covers that exact baseline, not subsequent local risk/ledger changes. Packed archive import proves bundle closure, not official installation. See the [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md) for current aggregate/security outcomes; a dependency scan finding must not be treated as green because scoped tests pass.
+
+## Risk and durable command foundations
+
+The new `quant-risk` package provides a pure independent veto over engine-owned snapshots, pending reservations and explicit policy, using conservative Decimal gross-exposure arithmetic after validation. `quant-data` adds a local SQLite command ledger for idempotency, lifecycle transitions, single dispatch claims and append-only audit events. Both have independent scoped ACCEPT reviews; the current Python workspace passes 213 tests, typing and lint/format checks. This verifies the foundations; neither is yet the integrated final execution gate.
+
+Risk approval grants no trading authority, and the ledger sends or automatically resends no orders. Atomic risk reservations/account locks, sole Nautilus submission, TS REST cutover, long-lived paper/private state and uncertain-order reconciliation remain incomplete. The new Alembic migration is limited to isolated tests; no user database has been migrated. See the [risk design](sdd/features/DESIGN_QUANT_RISK.md), [command ledger design](sdd/features/DESIGN_COMMAND_LEDGER.md) and [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md).
 
 ## State and credentials
 

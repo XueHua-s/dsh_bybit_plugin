@@ -78,6 +78,8 @@ def test_upgrade_preserves_strategy_trade_and_audit_rows_and_backups(tmp_path: P
         "alembic_version",
         "strategy_versions",
         "trade_events",
+        "execution_commands",
+        "command_events",
     }
     assert {"event_type", "environment", "payload_json"} <= {
         column["name"] for column in inspector.get_columns("trade_events")
@@ -200,7 +202,5 @@ def test_migration_preserves_special_characters_in_database_path(tmp_path: Path)
     assert result.database == database.resolve()
     engine = create_engine(URL.create("sqlite", database=str(database)))
     with engine.connect() as connection:
-        assert (
-            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0002_strategy_config"
-        )
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003_command_ledger"
     engine.dispose()
