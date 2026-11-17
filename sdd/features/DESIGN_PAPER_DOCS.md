@@ -13,6 +13,11 @@ Date: 2026-11-17. Feature family: BYBIT_AI_QUANT. Documentation-only scope.
 | `sdd/handoffs/HANDOFF_BYBIT_AI_QUANT.md` | Update | Current state, future work and verified continuation |
 | `sdd/reports/VERIFY_GATE_2026-11-17.md` | Prepend | Scoped paper receipts without replacing historical gates |
 | `docs/runbooks/paper-service.md` | Create after verified CLI/FD contract | Safe process lifecycle and credential-free synthetic-fixture operations |
+| `AGENTS.md` | Update after latest explicit user instruction | Conditional Astra orchestration and GPT-6.1 Sol xhigh delegation; preserve all project rules |
+
+## Publication and governance follow-up
+
+The parent verified code `b75d73cb677e4c7beef82c9182ef6c955568f455`, successful push and exact remote SHA, and CI44089248505 success with both jobs and all steps inspected. Update the bilingual README, handoff and Verify Gate with this receipt; the documentation/governance follow-up has its own later commit and CI. The user's replacement instructions make Astra orchestration conditional: only when the primary model is GPT-6 Astra, children use GPT-6.1 Sol with xhigh effort and the primary coordinates rather than codes. Other primary models are not bound by that conditional rule. Normalize the user's `xhign` spelling to the supported `xhigh` value; do not claim the primary model changed. This manifest amendment precedes the governance edits.
 
 ## Input and current status
 
@@ -67,6 +72,6 @@ executed no-submit native start/stop in locked environment0; only allowlisted
 synthetic_native_start_stop_ok output. External PID/listener proof remains
 attributed to the separately executed hashed process probe. Final parent fullPython252, root/TS/format/types/schema/security/SBOM/scanners
 and license-artifact receipts integrated in Verify Gate, scoped verified/overall
-PARTIAL. Current paper delta remains uncommitted/unpushed.
-Primary orchestrator remains parent; future delegated children use the user's
-explicit gpt-6.1-sol/medium/fork-none choice, not a primary-model change.
+PARTIAL. Those local receipts preceded the verified publication above.
+The latest conditional model rule supersedes the earlier unconditional medium
+delegation guidance. Earlier execution/model receipts remain historical facts.

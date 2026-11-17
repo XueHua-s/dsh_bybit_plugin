@@ -2,6 +2,12 @@
 
 本文件是仓库级约束，所有 AI、代理和自动化任务在修改代码前必须读取。
 
+## 模型分工（条件规则）
+
+- 仅当主 Agent 使用 **GPT-6 Astra** 时：主 Agent 长期负责规划、项目管理、决策、任务拆解、调度、审查和验收，维护全局上下文与最终目标，避免陷入具体编码。
+- 在上述条件下，执行子 Agent 使用 **GPT-6.1 Sol / xhigh**（工具参数：`model="gpt-6.1-sol"`、`reasoning_effort="xhigh"`）；实现与独立审查分开安排。
+- 主 Agent 使用其他模型时，忽略上述模型分工规则；以下项目工程、安全和发布规则仍然适用。
+
 ## 工作流程
 
 - 使用项目内 `.agents/skills/sdd-*` 技能推进：Brainstorm → Define → Design → Build → Handoff/Release。

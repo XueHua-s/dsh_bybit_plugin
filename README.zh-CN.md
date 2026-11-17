@@ -100,7 +100,7 @@ uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 
 原生测试必须使用根目录锁定的 `uv` 工作区：它显式将 fsspec 覆盖为已修复2026.6.0，而 Nautilus1.231.0 元数据仍精确要求2026.2.0。修复环境通过漏洞扫描和兼容 fixtures，但 `uv pip check` 会报告声明冲突，standalone pip 拒绝解析；不能声称元数据完全兼容。
 
-SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实 React 19 SSR 已不再跳过；浏览器视觉/交互、已安装 Harness 认证/升级仍未验证。最近发布代码 `411de43` 已推送，对应 [hosted CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44081030699) 的阻塞 verify job 和公共 Testnet smoke 均成功；[Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) 保持草稿供审查。实际 pre-commit/pre-push hooks 已成功执行。该提交包含风险/持久命令基础；CI 实际执行了阻塞 verify、四个 Python 项目、risk wheel、schema、依赖/SBOM/历史扫描，公共 Testnet job 也成功。此收据仅覆盖该精确代码提交，不覆盖当前文档后续提交；未合并、部署或发送订单。解包后 import 只证明打包闭合，不证明官方安装。最新整体检查及安全结果见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)；不能因局部测试通过而把依赖漏洞扫描写成通过。
+SDK、DSH 接线、原生执行与命令准入层均有独立限定范围 ACCEPT。已发布代码 `b75d73c` 包含认证的持续模拟执行服务、原子风控预留及生成式 paper SDK；对应 [CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44089248505) 两个 job 均成功，已核对阻塞验证、四个 Python 项目、两个实际 OpenAPI 契约、安全扫描和 SBOM 步骤。实际提交/推送 hooks 通过，其中 Python 252 项测试通过。[Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) 保持草稿，未合并。此收据覆盖代码提交，当前文档及治理更新另行验证。浏览器交互、已安装 Harness 认证与官方升级保留验证仍未完成；证据与边界见 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
 
 ## 风控与持久命令基础
 
@@ -112,7 +112,7 @@ SDK、DSH 接线、原生基础和 Git hooks 均有独立 scoped ACCEPT。真实
 
 当前新增可选的独立 paper 应用：通过继承的私有文件描述符接收服务 capability，由引擎串行执行真实风险评估、持久命令及风险预留，再交给独立子进程中的 Nautilus `TradingNode`。它仅支持显式合成的 BTC 有限深度 fixture 与 LIMIT 命令；默认行情应用仍只有两个只读路由，paper 使用单独的 `quant-paper.v1` OpenAPI 与生成式 SDK。
 
-原生运行时、可选服务和 SDK 已取得限定范围的独立 ACCEPT；真实构建 SDK→CLI→风险/持久层→原生子进程 E2E 通过，覆盖后续成交、稳定标识、SDK 关闭独立性与受保护重启。永续钱包/已实现和未实现盈亏、保守可用权益及父进程死亡清理已有独立验证；数据层最终 43 项测试和 Alembic 元数据一致性审查也已 ACCEPT；全 Python 252 项测试通过，最终格式/类型、源码上限、secret/history 扫描及 wheel/sdist 许可证逐字节核验均通过；这些是局部验收，完整产品仍为 PARTIAL。它未连接交易所、发送交易所订单或执行真实交易，现有 DSH 模拟/交易工具也尚未切换到该控制路径。完整恢复、策略、AI 与隔离研究仍未完成。实际 CLI、私有 FD 协议和临时数据库流程见[内部模拟盘运行手册](docs/runbooks/paper-service.md)；当前增量尚未提交或推送。
+原生运行时、可选服务和 SDK 已取得限定范围的独立 ACCEPT；真实构建 SDK→CLI→风险/持久层→原生子进程 E2E 通过，覆盖后续成交、稳定标识、SDK 关闭独立性与受保护重启。永续钱包/已实现和未实现盈亏、保守可用权益及父进程死亡清理已有独立验证；数据层最终 43 项测试和 Alembic 元数据一致性审查也已 ACCEPT；全 Python 252 项测试通过，最终格式/类型、源码上限、secret/history 扫描及 wheel/sdist 许可证逐字节核验均通过；这些是局部验收，完整产品仍为 PARTIAL。它未连接交易所、发送交易所订单或执行真实交易，现有 DSH 模拟/交易工具也尚未切换到该控制路径。完整恢复、策略、AI 与隔离研究仍未完成。实际 CLI、私有 FD 协议和临时数据库流程见[内部模拟盘运行手册](docs/runbooks/paper-service.md)；该增量已包含在发布代码 `b75d73c` 中。
 
 ## 许可证范围
 

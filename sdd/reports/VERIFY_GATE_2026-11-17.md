@@ -1,15 +1,10 @@
 # Verify Gate Evidence — 2026-11-17
 
-## Local continuous paper increment — 2026-11-17 (verified scoped / overall PARTIAL)
+## Published continuous paper increment — 2026-11-17 (verified scoped / overall PARTIAL)
 
-Parent verified latest published documentation baseline
-`605fe709461e7157885da07216654a1da677926c` and
-[CI44081766003](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44081766003),
-both jobs successful. The new paper delta is not committed or pushed and has no
-hosted CI receipt. All scoped reviews, final metadata/economic review, full Python252, root/TS/
-format/types/schema/dependency/SBOM/scanner and license-artifact checks pass.
-Overall original platform acceptance remains PARTIAL. Older counts retain their
-source scope; current hosted CI still covers only baseline605fe70.
+Code `b75d73cb677e4c7beef82c9182ef6c955568f455` was committed and pushed. Actual pre-commit/pre-push hooks passed (252 Python tests in33.54s during push); exact remote SHA verified. [CI44089248505](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44089248505) completed success for both jobs; parent inspected every step, including blocking root verification, four Python projects, native tests, both actual schemas, security/SBOM/history checks and the public Testnet smoke. No merge, deployment or exchange order occurred.
+
+All local/scoped receipts below remain attributed to their inspected source. The later documentation/governance update incorporates the user's conditional Astra→GPT-6.1 Sol xhigh rule; it has a separate commit and CI. Full original platform acceptance remains PARTIAL.
 
 | Check | Actual receipt / method | Exit / result | Limits |
 |---|---|---|---|
@@ -32,7 +27,7 @@ source scope; current hosted CI still covers only baseline605fe70.
 | Changed-file secrets | Parent isolated redacted gitleaks scan | 0 | 71 files/1,136,198 bytes; snapshot before latest report append, not a claim that future text was scanned. |
 | Full history secrets | Parent redacted gitleaks history scan | 0 | 11 commits/about2.25MB. |
 | Native license artifacts | Parent independent final wheel/sdist inspection | PASS | Exact bytes of four assets MIT/LGPL/GPL/NOTICE in each archive, adapted source and SPDX MIT AND LGPL-3.0-only expression verified. |
-| Remote baseline | Parent fetch plus HEAD versus origin/main and origin/feature | 0 | Both ahead/behind0/0 at inspection; no staged files then. Publication remains a separate next step. |
+| Remote baseline | Parent fetch plus HEAD versus origin/main and origin/feature | 0 | Both ahead/behind0/0 at pre-publication inspection; actual publication is recorded above. |
 
 Initial actual SDK E2E used an incorrect root `.venv` path (127, no test), then
 sandbox socket creation failed (1); approved loopback rerun0 is the passing
