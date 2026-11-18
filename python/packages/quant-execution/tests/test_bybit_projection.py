@@ -55,6 +55,22 @@ def test_rejects_unknown_or_wrongly_typed_account_fields(change: dict[str, objec
         AccountKeyEvidence.parse(raw)
 
 
+@pytest.mark.parametrize("binding", ["0.0.0.0", "203.0.113.4/24", "not-an-ip"])
+def test_ip_binding_must_be_a_specific_address(binding: str) -> None:
+    with pytest.raises(ProjectionError):
+        AccountKeyEvidence.parse(
+            {
+                "user_id": "81234567",
+                "is_master": False,
+                "read_only": False,
+                "unified": True,
+                "expires_at_ms": 2_000_000_000_000,
+                "ip_bindings": [binding],
+                "permissions": ["read", "linear_trade"],
+            }
+        )
+
+
 def test_wallet_keeps_zero_funds_as_observed_data() -> None:
     wallet = WalletEvidence.parse(
         {

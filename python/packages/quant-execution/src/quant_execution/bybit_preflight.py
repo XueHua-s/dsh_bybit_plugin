@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol
 
@@ -72,7 +72,7 @@ class PreflightEvidence:
     available_margin_usdt: str | None = None
     funds_observed_positive: bool | None = None
     instrument: InstrumentEvidence | None = None
-    order_submission_allowed: bool = False
+    order_submission_allowed: bool = field(default=False, init=False)
 
 
 _ALLOWED_PERMISSIONS = frozenset({"read", "linear_trade"})
@@ -187,4 +187,4 @@ def _result(profile: ProfileBinding, status: PreflightStatus, reason: str) -> Pr
         if isinstance(profile.profile_ref, str) and _PROFILE_REF.fullmatch(profile.profile_ref)
         else "invalid"
     )
-    return PreflightEvidence(status, (reason,), profile_ref, "testnet", "linear", order_submission_allowed=False)
+    return PreflightEvidence(status, (reason,), profile_ref, "testnet", "linear")

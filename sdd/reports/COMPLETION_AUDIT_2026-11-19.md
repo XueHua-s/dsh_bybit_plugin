@@ -47,7 +47,7 @@ Overall status: **PARTIAL**
 
 ## Follow-up verification — 2026-11-19
 
-The additional offline Testnet preflight slice passed 312 Python tests, full
+The additional offline Testnet preflight slice passed 317 Python tests, full
 Python Ruff/format and Pyright checks, and `NX_DAEMON=false
 NX_ISOLATE_PLUGINS=false pnpm run verify` (all exit 0). `gitleaks git --redact`
 and `gitleaks dir --redact --no-banner --ignore-gitleaks-allow .` also exited 0.

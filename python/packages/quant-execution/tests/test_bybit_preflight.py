@@ -2,9 +2,11 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from inspect import signature
 
 import pytest
 from quant_execution.bybit_preflight import (
+    PreflightEvidence,
     PreflightStatus,
     ProfileBinding,
     ProviderUnavailable,
@@ -126,6 +128,24 @@ def test_identity_permission_staleness_and_report_gaps_deny() -> None:
     provider = _provider()
     provider.reports = {**provider.reports, "pagination_complete": False} if provider.reports else None
     assert "reports_incomplete" in run_testnet_preflight(PROFILE, provider, "BTCUSDT", NOW).reason_codes
+
+
+def test_expired_read_only_or_unbound_keys_are_denied() -> None:
+    for changes, expected_reason in (
+        ({"read_only": True}, "trading_permission_missing"),
+        ({"ip_bindings": []}, "ip_binding_missing"),
+        ({"expires_at_ms": NOW}, "key_expired"),
+    ):
+        provider = _provider()
+        assert provider.account is not None
+        provider.account = {**provider.account, **changes}
+        result = run_testnet_preflight(PROFILE, provider, "BTCUSDT", NOW)
+        assert result.status is PreflightStatus.DENIED
+        assert expected_reason in result.reason_codes
+
+
+def test_order_submission_is_not_a_caller_selectable_result() -> None:
+    assert "order_submission_allowed" not in signature(PreflightEvidence).parameters
 
 
 def test_provider_failure_is_sanitized_and_invalid_profile_does_not_call_provider() -> None:

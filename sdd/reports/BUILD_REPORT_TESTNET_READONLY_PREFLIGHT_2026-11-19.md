@@ -22,10 +22,10 @@ Status: **offline slice passed; product preflight and native trading remain part
 
 | Command | Exit | Result |
 |---|---:|---|
-| `uv run --project python --locked pytest python/apps/quant-engine/tests/test_bybit_profiles.py python/packages/quant-execution/tests/test_bybit_projection.py python/packages/quant-execution/tests/test_bybit_preflight.py` | 0 | 23 focused fixture tests passed. |
+| `uv run --project python --locked pytest python/apps/quant-engine/tests/test_bybit_profiles.py python/packages/quant-execution/tests/test_bybit_projection.py python/packages/quant-execution/tests/test_bybit_preflight.py` | 0 | 28 focused fixture tests passed. |
 | Initial `uv run --project python --locked ruff check python/apps/quant-engine/src/quant_engine/bybit_profiles.py python/apps/quant-engine/tests/test_bybit_profiles.py python/packages/quant-execution/src/quant_execution/bybit_projection.py python/packages/quant-execution/src/quant_execution/bybit_preflight.py python/packages/quant-execution/tests/test_bybit_projection.py python/packages/quant-execution/tests/test_bybit_preflight.py` | 1 | Found import-order/typing/catch issues; fixed before acceptance. |
 | `uv run --project python --locked ruff check --fix <six changed Python files>` | 0 | Applied import sorting; no remaining Ruff check findings. |
-| `pnpm run python:test` | 0 | 312 tests passed in 45.61s; 11 existing upstream/deprecation warnings. |
+| `pnpm run python:test` | 0 | 317 tests passed in 46.53s; 11 existing upstream/deprecation warnings. |
 | `pnpm run python:lint` | 0 | Ruff check passed; all 68 Python files formatted. |
 | `pnpm run python:typecheck` | 0 | Pyright reported 0 errors, warnings, or information. |
 | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` | 0 | Repository TypeScript/Bundle/SDK/tooling gate passed; some Nx build/lint/typecheck tasks were cache hits. |

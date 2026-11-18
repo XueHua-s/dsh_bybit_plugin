@@ -94,11 +94,11 @@ upgrade/rollback and state-hash preservation are still open.
 
 An offline-only Testnet profile/projection/preflight boundary was added under
 [`DESIGN_TESTNET_READONLY_PREFLIGHT.md`](../features/DESIGN_TESTNET_READONLY_PREFLIGHT.md).
-Its 312 Python tests use fixtures; it has no production credential provider,
+Its 317 Python tests use fixtures; it has no production credential provider,
 signed HTTP transport, live preflight, order writer or order authorization. The
 result `eligible_for_reconciliation` never allows submission.
 
-Fresh commands on 2026-11-19: `pnpm run python:test` (exit 0, 312 passed),
+Fresh commands on 2026-11-19: `pnpm run python:test` (exit 0, 317 passed),
 `pnpm run python:lint` (exit 0), `pnpm run python:typecheck` (exit 0),
 `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` (exit 0),
 `gitleaks git --redact` (exit 0), `gitleaks dir --redact --no-banner
