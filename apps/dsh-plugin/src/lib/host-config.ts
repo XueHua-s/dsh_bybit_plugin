@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defaultStateDir } from './state.js'
 import { normalizeCategory, normalizeInterval, normalizeSymbol } from './bybit.js'
@@ -19,17 +19,33 @@ export type CleanJson = null | boolean | string | number | CleanJson[] | { [key:
  */
 function resolveSettings(config: Record<string, unknown>): Settings {
   const env = config.env === 'live' || config.env === 'testnet' || config.env === 'demo' ? config.env : 'testnet'
-  const credentialsFile = text(config.credentialsFile) || join(defaultStateDir(), 'credentials.json')
+  const defaultCredentialFile = env === 'live'
+    ? join(defaultStateDir(), 'live', 'credentials.json')
+    : join(defaultStateDir(), 'credentials.json')
+  const credentialsFile = text(config.credentialsFile) || defaultCredentialFile
+  const apiKeyEnv = text(config.apiKeyEnv) || (env === 'live' ? 'BYBIT_MAINNET_API_KEY' : 'BYBIT_API_KEY')
+  const apiSecretEnv = text(config.apiSecretEnv) || (env === 'live' ? 'BYBIT_MAINNET_API_SECRET' : 'BYBIT_API_SECRET')
+  if (env === 'live' && [apiKeyEnv, apiSecretEnv].some(name =>
+    ['BYBIT_API_KEY', 'BYBIT_API_SECRET', 'BYBIT_TESTNET_API_KEY', 'BYBIT_TESTNET_API_SECRET'].includes(name))) {
+    throw new Error('Mainnet credential environment variables must not reuse Testnet variable names')
+  }
+  const defaultStateFile = env === 'live'
+    ? join(defaultStateDir(), 'live', 'state.json')
+    : join(defaultStateDir(), 'state.json')
   const fromFile = readCredentialsFile(credentialsFile, env)
-  const envKey = text(process.env.BYBIT_API_KEY)
-  const envSecret = text(process.env.BYBIT_API_SECRET)
-  const fallbackApiKey = envKey || fromFile.apiKey
-  const fallbackApiSecret = envSecret || fromFile.apiSecret
-  const fallbackCredentialSource = envKey && envSecret ? 'environment' : fromFile.apiKey && fromFile.apiSecret ? 'legacy credentials file' : 'none'
+  const envKey = text(process.env[apiKeyEnv])
+  const envSecret = text(process.env[apiSecretEnv])
+  if ((envKey === '') !== (envSecret === '')) {
+    throw new Error(`credential environment variables must be configured as a pair for ${env}`)
+  }
+  const filePair = fromFile.apiKey !== '' && fromFile.apiSecret !== ''
+  const fallbackApiKey = envKey !== '' ? envKey : filePair ? fromFile.apiKey : ''
+  const fallbackApiSecret = envSecret !== '' ? envSecret : filePair ? fromFile.apiSecret : ''
+  const fallbackCredentialSource = envKey !== '' ? 'environment' : filePair ? 'legacy credentials file' : 'none'
   return {
     env,
-    apiKeyEnv: text(config.apiKeyEnv) || 'BYBIT_API_KEY',
-    apiSecretEnv: text(config.apiSecretEnv) || 'BYBIT_API_SECRET',
+    apiKeyEnv,
+    apiSecretEnv,
     fallbackApiKey,
     fallbackApiSecret,
     fallbackCredentialSource,
@@ -44,7 +60,7 @@ function resolveSettings(config: Record<string, unknown>): Settings {
     paperBalanceUsd: positive(config.paperBalanceUsd, 10000),
     defaultSymbol: normalizeSymbol(config.defaultSymbol, 'BTCUSDT'),
     defaultCategory: normalizeCategory(config.defaultCategory ?? 'linear'),
-    stateFile: text(config.stateFile) || join(defaultStateDir(), 'state.json'),
+    stateFile: text(config.stateFile) || defaultStateFile,
     feeBps: clamp(Number(config.backtestFeeBps), 0, 100, 6),
     recvWindow: clamp(Number(config.recvWindowMs), 1000, 60_000, 5000),
     timeoutMs: clamp(Number(config.timeoutMs), 2000, 120_000, 15_000),
@@ -122,19 +138,61 @@ function optionalParams(args: Record<string, unknown>): StrategyParams {
  * @returns {{ apiKey: string, apiSecret: string }}
  */
 function readCredentialsFile(file: string, expectedEnv?: string): CredentialsDocument {
+  let content: string
   try {
-    if (!existsSync(file)) return { apiKey: '', apiSecret: '' }
-    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { apiKey: '', apiSecret: '' }
-    const values = parsed as Record<string, unknown>
-    if (typeof values.env === 'string' && expectedEnv !== undefined && values.env !== expectedEnv) return { apiKey: '', apiSecret: '' }
-    return {
-      apiKey: text(values.apiKey ?? values.key),
-      apiSecret: text(values.apiSecret ?? values.secret),
-    }
-  } catch {
-    return { apiKey: '', apiSecret: '' }
+    content = readFileSync(file, 'utf8')
+  } catch (error) {
+    if (isMissingFile(error)) return { apiKey: '', apiSecret: '' }
+    throw new Error('Could not safely read the configured Bybit credentials file', { cause: error })
   }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(content)
+  } catch (error) {
+    throw new Error('The configured Bybit credentials file contains invalid JSON', { cause: error })
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('The configured Bybit credentials file must contain a JSON object')
+  }
+  const values = parsed as Record<string, unknown>
+  const rawKey = values.apiKey ?? values.key
+  const rawSecret = values.apiSecret ?? values.secret
+  if ((rawKey !== undefined && typeof rawKey !== 'string') || (rawSecret !== undefined && typeof rawSecret !== 'string')) {
+    throw new Error('The configured Bybit credentials file must contain string key fields')
+  }
+  const apiKey = text(rawKey)
+  const apiSecret = text(rawSecret)
+  if ((apiKey === '') !== (apiSecret === '')) {
+    throw new Error('The configured Bybit credentials file must contain a complete key pair')
+  }
+  const hasEnvironment = values.env !== undefined
+  if (hasEnvironment && (typeof values.env !== 'string' || (expectedEnv !== undefined && values.env !== expectedEnv))) {
+    throw new Error('The configured Bybit credentials file belongs to a different environment')
+  }
+  if (expectedEnv === 'live' && apiKey !== '' && values.env !== 'live') {
+    throw new Error('Mainnet credentials must include an explicit live environment marker')
+  }
+  return { apiKey, apiSecret, ...(typeof values.env === 'string' ? { env: values.env } : {}) }
+}
+
+/** Resolve one complete credential source without combining key halves. */
+export function selectCredentialPair(
+  keyValue: unknown,
+  secretValue: unknown,
+  fallback: { apiKey: string, apiSecret: string, source: string },
+): { apiKey: string, apiSecret: string, source: string } {
+  const hasKey = keyValue !== undefined && keyValue !== null
+  const hasSecret = secretValue !== undefined && secretValue !== null
+  if (hasKey !== hasSecret) throw new Error('a credential source must provide both the API key and API secret')
+  if (!hasKey) return fallback
+  const apiKey = text(keyValue)
+  const apiSecret = text(secretValue)
+  if (apiKey === '' || apiSecret === '') throw new Error('a credential source must provide a non-empty API key pair')
+  return { apiKey, apiSecret, source: 'harness credential store' }
+}
+
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
 
 /** Trimmed string or empty. */

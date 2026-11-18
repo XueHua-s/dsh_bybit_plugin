@@ -26,6 +26,10 @@ export type PanelPayload = {
   ai?: AiView | null
   klines?: number[][]
   updatedAt?: number
+  automation?: 'conversation_only'
+  backgroundLoop?: 'not_running'
+  executionAuthority?: 'direct_rest_tools' | 'unavailable'
+  accountReadiness?: 'unknown' | 'zero_equity' | 'not_checked'
 }
 export type SnapshotInitial = { data: PanelPayload | null, error: string | null, at: number }
 export type PanelContext = {

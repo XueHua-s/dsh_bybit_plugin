@@ -58,6 +58,10 @@ function snapshot({ withPosition = true }: { withPosition?: boolean } = {}): Cli
     env: 'demo',
     hasKeys: false,
     allowLiveTrading: false,
+    automation: 'conversation_only',
+    backgroundLoop: 'not_running',
+    executionAuthority: 'direct_rest_tools',
+    accountReadiness: 'unknown',
     maxOrderNotionalUsd: 200,
     symbol: 'BTCUSDT',
     category: 'linear',
@@ -145,7 +149,23 @@ function snapshot({ withPosition = true }: { withPosition?: boolean } = {}): Cli
 
 /** Render the panel with one injected snapshot. */
 function render(initial: ClientSnapshot): string {
-  return renderToStaticMarkup(React.createElement(Panel, { t: (key: string) => key, initial }))
+  return renderToStaticMarkup(React.createElement(Panel, {
+    t: testTranslate,
+    initial,
+  }))
+}
+
+function testTranslate(key: string): string {
+  return {
+    readinessTitle: 'Operating boundary',
+    readinessConversationOnly: 'Conversation-triggered only',
+    readinessNotRunning: 'Not running',
+    readinessDirectRest: 'Direct TS REST path (quant executor not connected)',
+    readinessUnknown: 'Unknown',
+    readinessMainnetApproval: 'Mainnet order approval',
+    readinessApprovalMissing: 'Approval-card flow not implemented',
+    readinessHint: 'No background AI scheduler or automatic order loop is running. Mainnet trades also require separate per-order approval. Healthy market data does not prove account, reconciliation, or execution readiness.',
+  }[key] ?? key
 }
 
 const populated = render({ data: snapshot(), error: null, at: Date.now() })
@@ -166,6 +186,10 @@ assert.ok(populated.includes('higher timeframe trend up'), 'AI thesis is missing
 assert.ok(populated.includes('66.7'), 'AI hit rate is missing')
 assert.ok(populated.includes('0.21'), 'AI Brier score is missing')
 assert.ok(populated.includes('Quant engine / 量化引擎'), 'engine status card is missing')
+assert.ok(populated.includes('Operating boundary'), 'operating boundary card is missing')
+assert.ok(populated.includes('Conversation-triggered only'), 'conversation-only automation state is missing')
+assert.ok(populated.includes('No background AI scheduler or automatic order loop is running.'), 'background loop boundary is missing')
+assert.ok(populated.includes('Approval-card flow not implemented'), 'missing Mainnet per-order approval UX must be explicit')
 assert.ok(populated.includes('Linear Testnet'), 'engine environment/category label is missing')
 assert.ok(populated.includes('Not checked / 尚未检查'), 'SSR must not invent a completed engine request')
 assert.ok(populated.includes('account, reconciliation and execution readiness unknown'), 'unknown execution boundary is missing')
@@ -190,7 +214,9 @@ assert.ok(failed.includes('errorRoute'), 'error hint is not shown')
 assert.ok(failed.includes('Not checked / 尚未检查'), 'chart failure must not fabricate engine state')
 assert.ok(!failed.includes('Unavailable / 无法连接'), 'chart failure is not engine unavailability evidence')
 
-const loading = renderToStaticMarkup(React.createElement(Panel, { t: (key: string) => key }))
+const loading = renderToStaticMarkup(React.createElement(Panel, {
+  t: testTranslate,
+}))
 assert.ok(loading.includes('bq-root'), 'loading state did not render')
 assert.ok(!loading.includes('NaN'), 'loading markup contains NaN')
 

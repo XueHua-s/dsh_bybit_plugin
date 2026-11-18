@@ -34,9 +34,9 @@ Bundle 默认配置为 `env: testnet`、`allowLiveTrading: false`、`allowTestne
 
 面板通过已认证 DSH bridge 提供 REST 视图及按需引擎查询。独立的原生 paper 卡片只为已配置的合成会话提供手动状态检查、Start 和 Stop，不提供浏览器下单路由，也不后台轮询。Python 服务仍只绑定 loopback，认证远程部署尚未实现；已安装载体的认证和真实浏览器交互仍待验证。
 
-## Testnet OAuth
+## Bybit OAuth
 
-内置 PKCE 客户端遵循 Bybit 面向 AI Agent 的 Testnet OAuth 流程。它使用 Testnet 授权页、`ai-account` 范围、`127.0.0.1:9876` 回环回调和 `api2-testnet.bybit.com` OAuth API。授权前请阅读 Bybit 的[AI Agent 连接指南](https://www.bybit.com/en/learn/ai-subaccount/agent-connect)。
+内置 PKCE 客户端支持 Bybit AI Agent 的 Testnet 和 Mainnet OAuth。默认使用 Testnet；正式环境需显式添加 `--env=live`。流程使用 `ai-account` 范围和 `127.0.0.1` 回环回调。授权前请阅读 Bybit 的[AI Agent 连接指南](https://www.bybit.com/en/learn/ai-subaccount/agent-connect)。如果不用 OAuth 文件而改用环境变量，必须按环境分开：Testnet 使用 `BYBIT_API_KEY`/`BYBIT_API_SECRET`，Mainnet 使用 `BYBIT_MAINNET_API_KEY`/`BYBIT_MAINNET_API_SECRET`，且每组变量必须同时存在。Host 遇到格式错误、环境不匹配或半组凭证会拒绝加载，绝不会拼接不同来源的 key 和 secret。
 
 请在仓库根目录运行这些命令，并在浏览器授权完成前保持 `start` 进程运行：
 
@@ -47,7 +47,18 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- accounts
 pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 ```
 
-点击 **Authorize** 前，请你本人在 Bybit 页面核对 Agent 名称和请求权限。回环回调返回后运行 `exchange`，查看 AI 子账户列表，再明确选择目标账户。客户端不会自动选择或创建账户。Token 和已选择账户的凭证会以受限权限写入本地文件，不会打印到日志。撤销访问请在 Bybit 删除对应 AI 子账户。此流程不支持 Mainnet OAuth。
+Mainnet OAuth 请对每条命令添加 `--env=live`，例如：
+
+```sh
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live start
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live exchange
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live select <sub_member_id>
+# 只有在你明确要新建正式 AI 子账户时才运行：
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live create
+```
+
+点击 **Authorize** 前，请在 Bybit 页面核对 Agent 名称和请求权限。回环回调返回后运行 `exchange`，查看 AI 子账户列表，再明确选择目标账户。客户端不会自动选择或创建账户。若列表为空，单独的 `create` 命令会在 Mainnet 创建 AI 子账户并保存返回的密钥；只有你确实需要该账户时才运行。本次没有执行创建。Token 和已选择账户的凭证会以受限权限写入本地文件，不会打印到日志。Mainnet OAuth 状态、凭证及默认插件状态单独保存在 `$DSH_HOME/bybit-quant/live/`（未设置 `DSH_HOME` 时为 `~/.dsh/bybit-quant/live/`），Testnet 文件保留在父目录。2026-11-19 已使用真实 Bybit Mainnet 完成 OAuth 授权、code 交换及只读账户列表请求；接口成功但列表为空，因此未选择、创建 Mainnet AI 子账户，也未下单。OAuth 支持不等于允许 Mainnet 下单：`allowLiveTrading` 默认仍为 `false`。撤销访问请在 Bybit 删除对应 AI 子账户。
 
 ## 工作区结构
 

@@ -2,7 +2,7 @@
 
 Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains `quant-data`, the independent read-only `quant-engine` market service and an optional native synthetic paper service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI decision journal with code-owned risk gates, and a web panel with read-only market views and explicit native-paper controls.
 
-The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Nautilus as sole exchange execution authority, the full quant/AI/research platform, Plugin Manager upgrade preservation, and real OAuth remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
+The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Mainnet OAuth grant, token exchange, and account-list access were verified on 2026-11-19; the returned list was empty, so no Mainnet AI sub-account credentials or orders were tested. Nautilus as sole exchange execution authority, the full quant/AI/research platform, and Plugin Manager upgrade preservation remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
 ## Install the Bundle
 
@@ -34,9 +34,9 @@ The Bundle defaults to `env: testnet`, `allowLiveTrading: false`, `allowTestnetT
 
 The panel provides REST views and demand-driven engine checks through the authenticated DSH bridge. Its separate native-paper card offers manual status, Start and Stop for the configured synthetic session, with no browser order-submission route or background polling. Python services remain loopback-only; authenticated remote deployment is not implemented. Installed carrier authentication and browser interaction acceptance remain pending.
 
-## Testnet OAuth
+## Bybit OAuth
 
-The bundled PKCE client follows Bybit's documented AI-agent OAuth flow for Testnet. It uses the Testnet authorization page, the `ai-account` scope, a loopback callback on `127.0.0.1:9876`, and the Testnet OAuth API at `api2-testnet.bybit.com`. Read Bybit's [AI-agent connection guide](https://www.bybit.com/en/learn/ai-subaccount/agent-connect) before authorizing.
+The bundled PKCE client supports Bybit AI-agent OAuth for Testnet and Mainnet. Testnet is the default; pass `--env=live` for production. It uses the `ai-account` scope and a loopback callback on `127.0.0.1`. Read Bybit's [AI-agent connection guide](https://www.bybit.com/en/learn/ai-subaccount/agent-connect) before authorizing. If you configure environment variables instead of OAuth files, keep them environment-scoped: Testnet uses `BYBIT_API_KEY`/`BYBIT_API_SECRET`, while Mainnet uses `BYBIT_MAINNET_API_KEY`/`BYBIT_MAINNET_API_SECRET`; each pair must be complete. The Host fails closed on malformed, cross-environment, or partial credential sources and never combines key halves.
 
 Run the commands from the repository root. Keep the `start` process running while you finish the browser authorization:
 
@@ -47,7 +47,18 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- accounts
 pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
 ```
 
-Before clicking **Authorize**, review the agent name and requested scopes in Bybit yourself. After the loopback callback returns, run `exchange`, review the returned AI sub-accounts, and explicitly select the intended account. The client does not auto-select or create an account. Tokens and selected credentials are stored in permission-restricted local files and are never printed. Revoke access by deleting the corresponding AI sub-account in Bybit. Mainnet OAuth is not supported by this flow.
+For Mainnet OAuth, add `--env=live` to each command, for example:
+
+```sh
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live start
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live exchange
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live select <sub_member_id>
+# Only if you explicitly want to create a new Mainnet AI sub-account:
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live create
+```
+
+Before clicking **Authorize**, review the agent name and requested scopes in Bybit yourself. After the loopback callback returns, run `exchange`, review the returned AI sub-accounts, and explicitly select the intended account. The client does not auto-select or create an account. If the list is empty, the separate `create` command creates a Mainnet AI sub-account and stores its returned key pair; use it only when you intend that account to exist. Tokens and selected credentials are stored in permission-restricted local files and are never printed. Mainnet OAuth state, credentials, and default plugin state are isolated under `$DSH_HOME/bybit-quant/live/` (or `~/.dsh/bybit-quant/live/` when `DSH_HOME` is unset); Testnet files remain in the parent directory. Mainnet OAuth grant, exchange, and the read-only account-list request succeeded on 2026-11-19, but the list was empty; no Mainnet AI sub-account was selected, created, or traded. OAuth support does not enable Mainnet orders: `allowLiveTrading` remains false by default. Revoke access by deleting the corresponding AI sub-account in Bybit.
 
 ## Workspace layout
 

@@ -22,9 +22,9 @@
         maxOrderNotionalPctOfEquity: 25
         # A main-account key needs this extra switch before it can place live orders.
         allowMainAccount: false
-        # Names resolved through ctx.credentials; values never belong in this patch.
-        apiKeyEnv: BYBIT_API_KEY
-        apiSecretEnv: BYBIT_API_SECRET
+        # Credential variable names are environment-scoped by host-config:
+        # Testnet uses BYBIT_API_KEY/BYBIT_API_SECRET; Mainnet uses
+        # BYBIT_MAINNET_API_KEY/BYBIT_MAINNET_API_SECRET. Values never belong here.
         # Starting cash of the simulated (paper) book.
         paperBalanceUsd: 10000
         defaultSymbol: BTCUSDT

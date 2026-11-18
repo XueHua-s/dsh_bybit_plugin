@@ -131,7 +131,7 @@ export class BybitClient {
       const resolved = await this.#resolveCredentials?.()
       if (resolved !== undefined) this.setCredentials(resolved.apiKey, resolved.apiSecret)
       if (!this.hasCredentials) {
-        throw new BybitError('this call needs a Bybit API key; set BYBIT_API_KEY and BYBIT_API_SECRET or the plugin config fields')
+        throw new BybitError('this call needs a Bybit API key; set the environment-scoped variables or the plugin config fields')
       }
       const timestamp = Date.now().toString()
       const signature = createHmac('sha256', this.#options.apiSecret as string)

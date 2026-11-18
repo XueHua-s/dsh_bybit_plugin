@@ -58,6 +58,10 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         hasKeys: client.hasCredentials,
         allowLiveTrading: settings.allowLiveTrading,
         allowTestnetTrading: settings.allowTestnetTrading,
+        automation: 'conversation_only' as const,
+        backgroundLoop: 'not_running' as const,
+        executionAuthority: 'direct_rest_tools' as const,
+        accountReadiness: 'unknown' as const,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,
         symbol,
         category,
@@ -65,7 +69,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         paper: await statusOfPaper(),
         lastBacktest: store.get().lastBacktest,
         lastSignal: store.get().lastSignal,
-      ai: aiSummary(),
+        ai: aiSummary(),
       }
       if (cached !== undefined && cached.expires > Date.now()) return Response.json({ ...base, ...cached.value, cached: true })
       try {
@@ -100,6 +104,10 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         hasKeys: client.hasCredentials,
         allowLiveTrading: settings.allowLiveTrading,
         allowTestnetTrading: settings.allowTestnetTrading,
+        automation: 'conversation_only' as const,
+        backgroundLoop: 'not_running' as const,
+        executionAuthority: 'direct_rest_tools' as const,
+        accountReadiness: 'unknown' as const,
         allowMainAccount: settings.allowMainAccount,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,
         maxOrderNotionalPctOfEquity: settings.maxOrderNotionalPctOfEquity,

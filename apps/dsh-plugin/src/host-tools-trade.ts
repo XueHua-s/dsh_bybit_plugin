@@ -75,7 +75,7 @@ export function registerTools(runtime: HostRuntime): void {
           )
         }
         if (!client.hasCredentials) {
-          throw new Error('live trading needs a Bybit API key: set BYBIT_API_KEY and BYBIT_API_SECRET, or the plugin config apiKey/apiSecret fields')
+          throw new Error('live trading needs a Bybit API key: set the environment-scoped variables (Mainnet: BYBIT_MAINNET_API_KEY/BYBIT_MAINNET_API_SECRET; Testnet: BYBIT_API_KEY/BYBIT_API_SECRET), or use the selected credentials file')
         }
       }
 

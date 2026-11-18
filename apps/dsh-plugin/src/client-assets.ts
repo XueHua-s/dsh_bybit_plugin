@@ -84,6 +84,21 @@ export const zh = {
       aiActionLong: '做多',
       aiActionShort: '做空',
       aiActionFlat: '不交易',
+      readinessTitle: '运行边界',
+      readinessAutomation: '自动化模式',
+      readinessConversationOnly: '仅对话触发',
+      readinessBackground: '后台循环',
+      readinessNotRunning: '未运行',
+      readinessAuthority: '执行权威',
+      readinessDirectRest: 'TS 直接 REST（未接入量化执行引擎）',
+      readinessUnavailable: '未接通量化执行器',
+      readinessAccount: '账户就绪',
+      readinessUnknown: '未知',
+      readinessZeroEquity: '权益为零',
+      readinessNotChecked: '尚未检查',
+      readinessMainnetApproval: 'Mainnet 逐笔确认',
+      readinessApprovalMissing: '确认卡片流程未实现',
+      readinessHint: '当前不会在后台持续唤醒 AI 或自动下单；Mainnet 每笔交易还需独立确认。市场数据正常不代表账户、对账或执行已就绪。',
 }
 
 
@@ -173,6 +188,21 @@ export const en = {
       aiActionLong: 'long',
       aiActionShort: 'short',
       aiActionFlat: 'flat',
+      readinessTitle: 'Operating boundary',
+      readinessAutomation: 'Automation',
+      readinessConversationOnly: 'Conversation-triggered only',
+      readinessBackground: 'Background loop',
+      readinessNotRunning: 'Not running',
+      readinessAuthority: 'Execution authority',
+      readinessDirectRest: 'Direct TS REST path (quant executor not connected)',
+      readinessUnavailable: 'Quant executor not connected',
+      readinessAccount: 'Account readiness',
+      readinessUnknown: 'Unknown',
+      readinessZeroEquity: 'Zero equity',
+      readinessNotChecked: 'Not checked',
+      readinessMainnetApproval: 'Mainnet order approval',
+      readinessApprovalMissing: 'Approval-card flow not implemented',
+      readinessHint: 'No background AI scheduler or automatic order loop is running. Mainnet trades also require separate per-order approval. Healthy market data does not prove account, reconciliation, or execution readiness.',
 }
 
 
@@ -232,5 +262,7 @@ export const CSS = `
 .bq-ai-last { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l1); }
 .bq-ai-thesis { color: var(--dsw-alias-label-secondary); font-size: 12px; margin-top: 4px; max-width: 80ch; }
 .bq-spark { display: block; width: 100%; height: 40px; margin-top: 4px; }
+.bq-readiness-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.bq-readiness-grid div { display: flex; flex-direction: column; gap: 2px; }
 @media (max-width: 720px) { .bq-root { padding: calc(var(--dsh-frame-top-clearance, 16px) + 8px) 14px 48px; } .bq-price { font-size: 24px; } }
 `

@@ -30,6 +30,13 @@ decision card, the paper book, and the last backtest.
   it only when the **code-owned risk gate** accepts it; `quant_review` scores the journal
   (hit rate, expectancy, R, Brier calibration, drawdown, buy-and-hold baseline). The model
   supplies the thesis, the code supplies the arithmetic and the veto.
+- **Runtime boundary** — the shipped Bundle is conversation-triggered. It does not run a
+  background AI scheduler, wake the model on a timer, or provide unattended order execution.
+  The browser panel is read-only, and its readiness card reports that the current TS REST
+  tools are not connected to the independent quant executor. Healthy public market data is
+  therefore not evidence that account, reconciliation, recovery, or execution is ready.
+  Mainnet order-by-order approval is also required and its confirmation-card flow is not yet
+  implemented.
 - **Live orders** — create, cancel, cancel all, and close a position on demo, testnet, or
   live. Triple-gated: `allowLiveTrading: true` in config, `confirm: "LIVE"`, and
   `dryRun: false`, plus a hard per-order notional cap.
@@ -69,7 +76,9 @@ profile's `cordis.patch.yml`).
 | Field | Default | Meaning |
 |---|---|---|
 | `env` | `testnet` in the Bundle patch | `demo`, `testnet`, or `live` (real money) |
-| `apiKey` / `apiSecret` | — | Prefer `BYBIT_API_KEY` / `BYBIT_API_SECRET` in the environment; config is plain text |
+| `apiKey` / `apiSecret` | — | Prefer OAuth or environment variables; raw values in plugin config are plain text |
+| environment variables | — | Testnet: `BYBIT_API_KEY` / `BYBIT_API_SECRET`; Mainnet: `BYBIT_MAINNET_API_KEY` / `BYBIT_MAINNET_API_SECRET`; each pair must be complete and from one environment |
+| `credentialsFile` | `$DSH_HOME/bybit-quant/credentials.json` | Selected OAuth credentials; for `env: live`, default is `$DSH_HOME/bybit-quant/live/credentials.json` |
 | `allowLiveTrading` | `false` | Master switch for `bybit_trade`; while false every call is a preview |
 | `allowTestnetTrading` | `true` in the Bundle patch | Explicit Testnet order switch; Mainnet remains controlled by `allowLiveTrading` |
 | `maxOrderNotionalUsd` | `24` in the Bundle patch | Hard ceiling for one order (`price × quantity`) |
@@ -79,7 +88,7 @@ profile's `cordis.patch.yml`).
 | `backtestFeeBps` | `6` | Default fee per side used by `quant_backtest` |
 | `recvWindowMs` | `5000` | Signed-request receive window |
 | `timeoutMs` | `15000` | Per-request HTTP timeout |
-| `stateFile` | `$DSH_HOME/bybit-quant/state.json` | Where the paper book and last backtest live |
+| `stateFile` | `$DSH_HOME/bybit-quant/state.json` | Testnet/demo paper book and journal; `env: live` defaults to `$DSH_HOME/bybit-quant/live/state.json` |
 | `aiEnabled` | `true` | Turns the AI decision track on or off |
 | `aiStartEquity` | `paperBalanceUsd` | Starting equity of the AI track |
 | `aiRiskPerTradePct` | `1` | A stop hit may cost at most this share of equity; enforced in code |
@@ -90,9 +99,19 @@ profile's `cordis.patch.yml`).
 | `aiSymbols` | `[BTCUSDT, ETHUSDT]` | Symbols the brief covers |
 | `aiTimeframes` | `[240, 60, D]` | Brief timeframes, primary first |
 
+Authorize an AI sub-account from the repository root with `pnpm --filter @bybit-quant/dsh-plugin oauth -- start`
+for Testnet, or add `--env=live` for Mainnet. Keep `start` running through the Bybit browser
+authorization, then use the same environment flag with `exchange`, `accounts`, and `select`.
+The separate `create` action creates a new AI sub-account only when explicitly requested.
+The selected key pair is stored in the environment-specific credentials file above; Mainnet
+tokens and keys never overwrite Testnet files. Mainnet OAuth grant, code exchange, and a
+read-only account-list request succeeded against Bybit on 2026-11-19; the list was empty, so
+no Mainnet AI sub-account was selected. Mainnet OAuth support does not enable real orders:
+`allowLiveTrading` remains false by default, and no Mainnet order was sent.
+
 ## Safety
 
-- Trading state lives under `$DSH_HOME/bybit-quant/`, never in your workspace.
+- Trading state lives under `$DSH_HOME/bybit-quant/`, never in your workspace. Mainnet credentials and state use the separate `live/` subdirectory by default; explicit `credentialsFile` or `stateFile` settings override those paths.
 - The panel is **read-only**: no browser path can place an order or move the paper book.
 - The plugin refuses live orders above `maxOrderNotionalUsd` even when everything is
   enabled, and it rounds quantities down to the instrument's step and rejects orders below
@@ -100,8 +119,11 @@ profile's `cordis.patch.yml`).
   reduces an existing position instead of opening exposure.
 - The shipped Bundle uses `[TESTNET]`; Testnet credentials and orders stay on the Testnet host.
   Mainnet requires a separate explicit configuration and is disabled by default.
+- Credential loading fails closed: a missing or malformed file, environment mismatch, partial
+  environment pair, or partial Harness Credential Store pair is rejected. Key and secret halves
+  are never combined across sources.
 
-## The AI loop
+## Conversation-triggered AI workflow
 
 1. `quant_brief` returns a compact brief per symbol plus the limits and the decision schema.
 2. The model picks at most one action per symbol and calls `quant_decide` with a falsifiable
@@ -115,6 +137,9 @@ profile's `cordis.patch.yml`).
    (stop, then take, then horizon at market).
 5. Every decision stores the brief hash and a compact context snapshot, so a later review can
    replay what the model saw.
+
+These steps run when the agent calls the tools in a conversation. They are not a persistent
+background loop and they do not turn the Bundle into an unattended autonomous trader.
 
 ## Supported instruments
 

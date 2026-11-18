@@ -1,5 +1,6 @@
 import { enginePanel } from './client-engine.js'
 import { paperPanel } from './client-paper.js'
+import { readinessPanel } from './client-readiness.js'
 type ReactRuntime = typeof import('react')
 import type { AiView, CurvePoint, PanelContext, PanelPayload, PanelProps, SnapshotInitial, Translate } from './client-types.js'
 
@@ -29,6 +30,7 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const EnginePanel = enginePanel(React)
     const PaperPanel = paperPanel(React)
+    const ReadinessPanel = readinessPanel(React)
     const { useCallback, useEffect, useMemo, useState } = React
 
     /** Dictionary namespace owned by this plugin. */
@@ -43,8 +45,6 @@ window.__ModuleLoader__.load({
     const INTERVALS = [
       ['1', '1m'], ['5', '5m'], ['15', '15m'], ['60', '1h'], ['240', '4h'], ['D', '1d'],
     ]
-
-
 
     /**
      * Candlestick chart with two SMAs, drawn as plain SVG with theme tokens.
@@ -304,6 +304,7 @@ window.__ModuleLoader__.load({
 
         h(EnginePanel),
         h(PaperPanel),
+        h(ReadinessPanel, { data, t }),
         h('div', { className: 'bq-controls' },
           h('div', { className: 'bq-field' },
             h('label', { className: 'bq-label', htmlFor: 'bq-symbol' }, t('symbol')),

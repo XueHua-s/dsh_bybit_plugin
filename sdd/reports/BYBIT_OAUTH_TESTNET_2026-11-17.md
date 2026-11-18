@@ -40,6 +40,14 @@ attempted. The implementation never auto-selects or creates an account.
 No Testnet order, transfer, withdrawal, Mainnet request, or credential value
 was sent to the repository, logs, reports, or remote Git history.
 
+## Follow-up read-only probe — 2026-11-19
+
+The selected credential file was re-read without printing key material. A
+`BybitClient` signed `query-api` request matched the explicitly selected
+sub-account `107209442`; a signed unified wallet read succeeded and reported no
+non-zero coins, equity, or available USDT. Because the account had no usable
+balance, no order request was attempted.
+
 ## Disposable Bundle upgrade receipt
 
 After the OAuth checks, a separate disposable `DSH_HOME` was used with the

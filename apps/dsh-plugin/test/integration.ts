@@ -94,12 +94,15 @@ apply(ctx, {
   defaultCategory: 'linear',
   maxOrderNotionalUsd: 200,
   stateFile,
+  credentialsFile: join(directory, 'credentials.json'),
 })
 
-check('registers five tools and a prompt note', () => {
+check('registers the expected tools and a prompt note', () => {
   assert.deepEqual([...tools.keys()].sort(), [
     'bybit_account', 'bybit_instruments', 'bybit_market', 'bybit_trade', 'quant_backtest', 'quant_brief',
-    'quant_decide', 'quant_paper', 'quant_review', 'quant_signals', 'quant_watchlist',
+    'quant_decide', 'quant_get_engine_status', 'quant_get_market_snapshot', 'quant_get_paper_command',
+    'quant_get_paper_status', 'quant_paper', 'quant_review', 'quant_signals', 'quant_start_paper',
+    'quant_stop_paper', 'quant_submit_paper_order', 'quant_watchlist',
   ])
   assert.match(sectionText, /dryRun: false/)
   for (const definition of tools.values()) {

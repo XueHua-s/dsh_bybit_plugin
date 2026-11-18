@@ -29,7 +29,7 @@ import { paperStatus, positionKey } from './lib/paper.js'
 import { createRuntimeMonitor } from './lib/monitor.js'
 import type { DecisionTrack } from './lib/ai-types.js'
 import type { ApiKeyInfo, Category, Instrument } from './lib/bybit.js'
-import { resolveSettings, round2, clean } from './lib/host-config.js'
+import { resolveSettings, round2, clean, selectCredentialPair } from './lib/host-config.js'
 import { createTrack, markedEquity, rollDay, scoreTrack } from './lib/ai.js'
 
 /** Plugin version reported by the health route. */
@@ -134,11 +134,13 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
           credentialStore.resolve(settings.apiKeyEnv),
           credentialStore.resolve(settings.apiSecretEnv),
         ])
-        settings.credentialsSource = key?.value && secret?.value ? 'harness credential store' : settings.fallbackCredentialSource
-        return {
-          apiKey: key?.value || settings.fallbackApiKey,
-          apiSecret: secret?.value || settings.fallbackApiSecret,
-        }
+        const selected = selectCredentialPair(key?.value, secret?.value, {
+          apiKey: settings.fallbackApiKey,
+          apiSecret: settings.fallbackApiSecret,
+          source: settings.fallbackCredentialSource,
+        })
+        settings.credentialsSource = selected.source
+        return { apiKey: selected.apiKey, apiSecret: selected.apiSecret }
       }
       return { apiKey: settings.fallbackApiKey, apiSecret: settings.fallbackApiSecret }
     },
