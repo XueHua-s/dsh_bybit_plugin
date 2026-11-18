@@ -8,7 +8,7 @@ import type { StrategyParams } from './strategies.js'
 import { evidenceEnvelope } from './trust.js'
 
 export type Settings = {
-  env: 'live' | 'demo' | 'testnet'; apiKeyEnv: string; apiSecretEnv: string; fallbackApiKey: string; fallbackApiSecret: string; fallbackCredentialSource: string; credentialsFile: string; credentialsSource: string; allowLiveTrading: boolean; allowTestnetTrading: boolean; allowMainAccount: boolean; maxOrderNotionalPctOfEquity: number; maxOrderNotionalUsd: number; paperBalanceUsd: number; defaultSymbol: string; defaultCategory: ReturnType<typeof normalizeCategory>; stateFile: string; feeBps: number; recvWindow: number; timeoutMs: number; aiEnabled: boolean; aiStartEquity: number; aiRiskPerTradePct: number; aiMaxPositionPct: number; aiMaxOpenPositions: number; aiMaxDailyLossPct: number; aiMaxDrawdownPct: number; aiFeeBps: number; aiSymbols: string[]; aiTimeframes: string[]
+  env: 'live' | 'demo' | 'testnet'; apiKeyEnv: string; apiSecretEnv: string; fallbackApiKey: string; fallbackApiSecret: string; fallbackCredentialSource: string; credentialsFile: string; credentialsSource: string; maxOrderNotionalUsd: number; paperBalanceUsd: number; defaultSymbol: string; defaultCategory: ReturnType<typeof normalizeCategory>; stateFile: string; feeBps: number; recvWindow: number; timeoutMs: number; aiEnabled: boolean; aiStartEquity: number; aiRiskPerTradePct: number; aiMaxPositionPct: number; aiMaxOpenPositions: number; aiMaxDailyLossPct: number; aiMaxDrawdownPct: number; aiFeeBps: number; aiSymbols: string[]; aiTimeframes: string[]
 }
 type CredentialsDocument = { apiKey: string, apiSecret: string, env?: string }
 export type CleanJson = null | boolean | string | number | CleanJson[] | { [key: string]: CleanJson }
@@ -51,11 +51,6 @@ function resolveSettings(config: Record<string, unknown>): Settings {
     fallbackCredentialSource,
     credentialsFile,
     credentialsSource: fallbackCredentialSource,
-    allowLiveTrading: config.allowLiveTrading === true,
-    allowTestnetTrading: config.allowTestnetTrading === true,
-    // A main-account key can reach the whole balance; require a second explicit switch.
-    allowMainAccount: config.allowMainAccount === true,
-    maxOrderNotionalPctOfEquity: clamp(Number(config.maxOrderNotionalPctOfEquity), 1, 100, 25),
     maxOrderNotionalUsd: positive(config.maxOrderNotionalUsd, 200),
     paperBalanceUsd: positive(config.paperBalanceUsd, 10000),
     defaultSymbol: normalizeSymbol(config.defaultSymbol, 'BTCUSDT'),

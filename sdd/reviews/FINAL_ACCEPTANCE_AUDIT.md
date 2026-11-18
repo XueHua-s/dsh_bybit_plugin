@@ -76,3 +76,31 @@ The current working tree adds `BoundedOutputCapture` to retain at most a fixed b
 Fresh verification on 2026-11-17: `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test && git diff --check` → exit 0. Nx build/lint/typecheck reported cache hits; unit target and Bundle check ran, test typecheck passed, Ruff/format passed (13 Python files), Pyright reported 0 diagnostics, and pytest reported 15 passed. The 2026-11-19 follow-up pins the sandbox image to an immutable digest and records a Docker smoke in `SANDBOX_DIGEST_PIN_2026-11-19.md`; full container failure-mode coverage remains open. Overall acceptance stays **PARTIAL / NOT READY**.
 
 The trust-boundary increment also passed a fresh build, lint, unit target and test typecheck. It normalizes NFKC/control characters, rejects non-string/blank/oversize decision prose, and exposes agent text only as a `trusted:false` envelope in model-visible decision results. It preserves the existing persisted string shape and keeps code-owned action/risk fields authoritative; it does not claim to defeat arbitrary prompt injection.
+
+## Current worktree delta — 2026-11-19
+
+The earlier finding that the TypeScript Host retained a direct Bybit writer is
+superseded for the current worktree by
+[`BUILD_REPORT_TS_MUTATION_CLOSURE.md`](../reports/BUILD_REPORT_TS_MUTATION_CLOSURE.md):
+the tool now returns local previews and denies write intent before exchange
+access; the 98-case matrix and packed Bundle scan pass. This closes only that
+alternate writer and does not implement the missing Nautilus Testnet writer.
+
+The current DSH source panel explicitly reports conversation-triggered use,
+not running in the background, exchange writes unavailable and account readiness
+unknown. Local SSR checks pass; the active installed Harness still has the older
+Bundle, so its updated UI remains unverified in place. Official Plugin Manager
+upgrade/rollback and state-hash preservation are still open.
+
+An offline-only Testnet profile/projection/preflight boundary was added under
+[`DESIGN_TESTNET_READONLY_PREFLIGHT.md`](../features/DESIGN_TESTNET_READONLY_PREFLIGHT.md).
+Its 312 Python tests use fixtures; it has no production credential provider,
+signed HTTP transport, live preflight, order writer or order authorization. The
+result `eligible_for_reconciliation` never allows submission.
+
+Fresh commands on 2026-11-19: `pnpm run python:test` (exit 0, 312 passed),
+`pnpm run python:lint` (exit 0), `pnpm run python:typecheck` (exit 0),
+`NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` (exit 0),
+`gitleaks git --redact` (exit 0), `gitleaks dir --redact --no-banner
+--ignore-gitleaks-allow .` (exit 0), and `git diff --check` (exit 0). The
+overall verdict remains **PARTIAL / NOT READY** for full unattended trading.

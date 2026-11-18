@@ -9,10 +9,8 @@
  *   GET /api/bybit-quant            ticker, candles, paper book, last backtest
  *   GET /api/bybit-quant?view=health  plugin and environment facts
  *
- * Safety: live order tools require `allowLiveTrading: true` in the plugin
- * config, a configured API key pair, an explicit `confirm: 'LIVE'`, and an
- * explicit `dryRun: false`. Every live order is also capped by
- * `maxOrderNotionalUsd`.
+ * Safety: the panel reports read-only market/account state and the explicit
+ * absence of an exchange execution authority.
  *
  * Tool definitions are plain objects with raw JSON Schema parameters, so the
  * bundle imports nothing from the dsh installation and installs as a
@@ -56,11 +54,9 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         version: VERSION,
         env: client.env,
         hasKeys: client.hasCredentials,
-        allowLiveTrading: settings.allowLiveTrading,
-        allowTestnetTrading: settings.allowTestnetTrading,
         automation: 'conversation_only' as const,
         backgroundLoop: 'not_running' as const,
-        executionAuthority: 'direct_rest_tools' as const,
+        executionAuthority: 'unavailable' as const,
         accountReadiness: 'unknown' as const,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,
         symbol,
@@ -102,15 +98,11 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         env: client.env,
         tradingBase: client.tradingBase,
         hasKeys: client.hasCredentials,
-        allowLiveTrading: settings.allowLiveTrading,
-        allowTestnetTrading: settings.allowTestnetTrading,
         automation: 'conversation_only' as const,
         backgroundLoop: 'not_running' as const,
-        executionAuthority: 'direct_rest_tools' as const,
+        executionAuthority: 'unavailable' as const,
         accountReadiness: 'unknown' as const,
-        allowMainAccount: settings.allowMainAccount,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,
-        maxOrderNotionalPctOfEquity: settings.maxOrderNotionalPctOfEquity,
         stateFile: store.file,
         credentialsFile: settings.credentialsFile,
         credentialsSource: settings.credentialsSource,
@@ -124,7 +116,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
           ...runtimeMonitor.snapshot(),
           uptimeSeconds: Math.floor(process.uptime()),
           marketDataLatencyMs: client.metrics.lastRequestLatencyMs,
-          lastOrderLatencyMs: client.metrics.orderLatencyMs,
+          lastOrderLatencyMs: null,
           requests: client.metrics.requests,
           failures: client.metrics.failures,
           websocket: { ...runtimeMonitor.snapshot().websocket, note: 'REST polling is active; WebSocket reconnect counters remain zero until a WebSocket adapter is configured.' },

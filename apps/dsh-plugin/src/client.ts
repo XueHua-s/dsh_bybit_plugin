@@ -289,7 +289,7 @@ window.__ModuleLoader__.load({
           h('h1', { className: 'bq-title' }, t('title')),
           h('div', { className: 'bq-badges' },
             h('span', { className: `bq-badge ${data?.env === 'live' ? 'bq-badge-warn' : ''}` }, envLabel),
-            h('span', { className: `bq-badge ${data?.allowLiveTrading ? 'bq-badge-warn' : ''}` }, data?.allowLiveTrading ? t('liveOn') : t('liveOff')),
+            h('span', { className: 'bq-badge bq-badge-warn' }, t('writesUnavailable')),
             h('span', { className: 'bq-badge' }, data?.hasKeys ? t('keysOn') : t('keysOff')),
             h('button', { type: 'button', className: 'bq-button', onClick: () => setNonce(value => value + 1) }, t('refresh')),
           ),

@@ -7,14 +7,14 @@
  * runtime's global `fetch`, `node:crypto`, and `AbortSignal`.
  */
 import { createHmac } from 'node:crypto'
-import type { Env, Category, Candle, Ticker, OrderBookSnapshot, FundingRate, Instrument, WalletBalance, ApiKeyInfo, Position, OpenOrder, CreateOrderInput } from './bybit-types.js'
+import type { Env, Category, Candle, Ticker, OrderBookSnapshot, FundingRate, Instrument, WalletBalance, ApiKeyInfo, Position, OpenOrder } from './bybit-types.js'
 import { ENDPOINTS, MARKET_ENDPOINT } from './bybit-constants.js'
 import { BybitError } from './bybit-error.js'
 import { mapInstrument, mapLevels, number as num, toQuery } from './bybit-format.js'
 export { formatQuantity, intervalLabel, intervalMs, normalizeCategory, normalizeInterval, normalizeSymbol, trimNumber } from './bybit-format.js'
 export { BybitError } from './bybit-error.js'
 export { ENDPOINTS, INTERVALS, MARKET_ENDPOINT, MARKET_ENDPOINTS } from './bybit-constants.js'
-export type { Env, Category, Candle, Ticker, OrderBookSnapshot, FundingRate, Instrument, WalletBalance, ApiKeyInfo, Position, OpenOrder, CreateOrderInput } from './bybit-types.js'
+export type { Env, Category, Candle, Ticker, OrderBookSnapshot, FundingRate, Instrument, WalletBalance, ApiKeyInfo, Position, OpenOrder } from './bybit-types.js'
 
 /** Split a fetch failure into a readable message. */
 function describeTransportError(error: unknown, endpoint: string): string {
@@ -33,7 +33,7 @@ export class BybitClient {
   #observeRequest: ((metric: { operation: string, signed: boolean, ok: boolean, latencyMs: number, status?: number }) => void) | undefined
   #observeQueue: ((depth: number) => void) | undefined
   #inFlight = 0
-  #metrics = { requests: 0, failures: 0, orderLatencyMs: null as number | null, lastRequestLatencyMs: null as number | null, lastSuccessAt: null as number | null, lastErrorAt: null as number | null }
+  #metrics = { requests: 0, failures: 0, lastRequestLatencyMs: null as number | null, lastSuccessAt: null as number | null, lastErrorAt: null as number | null }
 
   constructor(options: { env?: Env, marketEndpoint?: string, apiKey?: string | undefined, apiSecret?: string | undefined, recvWindow?: number, timeoutMs?: number, resolveCredentials?: () => Promise<{ apiKey?: string | undefined, apiSecret?: string | undefined }>, observeRequest?: (metric: { operation: string, signed: boolean, ok: boolean, latencyMs: number, status?: number }) => void, observeQueue?: (depth: number) => void } = {}) {
     const env = options.env ?? 'demo'
@@ -84,7 +84,7 @@ export class BybitClient {
 
   /** Perform one request and unwrap Bybit's envelope. */
   async #request(input: {
-    method: 'GET' | 'POST'
+    method: 'GET'
     base: string
     path: string
     params?: Record<string, unknown>
@@ -102,7 +102,7 @@ export class BybitClient {
   }
 
   async #performRequest({ method, base, path, params = {}, signed = false, signal }: {
-    method: 'GET' | 'POST'
+    method: 'GET'
     base: string
     path: string
     params?: Record<string, unknown>
@@ -115,18 +115,15 @@ export class BybitClient {
       this.#metrics = {
         requests: this.#metrics.requests + 1,
         failures: this.#metrics.failures + (ok ? 0 : 1),
-        orderLatencyMs: path.includes('/order/') ? latencyMs : this.#metrics.orderLatencyMs,
         lastRequestLatencyMs: latencyMs,
         lastSuccessAt: ok ? Date.now() : this.#metrics.lastSuccessAt,
         lastErrorAt: ok ? this.#metrics.lastErrorAt : Date.now(),
       }
       this.#observeRequest?.({ operation: path, signed, ok, latencyMs })
     }
-    const query = method === 'GET' ? toQuery(params) : ''
-    const body = method === 'GET' ? '' : JSON.stringify(params)
+    const query = toQuery(params)
     const url = `${base}${path}${query === '' ? '' : `?${query}`}`
     const headers: Record<string, string> = { accept: 'application/json' }
-    if (body !== '') headers['content-type'] = 'application/json'
     if (signed) {
       const resolved = await this.#resolveCredentials?.()
       if (resolved !== undefined) this.setCredentials(resolved.apiKey, resolved.apiSecret)
@@ -135,7 +132,7 @@ export class BybitClient {
       }
       const timestamp = Date.now().toString()
       const signature = createHmac('sha256', this.#options.apiSecret as string)
-        .update(`${timestamp}${String(this.#options.apiKey)}${String(this.#options.recvWindow)}${query}${body}`)
+        .update(`${timestamp}${String(this.#options.apiKey)}${String(this.#options.recvWindow)}${query}`)
         .digest('hex')
       headers['X-BAPI-API-KEY'] = this.#options.apiKey as string
       headers['X-BAPI-SIGN'] = signature
@@ -147,7 +144,7 @@ export class BybitClient {
     const composed = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
     let response: Response
     try {
-      response = await fetch(url, { method, headers, ...body === '' ? {} : { body }, signal: composed, redirect: 'error' })
+      response = await fetch(url, { method, headers, signal: composed, redirect: 'error' })
     } catch (error) {
       recordMetric(false)
       throw new BybitError(describeTransportError(error, base), { endpoint: path })
@@ -178,9 +175,12 @@ export class BybitClient {
     return this.#request({ method: 'GET', base: this.#options.marketEndpoint, path, params, signal })
   }
 
-  /** Signed request on the selected environment. */
-  async signedRequest(method: 'GET' | 'POST', path: string, params: Record<string, unknown>, signal?: AbortSignal | undefined | undefined): Promise<Record<string, unknown>> {
-    return this.#request({ method, base: this.tradingBase, path, params, signed: true, signal })
+  /**
+   * Signed read on the selected environment. Exchange writes belong to the
+   * engine-owned execution authority and are intentionally unavailable here.
+   */
+  async #signedGet(path: string, params: Record<string, unknown>, signal?: AbortSignal | undefined): Promise<Record<string, unknown>> {
+    return this.#request({ method: 'GET', base: this.tradingBase, path, params, signed: true, signal })
   }
 
   /** 24h ticker snapshot for one symbol. */
@@ -297,7 +297,7 @@ export class BybitClient {
     let lastError: unknown
     for (const type of candidates) {
       try {
-        const result = await this.signedRequest('GET', '/v5/account/wallet-balance', { accountType: type }, signal)
+        const result = await this.#signedGet('/v5/account/wallet-balance', { accountType: type }, signal)
         const account = (result.list as Array<Record<string, unknown>> | undefined)?.[0]
         if (account === undefined) {
           return { accountType: type, totalEquityUsd: 0, availableUsd: 0, coins: [], time: Date.now() }
@@ -328,7 +328,7 @@ export class BybitClient {
    * its permissions, its IP bind, and when it expires.
    */
   async apiKeyInfo({ signal }: { signal?: AbortSignal | undefined } = {}): Promise<ApiKeyInfo> {
-    const result = await this.signedRequest('GET', '/v5/user/query-api', {}, signal)
+    const result = await this.#signedGet('/v5/user/query-api', {}, signal)
     const permissions = (result.permissions ?? {}) as Record<string, unknown>
     return {
       apiKeyTail: typeof result.apiKey === 'string' ? (result.apiKey as string).slice(-4) : undefined,
@@ -351,7 +351,7 @@ export class BybitClient {
   /** Open perpetual positions. */
   async positions({ category = 'linear', symbol, signal }: { category?: Category, symbol?: string, signal?: AbortSignal | undefined } = {}): Promise<Position[]> {
     const scope = symbol === undefined ? { settleCoin: 'USDT' } : { symbol }
-    const result = await this.signedRequest('GET', '/v5/position/list', { category, ...scope }, signal)
+    const result = await this.#signedGet('/v5/position/list', { category, ...scope }, signal)
     const rows = Array.isArray(result.list) ? (result.list as Array<Record<string, unknown>>) : []
     return rows
       .filter(position => num(position.size) !== 0)
@@ -374,7 +374,7 @@ export class BybitClient {
     const scope = symbol === undefined
       ? category === 'linear' ? { settleCoin: 'USDT' } : { baseCoin: 'USDT' }
       : { symbol }
-    const result = await this.signedRequest('GET', '/v5/order/realtime', { category, ...scope }, signal)
+    const result = await this.#signedGet('/v5/order/realtime', { category, ...scope }, signal)
     const rows = Array.isArray(result.list) ? (result.list as Array<Record<string, unknown>>) : []
     return rows.map(order => ({
       orderId: String(order.orderId),
@@ -389,28 +389,4 @@ export class BybitClient {
     }))
   }
 
-  /** Create one order. */
-  async createOrder(input: CreateOrderInput): Promise<Record<string, unknown>> {
-    const { category, symbol, side, orderType, qty, price, timeInForce, reduceOnly, signal } = input
-    const params: Record<string, unknown> = { category, symbol, side, orderType, qty }
-    if (price !== undefined) params.price = price
-    if (timeInForce !== undefined) params.timeInForce = timeInForce
-    if (reduceOnly === true && category === 'linear') params.reduceOnly = true
-    return this.signedRequest('POST', '/v5/order/create', params, signal)
-  }
-
-  /** Cancel one order. */
-  async cancelOrder({ category, symbol, orderId, signal }: {
-    category: Category
-    symbol: string
-    orderId: string
-    signal?: AbortSignal | undefined
-  }): Promise<Record<string, unknown>> {
-    return this.signedRequest('POST', '/v5/order/cancel', { category, symbol, orderId }, signal)
-  }
-
-  /** Cancel every open order for a symbol or category. */
-  async cancelAll({ category, symbol, signal }: { category: Category, symbol?: string, signal?: AbortSignal | undefined }): Promise<Record<string, unknown>> {
-    return this.signedRequest('POST', '/v5/order/cancel-all', { category, symbol }, signal)
-  }
 }

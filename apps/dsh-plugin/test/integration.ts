@@ -104,7 +104,8 @@ check('registers the expected tools and a prompt note', () => {
     'quant_get_paper_status', 'quant_paper', 'quant_review', 'quant_signals', 'quant_start_paper',
     'quant_stop_paper', 'quant_submit_paper_order', 'quant_watchlist',
   ])
-  assert.match(sectionText, /dryRun: false/)
+  assert.match(sectionText, /preview-only/)
+  assert.match(sectionText, /execution_authority_unavailable/)
   for (const definition of tools.values()) {
     assert.equal(definition.parameters.type, 'object')
     assert.ok(definition.parameters.properties !== undefined)
@@ -183,15 +184,19 @@ await check('resets the paper book', async () => {
 await check('previews a real order instead of sending it', async () => {
   const value = await call('bybit_trade', { action: 'create', symbol: 'BTCUSDT', side: 'buy', orderType: 'Market', qty: 0.001 })
   assert.equal(value.sent, false)
-  assert.match(value.reason, /live trading is disabled/)
+  assert.match(value.reason, /exchange writes are unavailable/)
   assert.ok(value.notionalUsd > 0)
 })
 
-await check('refuses to send while live trading is disabled', async () => {
-  await assert.rejects(
-    () => call('bybit_trade', { action: 'create', symbol: 'BTCUSDT', side: 'buy', qty: 0.001, confirm: 'LIVE', dryRun: false }),
-    /live trading (?:is disabled|needs a Bybit API key)/,
-  )
+await check('refuses every exchange write before any request', async () => {
+  for (const action of ['create', 'cancel', 'cancel_all', 'close']) {
+    const value = await call('bybit_trade', {
+      action, symbol: 'BTCUSDT', side: 'buy', qty: 0.001, orderId: 'legacy-order', confirm: 'LIVE', dryRun: false,
+    })
+    assert.equal(value.sent, false)
+    assert.equal(value.unavailable, true)
+    assert.equal(value.code, 'execution_authority_unavailable')
+  }
 })
 
 await check('caps an oversized order', async () => {
@@ -367,7 +372,7 @@ await check('serves the panel snapshot and health views on the bridge route', as
   if (payload.ai !== null) assert.ok(typeof payload.ai.limits.riskPerTradePct === 'number')
   const healthPayload = await (await route.fetch(new Request('http://localhost/api/bybit-quant?view=health'))).json()
   assert.equal(healthPayload.version, '1.4.5')
-  assert.equal(healthPayload.allowLiveTrading, false)
+  assert.equal(healthPayload.executionAuthority, 'unavailable')
   assert.equal(healthPayload.stateFile, stateFile)
 })
 

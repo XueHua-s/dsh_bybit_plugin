@@ -17,7 +17,6 @@ export type PanelPayload = {
   ok?: boolean
   error?: string
   env?: 'live' | 'demo' | 'testnet'
-  allowLiveTrading?: boolean
   hasKeys?: boolean
   ticker?: { last: number, change24hPct: number, high24h: number, low24h: number, turnover24h: number, fundingRate?: number }
   paper?: { balanceUsd: number, equityUsd: number, totalReturnPct: number, positions: PositionView[], recentTrades: TradeView[] }
@@ -28,7 +27,7 @@ export type PanelPayload = {
   updatedAt?: number
   automation?: 'conversation_only'
   backgroundLoop?: 'not_running'
-  executionAuthority?: 'direct_rest_tools' | 'unavailable'
+  executionAuthority?: 'unavailable'
   accountReadiness?: 'unknown' | 'zero_equity' | 'not_checked'
 }
 export type SnapshotInitial = { data: PanelPayload | null, error: string | null, at: number }

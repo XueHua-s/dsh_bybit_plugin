@@ -1,8 +1,8 @@
 # Bybit AI Quant
 
-Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data`、独立只读行情服务 `quant-engine` 和可选的原生合成 paper 服务。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 决策账本，以及包含原生 paper 控制卡的行情面板。
+Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 TypeScript Host/Client Bundle。仓库采用 Nx + pnpm Monorepo；Python uv 工作区包含 `quant-data`、独立只读行情服务 `quant-engine` 和可选的原生合成 paper 服务。当前插件提供 Bybit REST 行情、确定性指标和单资产多头回测、本地模拟盘、交易对观察列表、带代码侧风控门的 AI 模拟决策账本，以及包含原生 paper 控制卡的只读行情面板。AI 决策和持仓均为模拟状态；交易所写入不可用。
 
-仓库仍处于开发阶段。SDD 目标中的完整自主量化平台尚未完成：Python 引擎已有公共 Testnet WebSocket、有界队列与受监督的持续消费，可独立于 DSH 运行；DSH 已通过生成式、运行时校验的 TypeScript SDK 提供引擎工具和只读面板卡片，原有 candle/account/analysis 页面保留 REST。离线原生 Nautilus 基础已验证有限回测成交与撤单。交易所订单的 Nautilus 唯一执行权、完整量化/AI/研究平台、官方升级状态保留与真实 OAuth 仍未完成或未验证，详见[原始范围审计](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md)。
+仓库仍处于开发阶段。SDD 目标中的完整自主量化平台尚未完成：Python 引擎已有公共 Testnet WebSocket、有界队列与受监督的持续消费，可独立于 DSH 运行；DSH 已通过生成式、运行时校验的 TypeScript SDK 提供引擎工具和只读面板卡片，原有 candle/account/analysis 页面保留 REST。离线原生 Nautilus 基础已验证有限回测成交与撤单。2026-11-19 已验证 Mainnet AI 子账户 OAuth 授权、code 交换和只读账户列表请求；列表为空，因此未选择或创建 Mainnet 子账户，也未测试订单。交易所订单的 Nautilus 唯一执行权、完整量化/AI/研究平台和官方升级状态保留仍未完成或未验证，详见[原始范围审计](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md)。
 
 ## 安装 Bundle
 
@@ -21,16 +21,16 @@ Bundle patch 会插入 `@bybit-quant/dsh-plugin` Host 行，并默认使用 `[TE
 - `bybit_market`、`bybit_instruments`、`bybit_account`：读取公开行情/交易规则或已授权账户数据。
 - `quant_signals`、`quant_backtest`、`quant_watchlist`：运行确定性指标、单资产多头回测并维护经过交易所校验的交易对列表。
 - `quant_paper`：操作本地模拟 USDT 账户。
-- `quant_brief`、`quant_decide`、`quant_review`：构建行情简报，对 AI 提议执行代码侧限额，记录决策并评估已完成决策。
+- `quant_brief`、`quant_decide`、`quant_review`：构建行情简报，对 AI 提议执行代码侧限额，记录模拟决策/持仓并评估模拟结果。
 - `quant_get_engine_status`、`quant_get_market_snapshot`：通过生成式 SDK 读取独立引擎事实；行情 ready 不等于账户或执行 ready。
 - `quant_get_paper_status`、`quant_start_paper`、`quant_stop_paper`、`quant_submit_paper_order`、`quant_get_paper_command`：访问独立原生合成服务；必须提供 paper 配置，控制默认关闭。
-- `bybit_trade`：只有全部安全检查通过后才会预览或发送订单。
+- `bybit_trade`：只生成经过规则校验的本地预览；交易所写入不可用，`dryRun: false` 会在任何 Bybit 请求前返回 `execution_authority_unavailable`。
 
 回测不包含杠杆、资金费，也不保证盈利。
 
 ## 交易安全边界
 
-Bundle 默认配置为 `env: testnet`、`allowLiveTrading: false`、`allowTestnetTrading: true`，单笔名义额上限为 24 USDT。Mainnet 默认关闭。真实订单还必须同时满足凭证、环境开关、`confirm: "LIVE"` 和 `dryRun: false`，并通过账户身份、余额、交易规则、名义额和风控检查。主账户凭证还需要额外的 `allowMainAccount` 开关。Testnet 授权不等于 Mainnet 授权。
+Bundle 默认配置为 `env: testnet`，并将 24 USDT 作为仅用于预览校验的单笔名义额上限。Mainnet 使用隔离凭证读取，交易所写入不可用。OAuth、API Key、确认字段和 `dryRun` 都不会授予 TypeScript 执行路径；账户身份、余额、精度、名义额和风控检查只用于读取与预览校验。Testnet 授权不等于 Mainnet 授权。
 
 面板通过已认证 DSH bridge 提供 REST 视图及按需引擎查询。独立的原生 paper 卡片只为已配置的合成会话提供手动状态检查、Start 和 Stop，不提供浏览器下单路由，也不后台轮询。Python 服务仍只绑定 loopback，认证远程部署尚未实现；已安装载体的认证和真实浏览器交互仍待验证。
 
@@ -58,7 +58,7 @@ pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live select <sub_member_id>
 pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live create
 ```
 
-点击 **Authorize** 前，请在 Bybit 页面核对 Agent 名称和请求权限。回环回调返回后运行 `exchange`，查看 AI 子账户列表，再明确选择目标账户。客户端不会自动选择或创建账户。若列表为空，单独的 `create` 命令会在 Mainnet 创建 AI 子账户并保存返回的密钥；只有你确实需要该账户时才运行。本次没有执行创建。Token 和已选择账户的凭证会以受限权限写入本地文件，不会打印到日志。Mainnet OAuth 状态、凭证及默认插件状态单独保存在 `$DSH_HOME/bybit-quant/live/`（未设置 `DSH_HOME` 时为 `~/.dsh/bybit-quant/live/`），Testnet 文件保留在父目录。2026-11-19 已使用真实 Bybit Mainnet 完成 OAuth 授权、code 交换及只读账户列表请求；接口成功但列表为空，因此未选择、创建 Mainnet AI 子账户，也未下单。OAuth 支持不等于允许 Mainnet 下单：`allowLiveTrading` 默认仍为 `false`。撤销访问请在 Bybit 删除对应 AI 子账户。
+点击 **Authorize** 前，请在 Bybit 页面核对 Agent 名称和请求权限。回环回调返回后运行 `exchange`，查看 AI 子账户列表，再明确选择目标账户。客户端不会自动选择或创建账户。若列表为空，单独的 `create` 命令会在 Mainnet 创建 AI 子账户并保存返回的密钥；只有你确实需要该账户时才运行。本次没有执行创建。Token 和已选择账户的凭证会以受限权限写入本地文件，不会打印到日志。Mainnet OAuth 状态、凭证及默认插件状态单独保存在 `$DSH_HOME/bybit-quant/live/`（未设置 `DSH_HOME` 时为 `~/.dsh/bybit-quant/live/`），Testnet 文件保留在父目录。2026-11-19 已使用真实 Bybit Mainnet 完成 OAuth 授权、code 交换及只读账户列表请求；接口成功但列表为空，因此未选择、创建 Mainnet AI 子账户，也未下单。OAuth 支持不等于允许 Mainnet 下单；此 Bundle 的交易所写入不可用。撤销访问请在 Bybit 删除对应 AI 子账户。
 
 ## 工作区结构
 
@@ -111,7 +111,7 @@ uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
 
 ## 离线原生执行及验证边界
 
-`uv run --project python --locked pytest python/packages/quant-execution/tests -q` 使用真实 NautilusTrader 1.231.0 `BacktestEngine`，覆盖市场成交、挂单撤销及部分成交后撤销。离线模拟 API 只接受 `backtest`，另有下文说明的独立合成 paper 运行时；没有实现 live/Testnet 执行器、持久订单恢复或完整最终风控；当前 TS REST 订单路径尚未切换到 Nautilus。
+`uv run --project python --locked pytest python/packages/quant-execution/tests -q` 使用真实 NautilusTrader 1.231.0 `BacktestEngine`，覆盖市场成交、挂单撤销及部分成交后撤销。离线模拟 API 只接受 `backtest`，另有下文说明的独立合成 paper 运行时；没有实现 live/Testnet 执行器、持久订单恢复或完整最终风控；本轮已关闭 TS REST 写入通道；原生 Testnet 执行器仍未实现。
 
 原生测试必须使用根目录锁定的 `uv` 工作区：它显式将 fsspec 覆盖为已修复2026.6.0，而 Nautilus1.231.0 元数据仍精确要求2026.2.0。修复环境通过漏洞扫描和兼容 fixtures，但 `uv pip check` 会报告声明冲突，standalone pip 拒绝解析；不能声称元数据完全兼容。
 
@@ -121,7 +121,7 @@ SDK、DSH 接线、原生执行与命令准入层均有独立限定范围 ACCEPT
 
 新增 `quant-risk` 包提供独立的纯函数风险否决：使用引擎拥有的快照、待执行预留和显式策略，校验后以 Decimal 计算保守总敞口。`quant-data` 新增本地 SQLite 持久命令账本，用于命令幂等、生命周期、单次派发认领及追加审计事件。二者均取得限定范围的独立 ACCEPT；已发布风险/账本基线的 Python 213 项测试及类型、格式检查通过；当前集成 paper 的工作区为 252 项。此结论仅覆盖基础模块，不能视为已接入订单执行的最终风控。
 
-风险批准不授予交易权限，账本也不会发送或自动重发订单。下述可选合成 paper 服务现已接入串行账户所有权、原子风险预留与持久原生成交证据；交易所订单的 Nautilus 唯一提交权、TS REST 切换、完整长期 private 状态及未知订单对账仍未完成。新 Alembic 迁移仅限隔离测试，未迁移用户数据库。详见 [risk 设计](sdd/features/DESIGN_QUANT_RISK.md)、[命令账本设计](sdd/features/DESIGN_COMMAND_LEDGER.md)与 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
+风险批准不授予交易权限，账本也不会发送或自动重发订单。下述可选合成 paper 服务现已接入串行账户所有权、原子风险预留与持久原生成交证据；交易所订单的 Nautilus 唯一提交权、完整长期 private 状态及未知订单对账仍未完成；本轮已关闭 TS REST 写入通道。新 Alembic 迁移仅限隔离测试，未迁移用户数据库。详见 [risk 设计](sdd/features/DESIGN_QUANT_RISK.md)、[命令账本设计](sdd/features/DESIGN_COMMAND_LEDGER.md)与 [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md)。
 
 ## 持续运行的原生内部模拟盘
 

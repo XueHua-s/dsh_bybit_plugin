@@ -72,16 +72,3 @@ export interface OpenOrder {
   orderStatus: string
   createdTime: number
 }
-
-/** Input for one order. */
-export interface CreateOrderInput {
-  category: Category
-  symbol: string
-  side: string
-  orderType: string
-  qty: string
-  price?: string
-  timeInForce?: string
-  reduceOnly?: boolean
-  signal?: AbortSignal | undefined
-}

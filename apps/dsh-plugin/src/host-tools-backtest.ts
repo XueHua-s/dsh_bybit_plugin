@@ -9,10 +9,7 @@
  *   GET /api/bybit-quant            ticker, candles, paper book, last backtest
  *   GET /api/bybit-quant?view=health  plugin and environment facts
  *
- * Safety: live order tools require `allowLiveTrading: true` in the plugin
- * config, a configured API key pair, an explicit `confirm: 'LIVE'`, and an
- * explicit `dryRun: false`. Every live order is also capped by
- * `maxOrderNotionalUsd`.
+ * Backtests are offline calculations and never submit exchange orders.
  *
  * Tool definitions are plain objects with raw JSON Schema parameters, so the
  * bundle imports nothing from the dsh installation and installs as a
@@ -122,7 +119,7 @@ export function registerTools(runtime: HostRuntime): void {
     name: 'quant_paper',
     description:
       'Read or change the simulated USDT book: buy or sell at the live Bybit mark, or reset to the starting balance. '
-      + 'This never touches the exchange; use bybit_trade for real orders.',
+      + 'This never touches the exchange; use bybit_trade only to inspect an order preview. Exchange writes are unavailable.',
     parameters: {
       type: 'object',
       additionalProperties: false,

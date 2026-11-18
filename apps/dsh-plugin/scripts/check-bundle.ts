@@ -49,6 +49,20 @@ try {
   const packedRoot = join(isolated, 'package')
   const packed = JSON.parse(readFileSync(join(packedRoot, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }
   if (Object.keys(packed.dependencies ?? {}).length !== 0) throw new Error('Host dist must not require external runtime dependencies')
+  const distFiles = readdirSync(join(packedRoot, 'dist'), { recursive: true })
+    .filter((file): file is string => typeof file === 'string' && file.endsWith('.js'))
+    .map(file => join(packedRoot, 'dist', file))
+  const forbiddenMutation = [
+    '/v5/order/create', '/v5/order/cancel', '/v5/order/cancel-all',
+    'createOrder', 'cancelOrder', 'cancelAll', 'signedRequest',
+  ]
+  for (const file of distFiles) {
+    const source = readFileSync(file, 'utf8')
+    for (const marker of forbiddenMutation) {
+      if (source.includes(marker)) throw new Error(`packed Host contains forbidden exchange mutation marker ${marker}: ${file}`)
+    }
+  }
+  console.log(`packed Host mutation scan: ${distFiles.length} JavaScript files, no exchange writer markers`)
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', "const plugin = await import('./dist/index.js'); if (typeof plugin.apply !== 'function') process.exit(1)"], { cwd: packedRoot, encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } })
   if (result.status !== 0) throw new Error(`isolated bundle import failed: ${result.stderr}`)
   console.log('packed manifest has no runtime deps; isolated extracted Host import without node_modules: ok')

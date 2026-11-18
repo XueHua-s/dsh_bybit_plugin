@@ -39,7 +39,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "lint": "oxlint .",
-    "test:unit": "node test/signals.ts && node test/ai.ts && node test/client.ts && node test/render.ts && node test/network-endpoint.ts && node test/oauth.ts && node test/backup.ts && node test/sandbox-output.ts && node test/trust.ts && node test/engine.ts && node test/paper-capability.ts && node test/paper.ts && node test/client-paper.ts",
+    "test:unit": "node test/signals.ts && node test/ai.ts && node test/client.ts && node test/render.ts && node test/network-endpoint.ts && node test/oauth.ts && node test/trade-cutover.ts && node test/backup.ts && node test/sandbox-output.ts && node test/trust.ts && node test/engine.ts && node test/paper-capability.ts && node test/paper.ts && node test/client-paper.ts",
     "test:paper-process": "uv sync --project ../../python --locked --all-groups && node scripts/test-dsh-paper-process.ts",
     "test:network": "node test/smoke.ts",
     "test": "pnpm run test:unit && pnpm run test:network",

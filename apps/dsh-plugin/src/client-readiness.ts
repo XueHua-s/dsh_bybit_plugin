@@ -13,9 +13,8 @@ export function readinessPanel(react: ReactSubset) {
   return function ReadinessPanel({ data, t }: { data: PanelPayload | null, t: Translate }) {
     const automation = data?.automation ?? 'conversation_only'
     const backgroundLoop = data?.backgroundLoop ?? 'not_running'
-    const authority = data?.executionAuthority ?? 'unavailable'
     const account = data?.accountReadiness ?? 'not_checked'
-    const authorityLabel = authority === 'direct_rest_tools' ? t('readinessDirectRest') : t('readinessUnavailable')
+    const authorityLabel = t('readinessUnavailable')
     const accountLabel = account === 'zero_equity' ? t('readinessZeroEquity') : account === 'unknown' ? t('readinessUnknown') : t('readinessNotChecked')
     return h('section', { className: 'bq-card bq-readiness', style: { marginTop: '12px' }, 'aria-label': t('readinessTitle') },
       h('h2', { className: 'bq-card-title' }, t('readinessTitle')),
@@ -24,7 +23,6 @@ export function readinessPanel(react: ReactSubset) {
         h('div', null, h('span', { className: 'bq-meta-label' }, t('readinessBackground')), h('strong', null, backgroundLoop === 'not_running' ? t('readinessNotRunning') : backgroundLoop)),
         h('div', null, h('span', { className: 'bq-meta-label' }, t('readinessAuthority')), h('strong', null, authorityLabel)),
         h('div', null, h('span', { className: 'bq-meta-label' }, t('readinessAccount')), h('strong', null, accountLabel)),
-        h('div', null, h('span', { className: 'bq-meta-label' }, t('readinessMainnetApproval')), h('strong', null, t('readinessApprovalMissing'))),
       ),
       h('p', { className: 'bq-hint' }, t('readinessHint')),
     )

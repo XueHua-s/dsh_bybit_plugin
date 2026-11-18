@@ -141,7 +141,6 @@ try {
       const settings = resolveSettings({ env: 'live' })
       assert.equal(settings.credentialsFile, join(directory, 'bybit-quant', 'live', 'credentials.json'))
       assert.equal(settings.stateFile, join(directory, 'bybit-quant', 'live', 'state.json'))
-      assert.equal(settings.allowLiveTrading, false)
       assert.equal(settings.apiKeyEnv, 'BYBIT_MAINNET_API_KEY')
       assert.equal(settings.apiSecretEnv, 'BYBIT_MAINNET_API_SECRET')
       assert.equal(settings.fallbackApiKey, 'mainnet-key-fixture')

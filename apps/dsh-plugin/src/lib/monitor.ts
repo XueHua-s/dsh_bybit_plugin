@@ -70,7 +70,6 @@ export function createRuntimeMonitor({ websocketEnabled = false }: { websocketEn
   return {
     observeRequest(metric) {
       const now = Date.now()
-      const isOrder = metric.operation.toLowerCase().includes('order')
       metrics = {
         ...metrics,
         requestCount: metrics.requestCount + 1,
@@ -78,9 +77,6 @@ export function createRuntimeMonitor({ websocketEnabled = false }: { websocketEn
         lastSuccessfulRequestAt: metric.ok ? now : metrics.lastSuccessfulRequestAt,
         lastErrorAt: metric.ok ? metrics.lastErrorAt : now,
         lastMarketDataAt: metric.ok && !metric.signed ? now : metrics.lastMarketDataAt,
-        lastOrderLatencyMs: isOrder ? metric.latencyMs : metrics.lastOrderLatencyMs,
-        orderCount: metrics.orderCount + (isOrder && metric.ok ? 1 : 0),
-        rejectedOrderCount: metrics.rejectedOrderCount + (isOrder && !metric.ok ? 1 : 0),
       }
     },
     observeQueue(depth) {

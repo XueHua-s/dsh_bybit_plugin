@@ -57,10 +57,9 @@ function snapshot({ withPosition = true }: { withPosition?: boolean } = {}): Cli
     version: '1.0.0',
     env: 'demo',
     hasKeys: false,
-    allowLiveTrading: false,
     automation: 'conversation_only',
     backgroundLoop: 'not_running',
-    executionAuthority: 'direct_rest_tools',
+    executionAuthority: 'unavailable',
     accountReadiness: 'unknown',
     maxOrderNotionalUsd: 200,
     symbol: 'BTCUSDT',
@@ -157,14 +156,17 @@ function render(initial: ClientSnapshot): string {
 
 function testTranslate(key: string): string {
   return {
+    writesUnavailable: 'Exchange writes unavailable',
     readinessTitle: 'Operating boundary',
     readinessConversationOnly: 'Conversation-triggered only',
     readinessNotRunning: 'Not running',
-    readinessDirectRest: 'Direct TS REST path (quant executor not connected)',
+    readinessAuthority: 'Execution authority',
+    readinessUnavailable: 'Exchange writes unavailable (executor not implemented)',
     readinessUnknown: 'Unknown',
-    readinessMainnetApproval: 'Mainnet order approval',
-    readinessApprovalMissing: 'Approval-card flow not implemented',
-    readinessHint: 'No background AI scheduler or automatic order loop is running. Mainnet trades also require separate per-order approval. Healthy market data does not prove account, reconciliation, or execution readiness.',
+    readinessHint: 'No background AI loop is running. The trade tool only previews intent and cannot submit real orders; account state, order reconciliation, and recovery are not complete. OAuth, API keys, or healthy market data do not mean execution is ready.',
+    aiTitle: 'AI simulated decisions',
+    aiSub: 'Simulated track only; no exchange orders are submitted',
+    aiEquity: 'AI simulated equity',
   }[key] ?? key
 }
 
@@ -181,15 +183,17 @@ assert.ok(populated.includes('19.81'), 'max drawdown is missing')
 assert.ok(!populated.includes('NaN'), 'markup contains NaN')
 assert.ok(!populated.includes('undefined'), 'markup contains undefined')
 assert.ok(!populated.includes('Infinity'), 'markup contains Infinity')
-assert.ok(populated.includes('aiTitle'), 'AI card title is missing')
+assert.ok(populated.includes('AI simulated decisions'), 'AI card title is missing or not labeled as simulated')
 assert.ok(populated.includes('higher timeframe trend up'), 'AI thesis is missing')
 assert.ok(populated.includes('66.7'), 'AI hit rate is missing')
 assert.ok(populated.includes('0.21'), 'AI Brier score is missing')
 assert.ok(populated.includes('Quant engine / 量化引擎'), 'engine status card is missing')
 assert.ok(populated.includes('Operating boundary'), 'operating boundary card is missing')
+assert.ok(populated.includes('Exchange writes unavailable'), 'exchange execution boundary is not visible')
+assert.ok(populated.includes('AI simulated decisions'), 'AI track is not labeled as simulated')
 assert.ok(populated.includes('Conversation-triggered only'), 'conversation-only automation state is missing')
-assert.ok(populated.includes('No background AI scheduler or automatic order loop is running.'), 'background loop boundary is missing')
-assert.ok(populated.includes('Approval-card flow not implemented'), 'missing Mainnet per-order approval UX must be explicit')
+assert.ok(populated.includes('No background AI loop is running.'), 'background loop boundary is missing')
+assert.ok(!populated.includes('approval-card'), 'unavailable exchange writes must not look like a missing toggle or setup step')
 assert.ok(populated.includes('Linear Testnet'), 'engine environment/category label is missing')
 assert.ok(populated.includes('Not checked / 尚未检查'), 'SSR must not invent a completed engine request')
 assert.ok(populated.includes('account, reconciliation and execution readiness unknown'), 'unknown execution boundary is missing')

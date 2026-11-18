@@ -21,7 +21,7 @@
       "command": "tsc -p apps/dsh-plugin/tsconfig.tests.json --noEmit"
     },
     "test:unit": {
-      "command": "node apps/dsh-plugin/test/signals.ts && node apps/dsh-plugin/test/ai.ts && node apps/dsh-plugin/test/client.ts && node apps/dsh-plugin/test/render.ts && node apps/dsh-plugin/test/network-endpoint.ts && node apps/dsh-plugin/test/oauth.ts && node apps/dsh-plugin/test/backup.ts && node apps/dsh-plugin/test/sandbox-output.ts && node apps/dsh-plugin/test/trust.ts && node apps/dsh-plugin/test/engine.ts && node apps/dsh-plugin/test/paper-capability.ts && node apps/dsh-plugin/test/paper.ts && node apps/dsh-plugin/test/client-paper.ts"
+      "command": "node apps/dsh-plugin/test/signals.ts && node apps/dsh-plugin/test/ai.ts && node apps/dsh-plugin/test/client.ts && node apps/dsh-plugin/test/render.ts && node apps/dsh-plugin/test/network-endpoint.ts && node apps/dsh-plugin/test/oauth.ts && node apps/dsh-plugin/test/trade-cutover.ts && node apps/dsh-plugin/test/backup.ts && node apps/dsh-plugin/test/sandbox-output.ts && node apps/dsh-plugin/test/trust.ts && node apps/dsh-plugin/test/engine.ts && node apps/dsh-plugin/test/paper-capability.ts && node apps/dsh-plugin/test/paper.ts && node apps/dsh-plugin/test/client-paper.ts"
     },
     "test:paper-process": {
       "executor": "nx:run-commands",

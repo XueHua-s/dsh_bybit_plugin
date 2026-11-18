@@ -12,16 +12,9 @@
         # paperSessionId: native-paper-demo
         # paperCapabilitySocket: /private/tmp/bqp-UID/session.sock
         # paperControlEnabled: false
-        # Live order tools refuse every call while this stays false.
-        allowLiveTrading: false
-        # Explicitly enabled for the authorized Testnet account only.
-        allowTestnetTrading: true
-        # Hard ceiling for one live order's notional value (price * quantity).
+        # Preview validation ceiling only; exchange writes are unavailable until
+        # the engine-owned native execution authority is connected.
         maxOrderNotionalUsd: 24
-        # Second ceiling: no order may exceed this share of account equity.
-        maxOrderNotionalPctOfEquity: 25
-        # A main-account key needs this extra switch before it can place live orders.
-        allowMainAccount: false
         # Credential variable names are environment-scoped by host-config:
         # Testnet uses BYBIT_API_KEY/BYBIT_API_SECRET; Mainnet uses
         # BYBIT_MAINNET_API_KEY/BYBIT_MAINNET_API_SECRET. Values never belong here.

@@ -9,10 +9,9 @@
  *   GET /api/bybit-quant            ticker, candles, paper book, last backtest
  *   GET /api/bybit-quant?view=health  plugin and environment facts
  *
- * Safety: live order tools require `allowLiveTrading: true` in the plugin
- * config, a configured API key pair, an explicit `confirm: 'LIVE'`, and an
- * explicit `dryRun: false`. Every live order is also capped by
- * `maxOrderNotionalUsd`.
+ * Safety: exchange writes are unavailable until the engine-owned native
+ * execution authority is connected. This tool keeps validation and previews
+ * so callers can inspect intent without creating a second exchange writer.
  *
  * Tool definitions are plain objects with raw JSON Schema parameters, so the
  * bundle imports nothing from the dsh installation and installs as a
@@ -33,20 +32,19 @@ import { pick, trim, round2 } from './lib/host-config.js'
 import type { HostRuntime } from './host-runtime.js'
 
 export function registerTools(runtime: HostRuntime): void {
-  const { ctx, tool, settings, client, assertLiveAccount, markPrice, instrumentFor, preview } = runtime
+  const { ctx, tool, settings, client, markPrice, instrumentFor, preview } = runtime
 
   ctx.tools.register(tool({
     name: 'bybit_trade',
     description:
-      'Create, cancel, or close a Bybit order on the configured environment. Testnet requires allowTestnetTrading; '
-      + 'Mainnet requires allowLiveTrading. Sending also requires confirm: "LIVE" and dryRun: false. '
-      + 'Without both it returns the exact preview it would send.',
+      'Preview a Bybit create, cancel, cancel-all, or close intent. This tool cannot write to Bybit. '
+      + 'dryRun: false returns execution_authority_unavailable before any Bybit request; confirm has no effect.',
     parameters: {
       type: 'object',
       additionalProperties: false,
       required: ['action'],
       properties: {
-        action: { type: 'string', enum: ['create', 'cancel', 'cancel_all', 'close'], description: 'create places an order, cancel cancels one by id, cancel_all cancels a symbol or category, close market-closes the open position.' },
+        action: { type: 'string', enum: ['create', 'cancel', 'cancel_all', 'close'], description: 'Preview a create, single-order cancel, category/symbol cancel-all, or position-close intent. No action sends a request.' },
         symbol: { type: 'string', description: 'Trading pair; required except for cancel_all.' },
         category: { type: 'string', enum: ['linear', 'spot'], description: 'Defaults to linear.' },
         side: { type: 'string', enum: ['buy', 'sell'], description: 'Order side for action=create.' },
@@ -55,41 +53,32 @@ export function registerTools(runtime: HostRuntime): void {
         price: { type: 'number', description: 'Limit price; required for orderType=Limit.' },
         orderId: { type: 'string', description: 'Order id for action=cancel.' },
         reduceOnly: { type: 'boolean', description: 'Mark a linear order reduce-only.' },
-        dryRun: { type: 'boolean', description: 'Defaults to true: validate and return the preview without sending.' },
-        confirm: { type: 'string', description: 'Must be exactly "LIVE" to send a real order.' },
+        dryRun: { type: 'boolean', description: 'If false, returns execution_authority_unavailable; it never sends an exchange request.' },
+        confirm: { type: 'string', description: 'Legacy compatibility field only; ignored and cannot authorize an exchange write.' },
       },
     },
     async run(args, exec) {
       const action = pick(args.action, ['create', 'cancel', 'cancel_all', 'close'], 'action')
-      const category = normalizeCategory(args.category ?? settings.defaultCategory)
-      const symbol = args.symbol === undefined ? undefined : normalizeSymbol(args.symbol)
-      const wantsSend = args.dryRun === false && args.confirm === 'LIVE'
-
-      if (wantsSend) {
-        if (client.env === 'testnet' && !settings.allowTestnetTrading) {
-          throw new Error('Testnet trading is disabled: set allowTestnetTrading: true in the Testnet plugin config')
-        }
-        if (client.env === 'live' && !settings.allowLiveTrading) {
-          throw new Error(
-            'Mainnet trading is disabled for this plugin: explicitly set allowLiveTrading: true in the plugin config',
-          )
-        }
-        if (!client.hasCredentials) {
-          throw new Error('live trading needs a Bybit API key: set the environment-scoped variables (Mainnet: BYBIT_MAINNET_API_KEY/BYBIT_MAINNET_API_SECRET; Testnet: BYBIT_API_KEY/BYBIT_API_SECRET), or use the selected credentials file')
+      if (args.dryRun === false) {
+        return {
+          sent: false,
+          unavailable: true,
+          code: 'execution_authority_unavailable',
+          action,
+          env: client.env,
+          reason: 'exchange writes are disabled until the engine-owned native execution authority is connected',
         }
       }
+      const category = normalizeCategory(args.category ?? settings.defaultCategory)
+      const symbol = args.symbol === undefined ? undefined : normalizeSymbol(args.symbol)
 
       if (action === 'cancel') {
         if (!symbol || !args.orderId) throw new Error('cancel needs symbol and orderId')
-        if (!wantsSend) return preview({ action, env: client.env, category, symbol, orderId: args.orderId })
-        const result = await client.cancelOrder({ category, symbol, orderId: String(args.orderId), signal: exec.signal })
-        return { action, sent: true, env: client.env, symbol, result }
+        return preview({ action, env: client.env, category, symbol, orderId: args.orderId })
       }
 
       if (action === 'cancel_all') {
-        if (!wantsSend) return preview({ action, env: client.env, category, symbol: symbol ?? 'every symbol in the category' })
-        const result = await client.cancelAll({ category, ...(symbol === undefined ? {} : { symbol }), ...(exec.signal === undefined ? {} : { signal: exec.signal }) })
-        return { action, sent: true, env: client.env, symbol: symbol ?? 'all', result }
+        return preview({ action, env: client.env, category, symbol: symbol ?? 'every symbol in the category' })
       }
 
       if (action === 'close') {
@@ -106,10 +95,7 @@ export function registerTools(runtime: HostRuntime): void {
           qty: formatQuantity(position.size, (await instrumentFor(category, symbol, exec.signal)).qtyStep),
           reduceOnly: true,
         }
-        if (!wantsSend) return preview({ action, env: client.env, ...payload, position })
-        await assertLiveAccount({ notionalUsd: Number(payload.qty) * (await markPrice(category, symbol, exec.signal)), ...(exec.signal === undefined ? {} : { signal: exec.signal }) })
-        const result = await client.createOrder({ ...payload, signal: exec.signal })
-        return { action, sent: true, env: client.env, ...payload, result }
+        return preview({ action, env: client.env, ...payload, position })
       }
 
       if (!symbol) throw new Error('create needs symbol')
@@ -147,10 +133,7 @@ export function registerTools(runtime: HostRuntime): void {
         ...orderType === 'Limit' ? { price: trim(Number(args.price)), timeInForce: 'GTC' } : {},
         ...args.reduceOnly === true ? { reduceOnly: true } : {},
       }
-      if (!wantsSend) return preview({ action, env: client.env, ...payload, notionalUsd: round2(notional), markPrice: round2(referencePrice) })
-      const fence = await assertLiveAccount({ notionalUsd: notional, ...(exec.signal === undefined ? {} : { signal: exec.signal }) })
-      const result = await client.createOrder({ ...payload, signal: exec.signal })
-      return { action, sent: true, env: client.env, ...payload, notionalUsd: round2(notional), equityUsd: fence.equity, equitySharePct: fence.sharePct, result }
+      return preview({ action, env: client.env, ...payload, notionalUsd: round2(notional), markPrice: round2(referencePrice) })
     },
   }))
 

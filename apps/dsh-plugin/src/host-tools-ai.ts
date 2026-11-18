@@ -9,10 +9,7 @@
  *   GET /api/bybit-quant            ticker, candles, paper book, last backtest
  *   GET /api/bybit-quant?view=health  plugin and environment facts
  *
- * Safety: live order tools require `allowLiveTrading: true` in the plugin
- * config, a configured API key pair, an explicit `confirm: 'LIVE'`, and an
- * explicit `dryRun: false`. Every live order is also capped by
- * `maxOrderNotionalUsd`.
+ * AI decisions update the simulated journal only; exchange writes are unavailable.
  *
  * Tool definitions are plain objects with raw JSON Schema parameters, so the
  * bundle imports nothing from the dsh installation and installs as a
