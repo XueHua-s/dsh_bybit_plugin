@@ -60,3 +60,7 @@ The code is divided into understandable Host, Client, Bybit, state, risk, monito
 ## Review disposition
 
 **Status: NOT READY FOR RELEASE.** Fix the failing build, bundle and unit-test contracts, correct the root Python typecheck path, and complete the remaining high-severity architecture and verification gates before considering the SDD Build phase complete. The Plugin Manager lifecycle, Harness state preservation, WebSocket ingestion, and any current Bybit account condition remain unverified by this review.
+
+## Follow-up resolution — 2026-11-19
+
+The historical AR-011 image-pinning observation is resolved for the current worktree: `sandbox.ts` now uses the immutable `node:22.20.0-alpine@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af` reference, and the Docker isolation smoke plus digest receipt are recorded in `sdd/reports/SANDBOX_DIGEST_PIN_2026-11-19.md`. Output bounding remains stream-safe. Timeout, unavailable-Docker, and registry-attestation checks are still release follow-ups.

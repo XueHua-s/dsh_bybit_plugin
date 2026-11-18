@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { runAlgorithmSandbox } from '../src/lib/sandbox.ts'
+import { runAlgorithmSandbox, SANDBOX_IMAGE } from '../src/lib/sandbox.ts'
+
+assert.equal(
+  SANDBOX_IMAGE,
+  'node:22.20.0-alpine@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af',
+)
 
 const directory = await mkdtemp(join(tmpdir(), 'bybit-quant-host-secret-'))
 const hostOnlyFile = join(directory, 'sentinel.txt')

@@ -14,7 +14,9 @@ export interface SandboxResult {
   timedOut: boolean
 }
 
-const IMAGE = 'node:22.20.0-alpine'
+// Keep the runtime immutable across hosts. Refresh this digest only through a
+// reviewed dependency update that records the registry evidence in SDD.
+export const SANDBOX_IMAGE = 'node:22.20.0-alpine@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af'
 const OUTPUT_LIMIT = 100_000
 const ERROR_LIMIT = 10_000
 const RUNNER = [
@@ -43,7 +45,7 @@ function execute({ code, timeoutMs, memoryMb }: { code: string, timeoutMs: numbe
     '--network=none', '--read-only', '--memory', `${memoryMb}m`, '--cpus=1', '--pids-limit=32',
     '--security-opt=no-new-privileges', '--cap-drop=ALL', '--user=65532:65532',
     '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m',
-    IMAGE, 'node', '-e', RUNNER,
+    SANDBOX_IMAGE, 'node', '-e', RUNNER,
   ]
   return new Promise((resolve) => {
     const child = spawn('docker', args, {

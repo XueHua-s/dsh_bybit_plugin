@@ -371,7 +371,7 @@ The correction changes Nx target coverage only; backup implementation and tradin
 | Defined root Verify Gate | `pnpm run verify` | 0 | Build, lint, strict production typecheck, unit target including bounded-output regression, and Bundle check passed. |
 | Diff whitespace | `git diff --check` | 0 | No whitespace errors. |
 
-Sandbox stdout/stderr are now captured in fixed-capacity byte buffers sized to four times their existing character return limits, then sliced to the same 100,000/10,000 character limits. Excess child output is discarded while streams remain drained. This bounds retained host buffers; the existing Docker image tag remains tag-pinned rather than digest-pinned, so supply-chain pinning is still open.
+Sandbox stdout/stderr are now captured in fixed-capacity byte buffers sized to four times their existing character return limits, then sliced to the same 100,000/10,000 character limits. Excess child output is discarded while streams remain drained. This bounds retained host buffers. A 2026-11-19 follow-up pins the Docker image by digest and records local image inspection plus isolation smoke in `SANDBOX_DIGEST_PIN_2026-11-19.md`; CI/release still needs to repeat the registry and smoke checks.
 
 ## Prompt trust boundary increment — 2026-11-17
 

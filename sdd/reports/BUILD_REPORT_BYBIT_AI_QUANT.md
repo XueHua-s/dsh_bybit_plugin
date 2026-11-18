@@ -120,7 +120,7 @@ The working tree contains the Nx workspace, `apps/dsh-plugin`, `packages/ts/quan
 | AT-004 | Pass for tested guards | 27 integration checks include disabled-live, missing-key, cap and paper/test paths; no order was sent |
 | AT-005 | Partial | Independent public Testnet WebSocket service consumes through a bounded queue with supervised worker restart; actual RSS/CPU/freshness are exposed. OS restart, complete data/order recovery, heartbeat hardening, reconciliation and execution metrics remain open. |
 | AT-006 | Pass for isolated scaffold | Alembic upgrade/downgrade and checksum backup/restore tests pass; full user-history migration across versions remains unproven |
-| AT-007 | Partial | Docker runs with no network/read-only root/resource limits; bounded stdout/stderr and runtime untrusted-evidence envelopes are tested. Provider image is not digest-pinned and full isolation review remains open |
+| AT-007 | Partial | Docker runs with no network/read-only root/resource limits and an immutable image digest; bounded stdout/stderr and runtime untrusted-evidence envelopes are tested. Full isolation review remains open |
 | AT-008 | Pass | CycloneDX 1.6 TS (241 components) and Python (78 components), pnpm audit, pip-audit and gitleaks pass; editable Python packages are excluded by pip-audit |
 | AT-009 | Pass | bilingual READMEs describe current verified behavior and contain no credentials |
 
@@ -144,7 +144,7 @@ See [PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md](./PLUGIN_MANAGER_LIFECYCLE_2026-11-
 
 ### Sandbox output bound and OAuth documentation correction — 2026-11-17
 
-`apps/dsh-plugin/src/lib/sandbox.ts` now retains stdout/stderr in fixed-capacity byte buffers while draining child streams; the new `sandbox-output.ts` regression floods the helper with 100 × 2 MB chunks and verifies it retains only 400 KB. The regression is wired into both the Nx and package unit targets. Both READMEs now state that Bybit Testnet OAuth support and real consent/revoke lifecycle are unverified, and require the user to inspect the agent/scopes before authorizing. Verification: `pnpm run verify && pnpm typecheck:tests && pnpm python:lint && pnpm python:typecheck && pnpm python:test && git diff --check` → exit 0; 15 Python tests passed. This does not run Docker or establish image digest provenance. Prompt trust runtime wiring, image digest pinning, Plugin Manager upgrade, durable recovery, and Testnet order E2E remain open.
+`apps/dsh-plugin/src/lib/sandbox.ts` now retains stdout/stderr in fixed-capacity byte buffers while draining child streams; the new `sandbox-output.ts` regression floods the helper with 100 × 2 MB chunks and verifies it retains only 400 KB. The regression is wired into both the Nx and package unit targets. Both READMEs now state that Bybit Testnet OAuth support and real consent/revoke lifecycle are unverified, and require the user to inspect the agent/scopes before authorizing. The 2026-11-19 follow-up pins the provider image to `node:22.20.0-alpine@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af` and runs the Docker smoke; see `SANDBOX_DIGEST_PIN_2026-11-19.md`. Prompt trust runtime wiring, Plugin Manager upgrade, durable recovery, and Testnet order E2E remain open.
 
 ### Prompt trust boundary increment — 2026-11-17
 

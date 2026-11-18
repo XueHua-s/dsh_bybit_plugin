@@ -44,6 +44,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv sync --project python --locked --all-groups
       - run: pnpm run verify
+      - name: Verify pinned algorithm sandbox
+        run: |
+          docker pull node:22.20.0-alpine@sha256:dbcedd8aeab47fbc0f4dd4bffa55b7c3c729a707875968d467aaaea42d6225af
+          node --experimental-strip-types apps/dsh-plugin/test/sandbox.ts
       - name: Built Host to native internal-paper process
         run: pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache
       - run: pnpm run typecheck:tests
