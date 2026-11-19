@@ -63,7 +63,7 @@ Ask in the conversation:
 - 「BTC 现在多少钱？资金费率多少？」 → `bybit_market`
 - 「用 ma_cross 快 10 慢 30 在 ETHUSDT 4h 上回测 800 根」 → `quant_backtest`
 - 「按刚才的信号，模拟盘买 500 USDT 的 ETH」 → `quant_paper`
-- 「出一份简报然后你自己决定」 → `quant_brief` → `quant_decide`
+- 「先生成简报，再明确记录一条模拟观点」 → `quant_brief` → `quant_decide`
 - 「这套 AI 决策现在表现如何？」 → `quant_review`
 - 「看一眼我的模拟盘」 → `quant_paper` status；或点侧边栏的 **Bybit**
 
