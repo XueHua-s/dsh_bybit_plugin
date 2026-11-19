@@ -1,0 +1,10 @@
+{
+  "name": "quant-risk",
+  "sourceRoot": "python/packages/quant-risk/src",
+  "targets": {
+    "lint": {"command": "uv run --project python --locked ruff check python/packages/quant-risk"},
+    "typecheck": {"command": "uv run --project python --locked pyright python/packages/quant-risk"},
+    "test": {"command": "uv run --project python --locked pytest python/packages/quant-risk/tests"},
+    "build": {"command": "uv build --project python/packages/quant-risk --out-dir /tmp/bybit-quant-risk-dist"}
+  }
+}

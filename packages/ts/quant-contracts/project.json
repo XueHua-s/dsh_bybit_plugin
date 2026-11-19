@@ -1,0 +1,8 @@
+{
+  "name": "@bybit-quant/quant-contracts",
+  "sourceRoot": "packages/ts/quant-contracts/src",
+  "targets": {
+    "build": { "command": "tsc -p packages/ts/quant-contracts/tsconfig.build.json", "outputs": ["{projectRoot}/dist"] },
+    "typecheck": { "command": "tsc -p packages/ts/quant-contracts/tsconfig.json --noEmit" }
+  }
+}

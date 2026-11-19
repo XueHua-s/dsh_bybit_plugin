@@ -1,134 +1,142 @@
-# @local/bybit-quant
+# Bybit AI Quant
 
-Bybit quant toolkit for DeepSeek Harness (DSH): live market data, strategy backtests, an
-**AI decision track** with a journal and a code-owned risk gate, a simulated USDT book, and
-triple-gated live orders for the agent — plus a **Bybit** panel in the Web GUI.
+Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains `quant-data`, the independent read-only `quant-engine` market service and an optional native synthetic paper service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI simulation ledger with code-owned risk gates, and a web panel with read-only market views and explicit native-paper controls. AI decisions and positions are simulated; exchange writes are unavailable.
 
-Install: **Plugins → Add plugin** with this directory, or `plugin_manager` `install_bundle`
-with the absolute path. The bundle inserts one Host+Client row, `bybit-quant`; the Host and
-browser entries resolve from `dist/`, so run `npm run build` first (the repo ships `dist/`
-after a build; the source is `src/`).
+The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Mainnet AI-subaccount OAuth grant, token exchange, and read-only account-list access were verified on 2026-11-19; the returned list was empty, so no Mainnet sub-account was selected or created and no order was tested. Nautilus as sole exchange execution authority, the full quant/AI/research platform, and Plugin Manager upgrade preservation remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
-## Tools
+## Install the Bundle
 
-| Tool | Purpose | Key needed |
-|---|---|---|
-| `bybit_market` | ticker, candles, order book, funding history, instrument rules | no |
-| `bybit_account` | wallet balance, open positions, open orders | read key |
-| `bybit_trade` | create / cancel / cancel_all / close | trade key + unlocks |
-| `quant_backtest` | long-only backtest with metrics and the current signal | no |
-| `quant_paper` | simulated book: status / buy / sell / reset | no |
-| `quant_watchlist` | the user's symbol list: list / set / add / remove (exchange-verified) | no |
-| `quant_signals` | Supertrend, Squeeze Momentum, Ichimoku, Donchian, ADX + consensus | no |
-| `quant_brief` | multi-timeframe brief + risk limits for the AI track | no |
-| `quant_decide` | validate, risk-gate, journal, and act on one AI decision | no |
-| `quant_review` | score the journal: hit rate, expectancy, Brier, baseline | no |
-
-## Live trading is off by default
-
-`bybit_trade` sends a real order only when **all** of these hold:
-
-1. the plugin config has `allowLiveTrading: true`;
-2. an API key pair is configured (`BYBIT_API_KEY` / `BYBIT_API_SECRET`, or the config fields);
-3. the call passes `confirm: "LIVE"` **and** `dryRun: false`.
-
-Anything less returns the exact preview it would have sent. Every live order is also capped
-by `maxOrderNotionalUsd` (default 200 USDT) and rounded to the instrument's quantity step;
-`close` is exempt from the cap because it only reduces exposure. Start with `env: demo`.
-
-## The AI decision loop
-
-You pick the market; the agent works it. `quant_watchlist` stores the symbols you care about
-(any Bybit spot or perpetual pair, verified against the exchange), and the brief, the signal
-scan, and the decision path all follow that list.
-
-`quant_signals` runs five attributed, re-implemented algorithms — Supertrend, Squeeze
-Momentum, Ichimoku, Donchian, Wilder ADX — and returns a weighted consensus per timeframe,
-so the model sees objective facts instead of journalling an eyeballed chart.
-
-The model proposes, the code refuses. `quant_brief` builds the context; `quant_decide` takes
-`{ action, sizePct, confidence, stopPct, takePct, horizonHours, thesis, invalidation }` and
-runs a **code-side risk gate** before anything happens: a stop hit may cost at most
-`aiRiskPerTradePct` of equity, a position may not exceed `aiMaxPositionPct`, trading stops at
-`aiMaxDailyLossPct` daily loss or `aiMaxDrawdownPct` drawdown. Accepted decisions open a
-simulated position; rejected ones are journaled without a fill.
-
-`quant_review` reports hit rate, expectancy, average R, Brier calibration, drawdown, open
-positions, and a buy-and-hold baseline over the same window. Each decision stores the brief
-hash and a compact context snapshot so a review can replay what the model saw.
-
-## The panel
-
-The sidebar gains a **Bybit** row that opens a global panel: live ticker, candle chart with
-MA20/MA50, the paper book (balance, equity, positions, recent fills), and the last backtest
-with its metrics, equity sparkline, and current signal. It polls the authenticated bridge
-route `GET /api/bybit-quant` every 5 seconds — the same Host/Origin fence and browser cookie
-as the rest of the Web GUI, so no unauthenticated route is added. `GET /api/bybit-quant?view=health`
-reports the environment, key presence, and state file for troubleshooting.
-
-The panel never trades. Acting on a view is the agent's job through the tools, which keeps
-every state change in the conversation log.
-
-## State and privacy
-
-The paper book, last backtest, and last signal live in
-`$DSH_HOME/bybit-quant/state.json` (override with `stateFile`), never in your workspace.
-Market data goes to `api.bybit.com`; signed calls go to the endpoint of the selected `env`
-(`api-demo.bybit.com`, `api-testnet.bybit.com`, or `api.bybit.com`). No third-party server is
-involved.
-
-## Engineering
+Use the official DSH Plugin Manager `install_bundle` flow with this repository (or its built package). Do not edit managed Harness Profile files, `package.json`, or `cordis.patch.yml` by hand. Build the plugin before installation so the exported Host and browser entries exist:
 
 ```sh
-npm install
-npm run build       # tsup -> dist/ (Host ESM modules + the browser client)
-npm run lint        # oxlint (0 warnings, 0 errors enforced in CI)
-npm run typecheck   # tsc --noEmit, strict
-npm run test:unit   # signals, AI gate/accounting, client bundle, React render (no network)
-npm run test:network# live Bybit public endpoints + the Host integration suite
-npm run verify      # build + lint + typecheck + unit tests
+pnpm install --frozen-lockfile
+pnpm build
+pnpm bundle:check
 ```
 
-- **Toolchain** — TypeScript, [tsup](https://tsup.egoist.dev/) (esbuild) for the build,
-  [oxlint](https://oxc.rs/docs/guide/usage/linter) for linting, GitHub Actions for CI.
-- **Artifacts** — `dist/` is the only thing the plugin ships. `dist/index.js` is the Host
-  entry the dsh bundle row resolves; `dist/client.js` is the self-contained browser script
-  (`require('react')` comes from the dsh module loader, so no React copy is bundled).
-- **Build shape** — `bundle: false` keeps one readable output module per source file, so a
-  stack trace names the file that failed instead of a generated chunk.
-- **Layout**
+The Bundle patch inserts the `@bybit-quant/dsh-plugin` Host row and defaults to `[TESTNET]`. It contains no credentials. Upgrade and uninstall through the Plugin Manager; keep the user-owned state and credential files under `$DSH_HOME/bybit-quant/`.
+
+## Available tools
+
+- `bybit_market`, `bybit_instruments`, and `bybit_account` read public market/instrument data or authenticated account data.
+- `quant_signals`, `quant_backtest`, and `quant_watchlist` provide deterministic indicators, long-only backtests, and an exchange-verified symbol list.
+- `quant_paper` operates a local simulated USDT book.
+- `quant_brief`, `quant_decide`, and `quant_review` build a market brief, apply code-side limits to an AI proposal, journal simulated decisions/positions, and score completed simulations.
+- `quant_get_engine_status` and `quant_get_market_snapshot` read independent engine facts through the generated SDK; market readiness never implies account or execution readiness.
+- `quant_get_paper_status`, `quant_start_paper`, `quant_stop_paper`, `quant_submit_paper_order` and `quant_get_paper_command` address the separate native synthetic service; mutations require explicit paper configuration and default-off control opt-in.
+- `bybit_trade` validates create, cancel, cancel-all and close intent as a local preview; exchange writes are unavailable, and `dryRun: false` returns `execution_authority_unavailable` before any Bybit request.
+
+Backtests are single-asset and long-only. They do not model leverage, funding, or profitability guarantees.
+
+## Trading safety
+
+The Bundle defaults to `env: testnet` and a 24 USDT preview-validation ceiling. Mainnet reads use isolated credentials and Mainnet exchange writes are unavailable. OAuth, API keys, confirmation fields, and `dryRun` do not grant a TypeScript execution path; account identity, balance, instrument precision, notional, and risk checks remain read/preview validation. Testnet authorization never authorizes Mainnet activity.
+
+The panel provides REST views and demand-driven engine checks through the authenticated DSH bridge. Its separate native-paper card offers manual status, Start and Stop for the configured synthetic session, with no browser order-submission route or background polling. Python services remain loopback-only; authenticated remote deployment is not implemented. Installed carrier authentication and browser interaction acceptance remain pending.
+
+## Bybit OAuth
+
+The bundled PKCE client supports Bybit AI-agent OAuth for Testnet and Mainnet. Testnet is the default; pass `--env=live` for production. It uses the `ai-account` scope and a loopback callback on `127.0.0.1`. Read Bybit's [AI-agent connection guide](https://www.bybit.com/en/learn/ai-subaccount/agent-connect) before authorizing. If you configure environment variables instead of OAuth files, keep them environment-scoped: Testnet uses `BYBIT_API_KEY`/`BYBIT_API_SECRET`, while Mainnet uses `BYBIT_MAINNET_API_KEY`/`BYBIT_MAINNET_API_SECRET`; each pair must be complete. The Host fails closed on malformed, cross-environment, or partial credential sources and never combines key halves.
+
+Run the commands from the repository root. Keep the `start` process running while you finish the browser authorization:
+
+```sh
+pnpm --filter @bybit-quant/dsh-plugin oauth -- start
+pnpm --filter @bybit-quant/dsh-plugin oauth -- exchange
+pnpm --filter @bybit-quant/dsh-plugin oauth -- accounts
+pnpm --filter @bybit-quant/dsh-plugin oauth -- select <sub_member_id>
+```
+
+For Mainnet OAuth, add `--env=live` to each command, for example:
+
+```sh
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live start
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live exchange
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live select <sub_member_id>
+# Only if you explicitly want to create a new Mainnet AI sub-account:
+pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live create
+```
+
+Before clicking **Authorize**, review the agent name and requested scopes in Bybit yourself. After the loopback callback returns, run `exchange`, review the returned AI sub-accounts, and explicitly select the intended account. The client does not auto-select or create an account. If the list is empty, the separate `create` command creates a Mainnet AI sub-account and stores its returned key pair; use it only when you intend that account to exist. Tokens and selected credentials are stored in permission-restricted local files and are never printed. Mainnet OAuth state, credentials, and default plugin state are isolated under `$DSH_HOME/bybit-quant/live/` (or `~/.dsh/bybit-quant/live/` when `DSH_HOME` is unset); Testnet files remain in the parent directory. Mainnet OAuth grant, exchange, and the read-only account-list request succeeded on 2026-11-19, but the list was empty; no Mainnet AI sub-account was selected, created, or traded. OAuth support does not enable Mainnet orders; the exchange writer is unavailable in this Bundle. Revoke access by deleting the corresponding AI sub-account in Bybit.
+
+## Workspace layout
 
 ```text
-src/index.js        Host plugin: tools, prompt note, authenticated panel route
-src/client.js       Browser panel: sidebar row + main panel
-src/lib/signals.ts  Signal library (typed)
-src/lib/strategies.ts  Indicators, 3 strategies, backtest engine (typed)
-src/lib/bybit.js    REST client, signing, interval/symbol normalisation
-src/lib/ai.js       AI decision track: brief, decision schema, risk gate, journal, scoring
-src/lib/paper.js    Simulated USDT book
-src/lib/state.js    Atomic JSON store
-test/*.mjs          Unit + integration + render suites, run against dist/
+apps/dsh-plugin/       DSH Host, browser client, tools, scripts, tests
+python/packages/quant-data/  Alembic data package and local durable command ledger
+python/packages/quant-risk/  Pure deterministic risk veto foundation
+packages/ts/quant-contracts/ Shared market DTOs
+packages/ts/quant-api-client/ Generated engine SDK + runtime validation
+python/packages/quant-execution/ Offline native Nautilus foundation
+python/apps/quant-engine/   Independent read-only Testnet service
+sdd/                   Brainstorm, Define, Design, and evidence reports
 ```
 
-### TypeScript migration status
+`dist/` is generated output and is the only plugin payload. Handwritten TypeScript is strict and kept at or below 500 lines per file. Python projects are managed by uv; Nx discovers `@bybit-quant/dsh-plugin`, `quant-data`, `@bybit-quant/quant-contracts`, `@bybit-quant/quant-api-client`, `quant-execution`, `quant-risk`, and `quant-engine` as seven independent projects (discovery and actual dependency graph verified).
 
-The toolchain, strict `tsconfig`, and `dist/` pipeline are in place; modules move to
-TypeScript one at a time, each landing with `npm run verify` green:
+## Development and verification
 
-| Module | Status |
-|---|---|
-| `lib/signals.ts` | ✅ typed |
-| `lib/strategies.ts` | ✅ typed |
-| `lib/bybit.js` | ⏳ next |
-| `lib/ai.js` | ⏳ next |
-| `lib/paper.js`, `lib/state.js` | ⏳ next |
-| `index.js`, `client.js` | ⏳ last (dynamic tool args and React props) |
+```sh
+pnpm install --frozen-lockfile
+pnpm build
+pnpm lint
+pnpm typecheck
+pnpm test:unit
+pnpm exec nx run @bybit-quant/dsh-plugin:test:paper-process --skip-nx-cache
+pnpm bundle:check
+pnpm sdk:check
+pnpm sdk:test
+pnpm typecheck:tooling
+pnpm test:tooling
+pnpm python:lint
+pnpm python:typecheck
+pnpm python:test
+pnpm run security:deps
+pnpm run sbom
+```
 
-Until a module is converted, `checkJs` stays off and `tsc` skips it; every JS file is still
-built by tsup, linted by oxlint, and covered by the tests.
+`pnpm test:network` is not a root script; the read-only public Testnet smoke is run with `pnpm exec nx run @bybit-quant/dsh-plugin:test:network`. It binds market reads to `api-testnet.bybit.com`, uses no credentials, and never sends orders; it may be unavailable when the network is offline. Host integration tests remain separate and are not part of this network target. The release Verify Gate is `pnpm run verify`; a green documentation or CI job does not replace official Plugin Manager lifecycle evidence.
+
+## Independent Testnet engine
+
+Run from the repository root with an explicit symbol set:
+
+```sh
+uv sync --project python --locked
+uv run --project python --locked quant-engine --symbols BTCUSDT ETHUSDT
+```
+
+The loopback-only service exposes read-only `/api/v1/health` and `/api/v1/market/{symbol}` at `127.0.0.1:8765`. It uses no credentials or order APIs. Health readiness describes fresh market ingestion; execution/reconciliation remain unknown. Partial ticker updates retain null fields. See the [engine runbook](docs/runbooks/engine-service.md) for readiness, shutdown, Nx commands and offline OpenAPI verification. DSH defaults `engineBaseUrl` to `http://127.0.0.1:8765`; only numeric loopback HTTP origins are accepted. The two engine tools and authenticated `?view=engine` bridge view use this SDK. The panel offers an explicit engine check, with no background polling; unloading DSH cancels its requests while the independent process continues. Partial prices stay null and failures use bounded safe codes.
+
+## Offline native execution and verification limits
+
+`uv run --project python --locked pytest python/packages/quant-execution/tests -q` runs actual NautilusTrader 1.231.0 `BacktestEngine` fixtures, including market fills, resting cancellation and partial fill then cancellation. The offline simulation API accepts only literal `backtest`; the separate synthetic paper runtime is described below. It provides no live/Testnet executor, durable order recovery or complete final risk engine; the TypeScript REST writer is closed in this cutover; the native Testnet executor is not implemented.
+
+Use the locked root `uv` workspace for native tests. It explicitly overrides fsspec to patched2026.6.0 while Nautilus1.231.0 still declares an exact2026.2.0 pin. The patched environment passes vulnerability scanning and compatibility fixtures, but `uv pip check` reports that declared mismatch and standalone pip resolution rejects it; metadata compatibility is not claimed.
+
+The generated SDK, DSH integration, native execution and admission layers have independent scoped ACCEPT reviews. Published code `b75d73c` includes the authenticated continuous paper service, transactional risk reservations and generated paper SDK. Its [hosted CI](https://github.com/XueHua-s/dsh_bybit_plugin/actions/runs/44089248505) passed both jobs; blocking verification, four Python projects, both actual OpenAPI contracts, security scans and SBOM steps were inspected. Actual commit/push hooks passed, including 252 Python tests. [Draft PR #1](https://github.com/XueHua-s/dsh_bybit_plugin/pull/1) remains unmerged. This receipt covers the code commit; this documentation/governance follow-up is verified separately. Browser interaction, installed Harness authentication and official upgrade preservation remain incomplete. See the [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md) for evidence and limits.
+
+## Risk and durable command foundations
+
+The new `quant-risk` package provides a pure independent veto over engine-owned snapshots, pending reservations and explicit policy, using conservative Decimal gross-exposure arithmetic after validation. `quant-data` adds a local SQLite command ledger for idempotency, lifecycle transitions, single dispatch claims and append-only audit events. Both have independent scoped ACCEPT reviews; the published risk/ledger baseline passed 213 Python tests, typing and lint/format checks; the current paper-integrated workspace passes 252. This verifies the foundations; neither is yet the integrated final execution gate.
+
+Risk approval grants no trading authority, and the ledger sends or automatically resends no orders. The optional synthetic paper service below now integrates serialized account ownership, atomic risk reservations and durable native submission evidence. Sole exchange execution authority, complete long-lived private state and uncertain-order reconciliation remain incomplete; the TypeScript REST writer is closed in this cutover. The new Alembic migration is limited to isolated tests; no user database has been migrated. See the [risk design](sdd/features/DESIGN_QUANT_RISK.md), [command ledger design](sdd/features/DESIGN_COMMAND_LEDGER.md) and [Verify Gate](sdd/reports/VERIFY_GATE_2026-11-17.md).
+
+## Continuous native internal paper
+
+An optional separate paper application runs Nautilus `TradingNode` in a spawned process. Engine-owned admission serializes real risk evaluation, durable commands and reservations before native dispatch. It supports only an explicit synthetic BTC fixture with finite depth and LIMIT commands. The default market application retains its two read-only routes; paper has a separate `quant-paper.v1` OpenAPI contract and generated SDK. A private Unix broker provisions its in-memory capability to the DSH Host for a fixed session and origin; the independent trusted-launcher FD mode remains supported. No token is configured, passed in argv/environment, persisted to a file or exposed to the browser/model.
+
+Native runtime, optional service and SDK have independent scoped ACCEPT reviews. The [DSH native-paper process receipt](sdd/reports/DSH_PAPER_PROCESS_E2E_2026-11-17.md) exercises the actual built Host→private broker→SDK→CLI→native process, including risk veto, native fills, original-identity recovery after an injected post-dispatch503, Host-close independence and bounded cleanup. The native-paper card has explicit Check/Start/Stop controls and a permanent synthetic/no-exchange identity; configuration and control default off. This blocking process target is a current working-tree check and does not create a hosted CI receipt. Installed Harness authentication, real browser interaction and official upgrade preservation remain pending. Legacy `quant_paper`, AI books and the TS exchange trading path remain separate; Nautilus-only exchange execution, TS write cutover, full recovery, strategies, AI and isolated research remain incomplete. The full product remains PARTIAL. The [paper service runbook](docs/runbooks/paper-service.md) provides the explicit temporary migrated-DB broker workflow and retained FD mode.
+
+## License scope
+
+The repository root license is MIT. `quant-execution` is a mixed-license package with metadata `MIT AND LGPL-3.0-only`: [paper_sandbox.py](python/packages/quant-execution/src/quant_execution/paper_sandbox.py) adapts pinned NautilusTrader 1.231.0 source and retains LGPL-3.0-only; other original execution code is MIT. Its [NOTICE](python/packages/quant-execution/NOTICE.md) and `LICENSES/` ship with source and wheel distributions, including LGPLv3 and its incorporated GPLv3 base terms; accompanying GPL text does not change original MIT file licenses. The root MIT license does not relicense that adapted file or third-party dependencies as MIT.
+
+## State and credentials
+
+Legacy paper state and journals default to `$DSH_HOME/bybit-quant/state.json`; native paper uses the explicitly selected migrated SQLite database and service-owned session. Exchange API credentials come from the DSH credential store, the documented environment variables, or a local permission-restricted file; they must never be committed, logged, or placed in the Bundle patch. The native-paper capability uses only private in-memory provisioning, with no exchange-credential fallback. The Python Alembic schema and backup helpers require an explicit environment and backup plan before use against durable data.
 
 ## Limitations
 
-Single-asset, long-only, no leverage or funding cost in backtests; REST polling only; USDT
-perpetuals and spot only. The signed endpoints follow Bybit's v5 documentation but cannot be
-exercised without your keys, so only public endpoints are covered by the smoke test.
+The independent service supports bounded public Testnet streaming/reconnect and in-process worker restart. OS process recovery, complete snapshot reconstruction/persistence, account/order recovery, reconciliation, autonomous investment competence, and Mainnet readiness remain unverified or unimplemented. Use Testnet, mocks, or public endpoints for development and review the SDD evidence before enabling any additional capability.

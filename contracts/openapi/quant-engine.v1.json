@@ -1,0 +1,470 @@
+{
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "ExecutionMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "order_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Latency Ms"
+          },
+          "order_rejection_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Rejection Rate"
+          },
+          "reconciliation": {
+            "const": "unknown",
+            "default": "unknown",
+            "title": "Reconciliation",
+            "type": "string"
+          },
+          "status": {
+            "const": "unknown",
+            "default": "unknown",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "ExecutionMetrics",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "const": "testnet",
+            "default": "testnet",
+            "title": "Environment",
+            "type": "string"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ExecutionMetrics"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "market": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_restarts": {
+            "title": "Max Restarts",
+            "type": "integer"
+          },
+          "process": {
+            "$ref": "#/components/schemas/ProcessMetrics"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "restart_count": {
+            "title": "Restart Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supervisor_state": {
+            "title": "Supervisor State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "ready",
+          "supervisor_state",
+          "restart_count",
+          "max_restarts",
+          "last_error",
+          "process",
+          "market",
+          "execution"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "MarketHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "discarded": {
+            "title": "Discarded",
+            "type": "integer"
+          },
+          "exchange_lag_seconds": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Exchange Lag Seconds",
+            "type": "object"
+          },
+          "freshness_seconds": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Freshness Seconds",
+            "type": "object"
+          },
+          "last_event_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event At"
+          },
+          "parsed": {
+            "title": "Parsed",
+            "type": "integer"
+          },
+          "queue_depth": {
+            "title": "Queue Depth",
+            "type": "integer"
+          },
+          "received": {
+            "title": "Received",
+            "type": "integer"
+          },
+          "reconnects": {
+            "title": "Reconnects",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "queue_depth",
+          "received",
+          "parsed",
+          "discarded",
+          "reconnects",
+          "last_event_at",
+          "freshness_seconds",
+          "exchange_lag_seconds"
+        ],
+        "title": "MarketHealth",
+        "type": "object"
+      },
+      "MarketResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "age_seconds": {
+            "title": "Age Seconds",
+            "type": "number"
+          },
+          "ask_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Price"
+          },
+          "bid_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Price"
+          },
+          "environment": {
+            "const": "testnet",
+            "default": "testnet",
+            "title": "Environment",
+            "type": "string"
+          },
+          "event_time_ms": {
+            "title": "Event Time Ms",
+            "type": "integer"
+          },
+          "exchange_lag_seconds": {
+            "title": "Exchange Lag Seconds",
+            "type": "number"
+          },
+          "last_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price"
+          },
+          "partial": {
+            "title": "Partial",
+            "type": "boolean"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "last_price",
+          "bid_price",
+          "ask_price",
+          "event_time_ms",
+          "received_at",
+          "partial",
+          "exchange_lag_seconds",
+          "age_seconds"
+        ],
+        "title": "MarketResponse",
+        "type": "object"
+      },
+      "ProcessMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "cpu_system_seconds": {
+            "title": "Cpu System Seconds",
+            "type": "number"
+          },
+          "cpu_user_seconds": {
+            "title": "Cpu User Seconds",
+            "type": "number"
+          },
+          "rss_bytes": {
+            "title": "Rss Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rss_bytes",
+          "cpu_user_seconds",
+          "cpu_system_seconds"
+        ],
+        "title": "ProcessMetrics",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Bybit Quant Engine",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/v1/market/{symbol}": {
+      "get": {
+        "operationId": "market_api_v1_market__symbol__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Market"
+      }
+    }
+  }
+}
