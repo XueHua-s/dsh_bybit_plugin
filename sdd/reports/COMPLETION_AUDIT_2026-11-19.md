@@ -64,10 +64,12 @@ quantitative trading platform is not complete.
 | Command or check | Exit | Result |
 |---|---:|---|
 | `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts` | 0 | Read-only AI sub-account list returned 0 entries. No account was selected or created. |
-| `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet accounts` | 1 | Current Testnet OAuth/account-list state was not verified. No account details or credential values are included here. |
-| Chrome OAuth page inspection | Not run | The Chrome window showed an existing Testnet OAuth tab, but its page state was not read. macOS Accessibility and Screen Recording permissions for the desktop driver are disabled; login/consent state remains unverified. |
+| Chrome Testnet OAuth page | Success screen observed | Bybit reported that an access token was sent to `ai-agent` and would activate automatically. The token was not copied or recorded. |
+| `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet exchange` | 1 | Local CLI found no OAuth callback state, so its token exchange could not be verified. |
+| `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet accounts` | 1 | Local CLI could not validate local Testnet token state; account-list state and count remain unverified. |
 | Referenced architecture attachment | Not available | The attachment was absent from the task environment. This audit uses the repository's SDD artifacts and does not claim the external attachment was reviewed. |
 
 No account creation, account selection, or order submission was performed during
-this recheck. Product status remains **PARTIAL**; OAuth grant support alone does
-not establish a usable account, trading readiness, or unattended execution.
+this recheck. The browser success page does not prove that this CLI has a usable
+local token or account state. Product status remains **PARTIAL**; OAuth grant
+support alone does not establish trading readiness or unattended execution.
