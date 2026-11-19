@@ -31,17 +31,18 @@
 
 已验证：当前 DSH 无障碍树中的插件详情、配置表、工具清单、Quick start、Safety 和 Limitations 文案；工作树中的 `host-panel.ts`、`client-assets.ts`、`host-tools-trade.ts` 以及现有 UX/完成度报告。
 
-未验证：真实后台 scheduler、OS 级自动恢复、完整订单与持仓对账、Python/Nautilus 唯一执行权威、Mainnet 逐笔授权流程、活动 Host 的 `updateBundle` 激活/回滚和升级后状态保留。本轮只观察到 Chrome 中已有 Testnet OAuth 标签页，无法读取其页面状态；本机没有可用的浏览器驱动或 CDP 端点，因此没有新的 OAuth 成功证据。Mainnet OAuth 的只读连接/账户读取不等于交易就绪，也不构成无人值守交易授权。
+未验证：真实后台 scheduler、OS 级自动恢复、完整订单与持仓对账、Python/Nautilus 唯一执行权威、Mainnet 逐笔授权流程、活动 Host 的 `updateBundle` 激活/回滚和升级后状态保留。此前 Chrome 已显示 Bybit Testnet OAuth 成功页，提示访问令牌已发送给 `ai-agent`；令牌没有被复制、读取或记录。本次电脑控制检查时 Chrome 已返回 Bybit 官方说明页。项目 CLI 未捕获本地 callback，`exchange` 和 `accounts` 均以退出码 1 结束，因此本地 Testnet token/account 状态仍未验证。Mainnet OAuth 的只读连接/账户读取不等于交易就绪，也不构成无人值守交易授权。
 
 ## 本轮验证记录
 
 | 命令 | 退出码 | 结果 |
 | --- | ---: | --- |
 | `pnpm run verify` | 0 | Build、lint、类型检查、单元测试、Bundle、SDK 与 tooling 检查通过。 |
+| `pnpm --filter @bybit-quant/dsh-plugin verify` | 0 | 本次文档核对后，插件 Build、lint、typecheck、单元测试和 Bundle 检查通过；lint 输出 4 条告警。 |
 | `pnpm typecheck:tests` | 0 | 测试类型检查通过；顺序执行避免与构建清理 `dist` 竞争。 |
 | `git diff --check` | 0 | 差异格式检查通过。 |
 | `git diff --binary \| gitleaks stdin --redact --no-banner --ignore-gitleaks-allow` | 0 | 当前差异未发现泄露。 |
-| `gitleaks git --redact --no-banner --ignore-gitleaks-allow` | 0 | 23 个提交历史未发现泄露。 |
+| `gitleaks git --redact --no-banner --ignore-gitleaks-allow` | 0 | 此前扫描 23 个提交；本次扫描 26 个提交、约 3.34 MB，均未发现泄露。 |
 | `pnpm run security:secrets` | 1 | 仓库未定义该脚本；已直接运行上方的 Gitleaks 差异与历史扫描。 |
 
 结论：当前 UX 对“会话触发的行情、回测、纸面和 AI 决策工具”是 **部分可接受**；对端到端无人值守 AI 量化操盘是 **未实现/未验收**。产品状态应继续标为 **PARTIAL**。
