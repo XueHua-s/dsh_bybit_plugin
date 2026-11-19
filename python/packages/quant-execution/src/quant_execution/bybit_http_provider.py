@@ -12,6 +12,7 @@ import json
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from email.message import Message
 from typing import Protocol
@@ -133,6 +134,26 @@ def _positive_int(value: object) -> int:
     return result
 
 
+def _timestamp_ms(value: object) -> int:
+    """Normalize the API key expiry's epoch or timezone-aware ISO 8601 form."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return _positive_int(value)
+    if isinstance(value, str) and value.isdigit():
+        return _positive_int(value)
+    if not isinstance(value, str):
+        raise ProviderUnavailable("timestamp_field_invalid")
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            raise ValueError
+        timestamp_ms = int(parsed.timestamp() * 1_000)
+    except (ValueError, OverflowError):
+        raise ProviderUnavailable("timestamp_field_invalid") from None
+    if timestamp_ms <= 0:
+        raise ProviderUnavailable("timestamp_field_invalid")
+    return timestamp_ms
+
+
 def _flag(value: object) -> bool:
     if isinstance(value, bool):
         return value
@@ -166,7 +187,7 @@ class BybitReadOnlyProvider(ReadOnlyTestnetProvider):
             "is_master": _flag(result.get("isMaster", result.get("is_master", False))),
             "read_only": _flag(result.get("readOnly")),
             "unified": _flag(result.get("unified")),
-            "expires_at_ms": _positive_int(result.get("expiredAt")),
+            "expires_at_ms": _timestamp_ms(result.get("expiredAt")),
             "ip_bindings": self._ips(result.get("ips")),
             "permissions": self._permissions(result.get("permissions")),
         }
@@ -308,9 +329,17 @@ class BybitReadOnlyProvider(ReadOnlyTestnetProvider):
     def _ips(value: object) -> list[str]:
         if value in (None, ""):
             return []
-        if not isinstance(value, str):
+        candidates = value.split(",") if isinstance(value, str) else value
+        if not isinstance(candidates, list) or len(candidates) > 32:
             raise ProviderUnavailable("ip_field_invalid")
-        return [item.strip() for item in value.split(",") if item.strip()]
+        if any(not isinstance(item, str) or len(item) > 64 for item in candidates):
+            raise ProviderUnavailable("ip_field_invalid")
+        bindings = [item.strip() for item in candidates if item.strip()]
+        if "*" in bindings:
+            if bindings == ["*"]:
+                return []
+            raise ProviderUnavailable("ip_field_invalid")
+        return bindings
 
     @staticmethod
     def _permissions(value: object) -> list[str]:
@@ -322,12 +351,25 @@ class BybitReadOnlyProvider(ReadOnlyTestnetProvider):
                 raise ProviderUnavailable("permission_field_invalid")
             key = raw_key.lower()
             values = raw_value if isinstance(raw_value, list) else [raw_value]
-            if key in {"contracttrade", "derivativetrade", "lineartrade"} and values:
-                normalized.add("linear_trade")
-            elif "withdraw" in key:
+            active = [item for item in values if item not in (None, "", [], {}) and item is not False and item != 0]
+            if not active:
+                continue
+            labels = [raw_key.lower()]
+            labels.extend(item.lower() for item in active if isinstance(item, str))
+            joined = " ".join(labels)
+            if "withdraw" in joined:
                 normalized.add("withdraw")
-            elif "transfer" in key or "accounttransfer" in key:
+            elif "transfer" in joined:
                 normalized.add("transfer")
-            elif key not in {"wallet", "read"}:
+            elif key in {"contracttrade", "derivativetrade", "lineartrade"}:
+                if all(isinstance(item, str) and item.lower() in {"order", "position"} for item in active):
+                    normalized.add("linear_trade")
+                else:
+                    normalized.add("unknown:" + raw_key[:48])
+            elif key in {"wallet", "read"} and all(
+                isinstance(item, str) and item.lower() in {"accountbalance", "accountinfo", "read"} for item in active
+            ):
+                continue
+            else:
                 normalized.add("unknown:" + raw_key[:48])
         return sorted(normalized)

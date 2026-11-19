@@ -124,7 +124,9 @@ def run_testnet_preflight(
         return _result(profile, PreflightStatus.UNAVAILABLE, "provider_read_failed")
 
     reasons: list[str] = []
-    if account.user_id != profile.expected_uid or account.parent_uid != profile.expected_parent_uid:
+    if account.user_id != profile.expected_uid or (
+        profile.expected_parent_uid is not None and account.parent_uid != profile.expected_parent_uid
+    ):
         reasons.append("identity_mismatch")
     if account.is_master or not account.unified:
         reasons.append("account_type_unsupported")

@@ -86,3 +86,57 @@ contract correction; the existing independent UX review remains at
 The implementation slice is complete and locally verified. The repository-level
 goal is not complete and must not be represented as an unattended live trading
 system.
+
+## Follow-up — Testnet OAuth and live read-only validation (2026-11-19)
+
+This section supersedes the earlier Testnet OAuth recheck above. The later
+callback exchange, account listing and explicit selection of Testnet AI
+subaccount `107209442` completed with exit code 0. OAuth token and credential
+files were private (`0600`); no credential value was copied into this report.
+The separate Mainnet OAuth account list remained empty; no Mainnet subaccount
+was selected or created, and no Mainnet write was attempted.
+
+An ad hoc local diagnostic used a temporary resolver bound to that exact
+Testnet profile and the existing private Testnet credential file. It made only
+signed HTTPS GET requests to `api-testnet.bybit.com`; no production app
+credential resolver was added and no order was sent. The real key response
+exposed schema differences now handled by the adapter: `expiredAt` is a
+timezone-aware ISO 8601 string, `ips` is an array, and permission actions must
+be inspected in addition to permission category names. An unrestricted IP
+marker maps to no IP binding. A missing expected parent UID is now treated as an
+optional extra check; the selected subaccount UID remains mandatory.
+
+The first adapter attempt returned the sanitized `integer_field_invalid` code
+because the expiry parser accepted only integer timestamps. The system Python
+interpreter also lacked `nautilus_trader`; follow-up diagnostics used the locked
+`uv` workspace environment.
+
+The selected subaccount UID matched. The returned key was not marked read-only,
+was not a Unified Trading Account key, had no IP allowlist, and carried transfer
+plus other active non-linear permission scopes. Testnet wallet, BTCUSDT
+instrument and paginated order/position/execution reads returned successfully;
+the Unified wallet endpoint showed zero balance, but that is not accepted as
+usable collateral evidence because the key reports `unified=false`. The final
+preflight remained denied with `account_type_unsupported`, `ip_binding_missing`
+and `permissions_unknown_or_excessive`; `order_submission_allowed` remained
+false. These observations are a diagnostic, not production readiness.
+
+| Command/check | Exit | Result |
+|---|---:|---|
+| System Python import diagnostic | 1 | `nautilus_trader` was not installed in the system interpreter; no credential value was printed. |
+| `uv run --project python --locked pytest python/packages/quant-execution/tests/test_bybit_http_provider.py python/packages/quant-execution/tests/test_bybit_preflight.py python/packages/quant-execution/tests/test_bybit_projection.py -q` | 0 | 41 passed. |
+| `uv run --project python --locked ruff check python/packages/quant-execution` | 0 | Clean. |
+| `uv run --project python --locked ruff format --check python/packages/quant-execution` | 0 | 19 files already formatted. |
+| `uv run --project python --locked pyright python/packages/quant-execution/src/quant_execution` | 0 | 0 errors, warnings, or informations. |
+| `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` | 0 | Root TypeScript build, lint, typecheck, unit, bundle, SDK, and tooling checks passed. |
+| `pnpm python:lint` | 0 | Ruff clean; 70 Python files formatted. |
+| `pnpm python:typecheck` | 0 | Pyright reported 0 diagnostics. |
+| `pnpm python:test` | 0 | 333 passed; 11 dependency/runtime warnings. |
+| `gitleaks dir --redact --no-banner --log-level error .` | 0 | No findings. |
+| `git diff --check` | 0 | No whitespace errors. |
+| Live Testnet read-only diagnostic | 0 | Identity, wallet, instrument and coverage reads completed; preflight denied as described above. |
+
+No live or Testnet order was submitted. Full product status remains **PARTIAL**:
+this adapter is not wired into the DSH Host runtime, account restrictions do not
+pass preflight, and the persistent unattended execution/recovery path remains
+unimplemented.

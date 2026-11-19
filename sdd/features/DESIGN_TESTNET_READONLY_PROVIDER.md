@@ -36,7 +36,12 @@ The provider exposes four named methods matching `ReadOnlyTestnetProvider`:
 and `get_initial_report_coverage`. The last method reads realtime orders,
 positions and executions with bounded cursor pagination and returns only coverage
 metadata. Unknown response fields are ignored only at the transport-to-projection
-mapping boundary; required fields, permissions and pagination failures deny.
+mapping boundary; required fields, permissions and pagination failures deny. The
+key-expiry parser accepts positive epoch milliseconds or a timezone-aware ISO
+8601 timestamp. IP restrictions may arrive as a delimited string or an array;
+the unrestricted `*` marker becomes an empty binding and is denied by preflight.
+Permission actions are inspected as well as category names, so transfer,
+withdraw and unknown active scopes remain denied.
 
 ## Security invariants
 
@@ -45,6 +50,9 @@ mapping boundary; required fields, permissions and pagination failures deny.
 - Every request is HMAC-SHA256 V5 signed with a generated timestamp and bounded
   receive window. Query encoding is deterministic and secrets never appear in the
   signed URL or exceptions.
+- The selected subaccount UID is always matched. Parent UID is an additional
+  check when a trusted expected parent UID is available; absence of that optional
+  parent binding never relaxes the required selected subaccount match.
 - Response bodies are capped, JSON objects are required, Bybit nonzero `retCode`
   is unavailable, and nonempty cursors are followed only up to a fixed page cap.
 - No method accepts an HTTP verb, arbitrary path, raw URL, credential, or model
@@ -61,6 +69,8 @@ uv run --project python --locked pyright python/packages/quant-execution
 ```
 
 Tests use a fake transport and never resolve a real credential or contact Bybit.
-This design does not claim a live Testnet preflight, account identity, balance,
-Nautilus reconciliation or order acceptance; those require a separate authorized
-operator action after all offline gates pass.
+The live Testnet evidence in the build report is a one-off diagnostic through a
+temporary resolver and is not production app integration. It verifies read-only
+schema compatibility only; it does not establish an eligible profile, usable
+collateral, Nautilus reconciliation or order acceptance. Those remain separate
+gates after all offline checks pass.

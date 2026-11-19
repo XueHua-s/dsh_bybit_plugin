@@ -8,6 +8,7 @@ import json
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from email.message import Message
 from urllib.error import HTTPError
 from urllib.request import Request
@@ -99,8 +100,10 @@ def test_named_mappings_validate_identity_wallet_instrument_and_report_pages() -
                 "isMaster": False,
                 "readOnly": False,
                 "unified": True,
-                "expiredAt": NOW + 86_400_000,
-                "ips": "203.0.113.8",
+                "expiredAt": datetime.fromtimestamp((NOW + 86_400_000) / 1_000, UTC)
+                .isoformat(timespec="seconds")
+                .replace("+00:00", "Z"),
+                "ips": ["203.0.113.8"],
                 "permissions": {"ContractTrade": ["Order"], "Wallet": ["AccountTransfer"]},
             }
         if path == "/v5/account/wallet-balance":
@@ -141,7 +144,7 @@ def test_named_mappings_validate_identity_wallet_instrument_and_report_pages() -
         "unified": True,
         "expires_at_ms": NOW + 86_400_000,
         "ip_bindings": ["203.0.113.8"],
-        "permissions": ["linear_trade", "read"],
+        "permissions": ["linear_trade", "read", "transfer"],
     }
     assert wallet == {
         "observed_at_ms": NOW,
@@ -198,6 +201,25 @@ def test_read_provider_preflight_remains_non_trading_with_zero_balance() -> None
     assert evidence.funds_observed_positive is False
     assert evidence.order_submission_allowed is False
     assert len(transport.calls) == 6
+
+
+def test_unrestricted_ip_marker_becomes_empty_binding_evidence() -> None:
+    def respond(_path: str, _query: str) -> Mapping[str, object]:
+        return {
+            "userID": "81234567",
+            "parentUid": "81230000",
+            "isMaster": False,
+            "readOnly": False,
+            "unified": True,
+            "expiredAt": NOW + 86_400_000,
+            "ips": ["*"],
+            "permissions": {"ContractTrade": ["Order"]},
+        }
+
+    provider, _resolver, _transport = _provider(respond)
+    evidence = provider.get_api_key_evidence(PROFILE, 5.0)
+
+    assert evidence["ip_bindings"] == []
 
 
 @pytest.mark.parametrize(

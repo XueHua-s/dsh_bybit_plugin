@@ -117,9 +117,12 @@ def test_identity_permission_staleness_and_report_gaps_deny() -> None:
         NOW,
     ).reason_codes == ("identity_mismatch",)
 
-    provider = _provider()
-    provider.account = {**provider.account, "permissions": ["read", "withdraw"]} if provider.account else None
-    assert "permissions_unknown_or_excessive" in run_testnet_preflight(PROFILE, provider, "BTCUSDT", NOW).reason_codes
+    for permission in ("withdraw", "transfer", "unknown:spottrade"):
+        provider = _provider()
+        provider.account = {**provider.account, "permissions": ["read", permission]} if provider.account else None
+        assert (
+            "permissions_unknown_or_excessive" in run_testnet_preflight(PROFILE, provider, "BTCUSDT", NOW).reason_codes
+        )
 
     provider = _provider()
     provider.wallet = {**provider.wallet, "observed_at_ms": NOW - 30_001} if provider.wallet else None
@@ -128,6 +131,18 @@ def test_identity_permission_staleness_and_report_gaps_deny() -> None:
     provider = _provider()
     provider.reports = {**provider.reports, "pagination_complete": False} if provider.reports else None
     assert "reports_incomplete" in run_testnet_preflight(PROFILE, provider, "BTCUSDT", NOW).reason_codes
+
+
+def test_parent_identity_is_checked_when_a_trusted_binding_is_available() -> None:
+    provider = _provider()
+    selected_subaccount_only = ProfileBinding("test-profile", "81234567", None, "testnet", "linear", PROFILE.endpoint)
+    assert run_testnet_preflight(selected_subaccount_only, provider, "BTCUSDT", NOW).status is (
+        PreflightStatus.ELIGIBLE_FOR_RECONCILIATION
+    )
+
+    provider = _provider()
+    wrong_parent = ProfileBinding("test-profile", "81234567", "99999999", "testnet", "linear", PROFILE.endpoint)
+    assert run_testnet_preflight(wrong_parent, provider, "BTCUSDT", NOW).reason_codes == ("identity_mismatch",)
 
 
 def test_expired_read_only_or_unbound_keys_are_denied() -> None:

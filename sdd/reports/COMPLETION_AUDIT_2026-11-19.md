@@ -29,8 +29,10 @@ Overall status: **PARTIAL**
 - No persistent background AI scheduler or restart-safe unattended strategy loop.
 - No authenticated native Testnet order writer; Python/Nautilus is not yet an
   exchange execution authority. The TypeScript fallback writer is now closed.
-- The secure production provider, signed Testnet read-only transport, actual
-  online preflight, and complete report/reconciliation proof remain unimplemented.
+- The signed Testnet read-only adapter now exists as a separate package slice,
+  but it has no production credential resolver or DSH Host integration. The
+  selected account also fails the online preflight, and complete report/
+  reconciliation acceptance remains open.
 - Complete portfolio/OMS, account/order reconciliation, recovery and audit
   closure are not accepted.
 - Mainnet OAuth grant, token exchange, and the read-only account-list endpoint
@@ -64,7 +66,7 @@ quantitative trading platform is not complete.
 | Command or check | Exit | Result |
 |---|---:|---|
 | `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts` | 0 | Read-only AI sub-account list returned 0 entries. No account was selected or created. |
-| Chrome Testnet OAuth page | Success screen observed | Bybit reported that an access token was sent to `ai-agent` and would activate automatically. The token was not copied or recorded. |
+| Chrome Testnet OAuth page | Success screen observed | Bybit reported that an access token was sent to `ai-agent`; its value unexpectedly appeared in accessibility output. It was not copied into a local file or this report. Treat it as exposed and revoke before unattended use. |
 | `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet exchange` | 1 | Local CLI found no OAuth callback state, so its token exchange could not be verified. |
 | `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet accounts` | 1 | Local CLI could not validate local Testnet token state; account-list state and count remain unverified. |
 | Referenced architecture attachment | Not available | The attachment was absent from the task environment. This audit uses the repository's SDD artifacts and does not claim the external attachment was reviewed. |
@@ -73,3 +75,29 @@ No account creation, account selection, or order submission was performed during
 this recheck. The browser success page does not prove that this CLI has a usable
 local token or account state. Product status remains **PARTIAL**; OAuth grant
 support alone does not establish trading readiness or unattended execution.
+
+## Superseding Testnet follow-up — 2026-11-19
+
+The OAuth and desktop recheck above was superseded by a later successful
+Testnet flow: the local callback exchange and account listing succeeded, and
+the explicitly selected AI subaccount was `107209442`. Its OAuth/credential
+files were private (`0600`). Mainnet remains separate: the read-only account
+list was empty, with no Mainnet subaccount selected or created and no Mainnet
+write attempted.
+
+A one-off signed GET diagnostic against the selected Testnet key confirmed the
+subaccount UID but did not establish readiness. The account key is not a Unified
+Trading Account key, has no IP allowlist, and includes transfer plus other
+active scopes beyond linear trading. The Unified wallet read returned zero but
+is not accepted as collateral evidence because the key reports `unified=false`.
+The adapter now parses the observed expiry/IP response forms and explicitly
+denies unrestricted IP markers and excessive scopes. Final preflight status was
+`denied` with `account_type_unsupported`, `ip_binding_missing`, and
+`permissions_unknown_or_excessive`; order submission remained false. No order
+was sent. This temporary-resolver diagnostic does not mean the DSH Host runtime
+has a production credential resolver or a native Testnet execution authority.
+
+The DSH UI audit remains **PARTIAL**: the Host Plugin Manager service-level
+upgrade/rollback and state-preservation path is not yet evidenced, and the UI
+still needs to distinguish account compatibility and persistent automation
+readiness from a successful OAuth connection.
