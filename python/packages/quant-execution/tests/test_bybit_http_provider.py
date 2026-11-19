@@ -222,6 +222,66 @@ def test_unrestricted_ip_marker_becomes_empty_binding_evidence() -> None:
     assert evidence["ip_bindings"] == []
 
 
+def test_mixed_unrestricted_ip_marker_is_rejected() -> None:
+    def respond(_path: str, _query: str) -> Mapping[str, object]:
+        return {
+            "userID": "81234567",
+            "parentUid": "81230000",
+            "isMaster": False,
+            "readOnly": False,
+            "unified": True,
+            "expiredAt": NOW + 86_400_000,
+            "ips": ["*", "203.0.113.8"],
+            "permissions": {"ContractTrade": ["Order"]},
+        }
+
+    provider, _resolver, _transport = _provider(respond)
+    with pytest.raises(ProviderUnavailable, match="ip_field_invalid"):
+        provider.get_api_key_evidence(PROFILE, 5.0)
+
+
+@pytest.mark.parametrize("expiry", ["2026-11-19T00:00:00", "not-a-time"])
+def test_key_expiry_requires_epoch_or_timezone_aware_iso(expiry: str) -> None:
+    def respond(_path: str, _query: str) -> Mapping[str, object]:
+        return {
+            "userID": "81234567",
+            "parentUid": "81230000",
+            "isMaster": False,
+            "readOnly": False,
+            "unified": True,
+            "expiredAt": expiry,
+            "ips": ["203.0.113.8"],
+            "permissions": {"ContractTrade": ["Order"]},
+        }
+
+    provider, _resolver, _transport = _provider(respond)
+    with pytest.raises(ProviderUnavailable, match="timestamp_field_invalid"):
+        provider.get_api_key_evidence(PROFILE, 5.0)
+
+
+def test_unknown_contract_trade_action_does_not_grant_linear_trade() -> None:
+    def respond(_path: str, _query: str) -> Mapping[str, object]:
+        return {
+            "userID": "81234567",
+            "parentUid": "81230000",
+            "isMaster": False,
+            "readOnly": False,
+            "unified": True,
+            "expiredAt": NOW + 86_400_000,
+            "ips": ["203.0.113.8"],
+            "permissions": {"ContractTrade": ["Foo"]},
+        }
+
+    provider, _resolver, _transport = _provider(respond)
+    evidence = provider.get_api_key_evidence(PROFILE, 5.0)
+    permissions = evidence["permissions"]
+
+    assert isinstance(permissions, list)
+    assert all(isinstance(permission, str) for permission in permissions)
+    assert "unknown:ContractTrade" in permissions
+    assert "linear_trade" not in permissions
+
+
 @pytest.mark.parametrize(
     "profile",
     [

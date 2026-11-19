@@ -3,6 +3,9 @@
 Date: 2026-11-19
 Overall status: **PARTIAL**
 
+This report is chronological: earlier increment summaries are historical
+snapshots, and later follow-up sections supersede them where stated.
+
 ## Completed in this increment
 
 - Added environment-aware Bybit OAuth for Testnet and Mainnet with PKCE,
@@ -96,6 +99,12 @@ denies unrestricted IP markers and excessive scopes. Final preflight status was
 `permissions_unknown_or_excessive`; order submission remained false. No order
 was sent. This temporary-resolver diagnostic does not mean the DSH Host runtime
 has a production credential resolver or a native Testnet execution authority.
+
+The final offline gate for this follow-up passed: `pnpm python:test` exited 0
+with 337 tests and 11 warnings; Python lint and Pyright, root `pnpm run verify`,
+`gitleaks dir --redact --no-banner --log-level error .`, and `git diff --check`
+also exited 0. The remaining warnings are dependency/runtime deprecations in
+FastAPI/Starlette and Nautilus-backed tests, not failures in the provider slice.
 
 The DSH UI audit remains **PARTIAL**: the Host Plugin Manager service-level
 upgrade/rollback and state-preservation path is not yet evidenced, and the UI

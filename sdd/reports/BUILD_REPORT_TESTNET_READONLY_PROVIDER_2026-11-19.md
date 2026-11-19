@@ -131,7 +131,7 @@ false. These observations are a diagnostic, not production readiness.
 | `NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm run verify` | 0 | Root TypeScript build, lint, typecheck, unit, bundle, SDK, and tooling checks passed. |
 | `pnpm python:lint` | 0 | Ruff clean; 70 Python files formatted. |
 | `pnpm python:typecheck` | 0 | Pyright reported 0 diagnostics. |
-| `pnpm python:test` | 0 | 333 passed; 11 dependency/runtime warnings. |
+| `pnpm python:test` | 0 | 337 passed; 11 dependency/runtime warnings. |
 | `gitleaks dir --redact --no-banner --log-level error .` | 0 | No findings. |
 | `git diff --check` | 0 | No whitespace errors. |
 | Live Testnet read-only diagnostic | 0 | Identity, wallet, instrument and coverage reads completed; preflight denied as described above. |
