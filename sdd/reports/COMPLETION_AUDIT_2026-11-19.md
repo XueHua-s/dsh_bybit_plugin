@@ -58,3 +58,16 @@ unknown.
 The correct product conclusion remains **PARTIAL**: OAuth support and the
 TypeScript writer closure are locally implemented, while the full unattended AI
 quantitative trading platform is not complete.
+
+## OAuth and desktop recheck — 2026-11-19
+
+| Command or check | Exit | Result |
+|---|---:|---|
+| `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=live accounts` | 0 | Read-only AI sub-account list returned 0 entries. No account was selected or created. |
+| `pnpm --filter @bybit-quant/dsh-plugin oauth -- --env=testnet accounts` | 1 | Current Testnet OAuth/account-list state was not verified. No account details or credential values are included here. |
+| Chrome OAuth page inspection | Not run | The Chrome window showed an existing Testnet OAuth tab, but its page state was not read. macOS Accessibility and Screen Recording permissions for the desktop driver are disabled; login/consent state remains unverified. |
+| Referenced architecture attachment | Not available | The attachment was absent from the task environment. This audit uses the repository's SDD artifacts and does not claim the external attachment was reviewed. |
+
+No account creation, account selection, or order submission was performed during
+this recheck. Product status remains **PARTIAL**; OAuth grant support alone does
+not establish a usable account, trading readiness, or unattended execution.
