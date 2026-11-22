@@ -15,7 +15,9 @@ members = [
     "bybit-quant-data",
     "bybit-quant-engine",
     "bybit-quant-execution",
+    "bybit-quant-portfolio",
     "bybit-quant-risk",
+    "bybit-quant-strategies",
     "bybit-quant-workspace",
 ]
 overrides = [{ name = "fsspec", specifier = "==2026.6.0" }]
@@ -136,7 +138,9 @@ source = { editable = "apps/quant-engine" }
 dependencies = [
     { name = "bybit-quant-data" },
     { name = "bybit-quant-execution" },
+    { name = "bybit-quant-portfolio" },
     { name = "bybit-quant-risk" },
+    { name = "bybit-quant-strategies" },
     { name = "fastapi" },
     { name = "psutil" },
     { name = "pydantic" },
@@ -148,7 +152,9 @@ dependencies = [
 requires-dist = [
     { name = "bybit-quant-data", editable = "packages/quant-data" },
     { name = "bybit-quant-execution", editable = "packages/quant-execution" },
+    { name = "bybit-quant-portfolio", editable = "packages/quant-portfolio" },
     { name = "bybit-quant-risk", editable = "packages/quant-risk" },
+    { name = "bybit-quant-strategies", editable = "packages/quant-strategies" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "psutil", specifier = ">=6,<8" },
     { name = "pydantic", specifier = ">=2.10,<3" },
@@ -172,9 +178,19 @@ requires-dist = [
 ]
 
 [[package]]
+name = "bybit-quant-portfolio"
+version = "0.1.0"
+source = { editable = "packages/quant-portfolio" }
+
+[[package]]
 name = "bybit-quant-risk"
 version = "0.1.0"
 source = { editable = "packages/quant-risk" }
+
+[[package]]
+name = "bybit-quant-strategies"
+version = "0.1.0"
+source = { editable = "packages/quant-strategies" }
 
 [[package]]
 name = "bybit-quant-workspace"
@@ -184,7 +200,9 @@ dependencies = [
     { name = "bybit-quant-data" },
     { name = "bybit-quant-engine" },
     { name = "bybit-quant-execution" },
+    { name = "bybit-quant-portfolio" },
     { name = "bybit-quant-risk" },
+    { name = "bybit-quant-strategies" },
 ]
 
 [package.dev-dependencies]
@@ -203,7 +221,9 @@ requires-dist = [
     { name = "bybit-quant-data", editable = "packages/quant-data" },
     { name = "bybit-quant-engine", editable = "apps/quant-engine" },
     { name = "bybit-quant-execution", editable = "packages/quant-execution" },
+    { name = "bybit-quant-portfolio", editable = "packages/quant-portfolio" },
     { name = "bybit-quant-risk", editable = "packages/quant-risk" },
+    { name = "bybit-quant-strategies", editable = "packages/quant-strategies" },
 ]
 
 [package.metadata.requires-dev]

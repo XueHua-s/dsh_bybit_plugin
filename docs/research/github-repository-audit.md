@@ -14,7 +14,7 @@
 | [hummingbot/hummingbot](https://github.com/hummingbot/hummingbot) | `9af100d6822da7d2d0291a906c730ef172284ee2` | Apache-2.0（`LICENSE`） | 多交易所自动化框架；Python/Cython，`pyproject.toml`、`setup.py`、`environment.yml`；含 hbot/Condor 入口。 | CI、Docker/脚本和大量连接器；大仓库，未做供应链或交易执行审计。 | **借鉴连接器/生命周期观测**；不整体引入，避免复杂依赖和策略执行面。 |
 | [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) | `9fa1196fffbcfd9de5146d2dd2869df84ab99838` | Apache-2.0（`LICENSE`） | LLM 多智能体金融分析框架；`tradingagents/` 图式编排；LangChain provider、Anthropic/Google/OpenAI 依赖。 | `.env.example`/多模型密钥面；提示词和外部数据必须视为不可信。 | **仅借鉴研究编排**；不接入交易执行，不复制 agent prompt/密钥流程。 |
 | [microsoft/RD-Agent](https://github.com/microsoft/RD-Agent) | `484776c211e4fbbeef03e0ec00d6bbee7362a4f4` | MIT（`LICENSE`） | Microsoft R&D agent；Python 包、Web UI（`web/package.json`）、量化场景；requirements/torch 可选项。 | README 显示 CI、CodeQL、Dependabot；仍需锁定依赖并隔离模型生成代码。 | **借鉴因子研究循环和评估边界**；不引入 agent runtime。 |
-| [microsoft/qlib](https://github.com/microsoft/qlib) | `54355232463878d2eebb91fe0ee5fa7fa1f5976c` | MIT（`LICENSE`） | 数据/因子/模型/回测研究平台；Python/Cython，`pyproject.toml`、setup、示例依赖。 | GitHub CI/打包信号可见；数据下载和模型脚本需独立审查。 | **借鉴因子数据模型**；本项目保留本地可读 TypeScript/Python 合约，不复制整栈。 |
+| [microsoft/qlib](https://github.com/microsoft/qlib) | `54355232463878d2eebb91fe0ee5fa7fa1f5976c` | MIT（`LICENSE`） | 数据/因子/模型/回测研究平台；Python/Cython，`pyproject.toml`、setup、示例依赖。 | GitHub CI/打包信号可见；数据下载和模型脚本需独立审查。 | **仅独立重写 5 个 Alpha158 因子公式**；不导入 Qlib runtime、模型、数据层或完整 Alpha158。 |
 | [freqtrade/freqtrade](https://github.com/freqtrade/freqtrade) | `384ce69a1565e16227bb67454162286a8205685a` | GPL-3.0（`LICENSE`） | Python 加密交易机器人、回测和 dry-run；CCXT、NumPy/Pandas、requests。 | 仓库有 CI/文档；GPL 及真实交易面使整合成本高，未运行交易路径。 | **仅参考 dry-run/回测概念**；不引入 GPL 源码或策略执行器。 |
 | [freqtrade/freqtrade-strategies](https://github.com/freqtrade/freqtrade-strategies) | `f3340ce11f5bdf62f598522e64d1f5638eaa13f5` | GPL-3.0（`LICENSE`） | 策略样例集合；无独立运行时依赖清单，依赖 Freqtrade 版本。README 明确教育用途、须先回测/dry-run。 | 策略可能过拟合且来源混杂；不能视为收益证据。 | **只读算法灵感**；重写成项目内可测试函数，绝不复制策略文件。 |
 | [polakowo/vectorbt](https://github.com/polakowo/vectorbt) | `9ac1b697166b00911def494cf95937274218aa54` | Commons Clause（`LICENSE.md`；限制销售；需核对附带条款） | 向量化回测/指标；NumPy/Pandas/requests，可选 Rust 子项目。 | 许可证商业限制是主要风险；未审计 Pro/附属资产。 | **不引入**；只借鉴向量化计算思路，避免许可和商业再分发风险。 |
@@ -48,3 +48,9 @@ $ find /tmp/bybit-ref-audit -maxdepth 2 -type d | wc -l
 2026-11-17 已实际读取用户原始附件 §6.1、§12、§16，以及仓库 `host-tools-trade.ts`、Python workspace/engine pyproject、uv/pnpm lock。成功的只读浅克隆位于 `/tmp/bybit-nautilus-research`，`git rev-parse HEAD` 为 `ee28bfe123738d379166b123f1e142e8697c4bfb`。先前 SHA 本次 GitHub API/web 404，原因未确定，不继续宣称其已复核。上文其他 13 仓库的历史记录未在本轮重新验证。
 
 [执行 ADR](../adr/nautilus-execution.md) 记录本轮实际读取的 upstream 文件、官方 Bybit 文档 URL、工厂/环境/产品 API、部分成交与撤单确认限制、幂等恢复、Mock/Sandbox 表面、下一切片 file manifest 及未完成项。当前无 Nautilus lock/安装证据；当前 Python 3.12 与研究的 2.x >=3.13 需要明确迁移；未下载/核验具体 wheel、未运行测试、未连接账户、未发订单。采用方向已修正不等于运行时 gate 通过。
+
+## 2026-11-19 策略实现更新
+
+仓库随后增加了依赖为空的 `python/packages/quant-strategies`，内含本地重写的 SMA/EMA 交叉、Donchian、ADX、时序动量、Bollinger/Z-score/RSI 均值回归、ATR 突破、funding carry 信号，以及 Alpha158 的 ROC、MA、STD、RSV、SUMP 五个因子表达式。固定源文件是 [Qlib `Alpha158` loader](https://github.com/microsoft/qlib/blob/54355232463878d2eebb91fe0ee5fa7fa1f5976c/qlib/contrib/data/loader.py)；本地 `THIRD_PARTY_NOTICES.md` 记录 MIT 来源与独立重写边界。
+
+这不等于集成了 Qlib、Freqtrade/FreqAI、VectorBT、Hummingbot、TradingAgents、RD-Agent、FinRL、FinRL-Meta、FinRL-Crypto 或 ElegantRL，也没有把这些仓库的完整策略库、模型/训练框架、回测器或交易接口纳入运行时。内置算法目前只对规范化 OHLCV/资金费率快照输出有限目标敞口，元数据状态仍是 `research` / `not_started`；动态选择、持久版本、回测/OOS/走步验证、组合层和 Nautilus runtime 尚未连接。

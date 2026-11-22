@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Bybit 量化",
-    "description": "Bybit 行情、策略回测、模拟盘账本，以及带显式安全开关的实盘下单；AI 流程仅由对话触发，不提供后台无人值守循环。",
+    "description": "Bybit 行情、策略回测与模拟盘；支持默认关闭的后台 AI 模拟决策循环。当前不支持向交易所提交订单。",
     "detail": "docs/DETAIL.md"
   }
 }

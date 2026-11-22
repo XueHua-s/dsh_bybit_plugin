@@ -2,6 +2,8 @@
 
 > Bounded integration contract. Existing paper service/SDK acceptance is scoped; this document does not certify the full quant platform.
 
+> **Superseding dashboard decision (2026-11-19):** The original card-level Start/Stop design below was replaced by the view-only dashboard boundary in `DESIGN_BYBIT_AI_QUANT.md`, Decision 5. The browser route and card expose status only; model-facing paper Tools remain a separate, explicitly configured, default-off control surface. The historical manifest rows below describe the original proposal, not the final dashboard behavior.
+
 ## Metadata
 
 | Attribute | Value |
@@ -15,7 +17,7 @@
 | **LLM Prompts** | true at product scope; existing DSH loop consumes Tool descriptions; no new model/provider/runtime loop |
 | **Status** | Ready for scoped Build after parent acceptance; service shutdown repair is a prerequisite verification gate |
 
-This slice connects the accepted optional native synthetic service to DSH. It includes a concrete, independently operable capability provisioning path, five Tools, an owner-authenticated status/start/stop panel, and an actual built-Host process test. No exchange connection, Testnet execution, Mainnet authorization, TS exchange-write cutover, replay recovery, new strategy/AI research runtime or user database migration belongs to this slice. Those original MUSTs remain incomplete. Existing `quant_paper`/AI books remain separate legacy simulations; this slice neither migrates nor routes them to the native service.
+This slice connects the accepted optional native synthetic service to DSH. It includes a concrete, independently operable capability provisioning path, five model-facing Tools, an observation-only dashboard card and an actual built-Host process test. No exchange connection, Testnet execution, Mainnet authorization, TS exchange-write cutover, replay recovery, new strategy/AI research runtime or user database migration belongs to this slice. Those original MUSTs remain incomplete. Existing `quant_paper`/AI books remain separate legacy simulations; this slice neither migrates nor routes them to the native service.
 
 ## Architecture Overview
 
@@ -38,9 +40,9 @@ Host native-paper facade --> generated SDK.paper --> authenticated loopback API
     ^                      (no browser Origin forwarded; no mutation retries)
     |
     +-- five strictly validated model Tools (control opt-in)
-    +-- owner-only DSH connection.fetch exact GET/HEAD/POST route
+    +-- owner-only DSH connection.fetch exact GET/HEAD status route
              ^
-             +-- demand-driven Client native-paper card (status/start/stop)
+             +-- demand-driven Client native-paper status card
 
 Legacy Testnet market facade, REST exchange adapter and local paper books are separate.
 Host unload closes only its requests/provider sockets; service/native lifetime is independent.
@@ -66,8 +68,8 @@ Detailed static receipts and actual inspection commands are in `sdd/reports/DESI
 | Host capability provider | Hide Unix path policy, scope validation, socket deadlines and cleanup | Node fs/net; closure, no exported token property | Fixed operator configuration | SDK capability callback; fixed-code failures | Broker |
 | Native-paper facade | Present scoped paper operations and preserve uncertainty | Generated SDK plus Host authorization/context checks | Validated proposals/IDs; AbortSignal | Safe internal_paper result | Provider, existing SDK |
 | Model Tool registrar | Expose five narrow operations without secret/configuration authority | Existing raw JSON Schema Tools | Strict model arguments | Facade result | Native-paper facade |
-| Panel bridge | Serve native-paper observation/start/stop through the owner-authenticated carrier | Existing `connection.fetch.register` | Bounded same-origin UI requests | Safe facade results | Installed DSH owner/auth fence |
-| Client card | Show actual native-paper state and explicit controls on demand | Existing injected React runtime | Bridge result and operator clicks | Status/start/stop states | Bridge; no direct Python access |
+| Panel bridge | Serve native-paper status observation through the owner-authenticated carrier | Existing `connection.fetch.register` | Bounded same-origin UI requests | Safe facade status result | Installed DSH owner/auth fence |
+| Client card | Show actual native-paper state on demand | Existing injected React runtime | Bridge result and user refresh | Status states | Bridge; no direct Python access |
 
 ## Key Decisions
 
@@ -310,11 +312,11 @@ and integration tests, not prose, own safety acceptance.
 
 ### Panel bridge and UX contract
 
-New exact `/api/bybit-quant/paper` route registers through existing optional webServer/connection injection. It owns GET/HEAD for status and POST with exactly `{action:"start"|"stop"}`; unsupported query fields/action/method/body fail fixed codes. No submit mutation or capability delivery route is added to the browser. Choose `requestBody:"streaming"` and enforce a local512-byte cap while reading; the installed carrier's buffered cap is200MiB and is too broad for these tiny controls. Bound body-read time to2s and honor request abort. Extend only the local WebRoute type to the already supported streaming union; no new DSH API is invented. Validate JSON media type for POST and reject cross-origin Origin/Sec-Fetch-Site when present in addition to the carrier fence. Never proxy browser Authorization/Cookie/Origin to Python. Responses use `Cache-Control:no-store`; HEAD has no body. Valid business requests return HTTP200 with the facade result envelope, including safe failures; malformed input returns400, oversized body413, wrong media type415 and local origin refusal403. Physical carrier auth refusals remain its own401/403. Do not proxy arbitrary Python error text/status into the browser.
+The final exact `/api/bybit-quant/paper` route registers through existing optional webServer/connection injection and owns GET/HEAD status only. Unsupported query fields, method or request body fail with fixed codes; the browser has no start, stop, submit or capability-delivery route. Use the supported carrier auth/owner fence, reject cross-origin Origin/Sec-Fetch-Site when present, never proxy browser Authorization/Cookie/Origin to Python, and return `Cache-Control:no-store` with no body for HEAD. Do not proxy arbitrary Python error text/status into the browser. The original proposal for POST lifecycle actions, streaming-body limits and card-level mutation states is superseded by the read-only dashboard decision above; lifecycle actions remain available only through the separately configured model-facing paper Tools.
 
-Card title is `Native internal paper / 原生内部模拟`, with always-visible synthetic/no-exchange wording and a separate legacy-book note. Initial state is Not checked, not idle/ready inferred from charts. An explicit Check starts one request. Start/Stop are enabled only after the facade reports configured/control-enabled and a current scoped status; protected/unready states never display execution readiness. One pending mutation disables conflicting controls. Successful start/stop displays returned state/native_process_alive; stop requested is not completed cleanup. Show protected and outcome_uncertain literally with a Check status recovery action; never automatically retry. Unmount aborts HTTP requests, preserves no token in state and never stops the service. No new default background polling or UI account/equity inference.
+Card title is `Native internal paper / 原生内部模拟`, with always-visible synthetic/no-exchange wording and a separate legacy-book note. Initial state is Not checked, not idle/ready inferred from charts. An explicit Check starts one request. The dashboard card and `/api/bybit-quant/paper` bridge are observation-only: browser Start, Stop and order-submission mutations are intentionally absent. Start/Stop remain model-facing Tool operations behind explicit paper configuration and default-off control opt-in. Protected/unready states never display execution readiness. Show protected and outcome_uncertain literally with a Check status recovery action; never automatically retry. Unmount aborts HTTP requests, preserves no token in state and never stops the service. No new default background polling or UI account/equity inference. This later dashboard decision supersedes the earlier card-level Start/Stop wording in this document; it does not grant the model exchange authority.
 
-Lifecycle action permission is independent of execution `ready`. The following table applies after valid session binding, `configured:true`, `control_enabled:true` and no pending request; otherwise mutations are disabled. Check remains an explicit observation action, disabled only while that card owns a pending request.
+Lifecycle action permission for the model-facing Tools is independent of execution `ready`. The following table applies after valid session binding, `configured:true`, `control_enabled:true` and no pending request; otherwise mutations are disabled. The dashboard exposes only an explicit status Check.
 
 | Latest scoped status | Start | Stop | Display / recovery |
 |---|---|---|---|
@@ -469,6 +471,7 @@ Parent's earlier fixed-session, prebound listener, pre-task saturation refusal a
 |---|---|---|---|
 |1.0 |2026-11-17 | paper_dsh_design | Scoped DSH native-paper contract, real installed API evidence, private broker provisioning,32-file acyclic manifest and acceptance gates |
 |1.1 |2026-11-17 | paper_dsh_design | Applied independent R1–R3: existing SDK503 uncertainty owner/files,34-file DAG, EOF handshake and lifecycle action table; recheck pending |
+|1.2 |2026-11-20 | dashboard/AI decision boundary | Supersedes the earlier card-level Start/Stop wording: the dashboard and browser bridge are observation-only; model-facing paper Tools retain separate explicit default-off controls. |
 
 ## Next Step
 

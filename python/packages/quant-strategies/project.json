@@ -1,0 +1,10 @@
+{
+  "name": "quant-strategies",
+  "sourceRoot": "python/packages/quant-strategies/src",
+  "targets": {
+    "lint": {"command": "uv run --project python --locked ruff check python/packages/quant-strategies"},
+    "typecheck": {"command": "uv run --project python --locked pyright python/packages/quant-strategies"},
+    "test": {"command": "uv run --project python --locked pytest python/packages/quant-strategies/tests"},
+    "build": {"command": "uv build --project python/packages/quant-strategies --out-dir /tmp/bybit-quant-strategies-dist"}
+  }
+}

@@ -1,4 +1,5 @@
 import { enginePanel } from './client-engine.js'
+import { marketViewControls } from './client-market-view.js'
 import { paperPanel } from './client-paper.js'
 import { readinessPanel } from './client-readiness.js'
 type ReactRuntime = typeof import('react')
@@ -18,7 +19,7 @@ declare global {
  * Contributes a "Bybit" row to the sidebar and a global main panel that polls
  * the Host's authenticated bridge route (`/api/bybit-quant`): live ticker,
  * candles with two SMAs, the simulated paper book, and the last backtest. The
- * native synthetic paper card separately offers explicit Host-authorized controls.
+ * native synthetic paper card is observation-only.
  */
 import { CSS, en, zh } from './client-assets.js'
 import { axisPrice, fmtBarTime, fmtPct, fmtPrice, fmtQty, fmtUsd, sma, tone } from './client-format.js'
@@ -39,12 +40,7 @@ window.__ModuleLoader__.load({
     const PANEL_ID = 'bybit-quant'
     /** Poll interval for the snapshot. */
     const POLL_MS = 5000
-    /** Ticker-only favourites offered in the symbol datalist. */
-    const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'BNBUSDT']
-    /** Interval choices the panel exposes. */
-    const INTERVALS = [
-      ['1', '1m'], ['5', '5m'], ['15', '15m'], ['60', '1h'], ['240', '4h'], ['D', '1d'],
-    ]
+    const MarketViewControls = marketViewControls(React)
 
     /**
      * Candlestick chart with two SMAs, drawn as plain SVG with theme tokens.
@@ -302,43 +298,15 @@ window.__ModuleLoader__.load({
           h('div', { className: 'bq-hint' }, t('errorRoute')),
         ),
 
-        h(EnginePanel),
-        h(PaperPanel),
-        h(ReadinessPanel, { data, t }),
-        h('div', { className: 'bq-controls' },
-          h('div', { className: 'bq-field' },
-            h('label', { className: 'bq-label', htmlFor: 'bq-symbol' }, t('symbol')),
-            h('input', {
-              id: 'bq-symbol',
-              className: 'bq-input',
-              value: draft,
-              list: 'bq-symbols',
-              spellCheck: false,
-              onChange: event => setDraft(event.target.value),
-              onKeyDown: event => { if (event.key === 'Enter') applySymbol() },
-              onBlur: applySymbol,
-            }),
-            h('datalist', { id: 'bq-symbols' }, SYMBOLS.map(value => h('option', { key: value, value }))),
-          ),
-          h('div', { className: 'bq-field' },
-            h('span', { className: 'bq-label' }, t('category')),
-            h('div', { className: 'bq-tabs' },
-              ['linear', 'spot'].map(value => h('button', {
-                key: value, type: 'button', className: 'bq-tab', 'aria-pressed': category === value,
-                onClick: () => setCategory(value),
-              }, value === 'linear' ? 'Perp' : 'Spot')),
-            ),
-          ),
-          h('div', { className: 'bq-field' },
-            h('span', { className: 'bq-label' }, t('interval')),
-            h('div', { className: 'bq-tabs' },
-              INTERVALS.map(([value = '60', label = '1h']) => h('button', {
-                key: value, type: 'button', className: 'bq-tab', 'aria-pressed': interval === value,
-                onClick: () => setIntervalValue(value),
-              }, label)),
-            ),
-          ),
-        ),
+        h(MarketViewControls, {
+          draft, category, interval,
+          candidates: data?.aiCandidatePool?.status === 'fresh' ? data.aiCandidatePool.candidates : [],
+          t,
+          onDraftChange: setDraft,
+          onApplySymbol: applySymbol,
+          onCategoryChange: setCategory,
+          onIntervalChange: setIntervalValue,
+        }),
 
         ticker !== undefined
           ? h('div', { className: 'bq-price-row' },
@@ -452,6 +420,13 @@ window.__ModuleLoader__.load({
         h('div', { className: 'bq-card', style: { marginTop: '12px' } },
           h('h2', { className: 'bq-card-title' }, t('aiTitle'), h('span', null, t('aiSub'))),
           h(AiPanel, { ai, t }),
+        ),
+
+        h('details', { className: 'bq-system-details' },
+          h('summary', null, t('systemDetails')),
+          h(EnginePanel),
+          h(PaperPanel),
+          h(ReadinessPanel, { data, t }),
         ),
 
         h('p', { className: 'bq-hint' }, t('hint')),

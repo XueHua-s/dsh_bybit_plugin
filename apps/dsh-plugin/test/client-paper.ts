@@ -2,12 +2,11 @@ import assert from 'node:assert/strict'
 import * as React from 'react'
 import { paperPanel } from '../src/client-paper.ts'
 import type { PaperStatus } from '@bybit-quant/quant-api-client'
-import type { PaperStatusResult } from '../src/lib/engine-paper.ts'
+import type { PaperStatusResult } from '../src/lib/engine-paper.js'
 
 type Cleanup = void | (() => void)
 type Effect = { deps: readonly unknown[] | undefined, cleanup: Cleanup }
-type RequestRecord = { input: string, init: RequestInit, respond(value: unknown, status?: number): void, reject(): void }
-const labels = { check: 'Check status / 检查状态', start: 'Start paper / 启动模拟', stop: 'Stop paper / 停止模拟' }
+type RequestRecord = { input: string, init: RequestInit, respond(value: unknown, status?: number): void }
 const context = { source: 'quant-engine-paper', environment: 'internal_paper', synthetic: true, configured: true, control_enabled: true } as const
 const status = (patch: Partial<PaperStatus> = {}): PaperStatusResult => ({ ...context, ok: true, status: 200, data: {
   environment: 'internal_paper', synthetic: true, session_id: 'native-ui-test', generation: 0,
@@ -25,7 +24,7 @@ function text(value: unknown): string {
   return React.isValidElement<Record<string, unknown>>(value) ? text(value.props.children) : ''
 }
 
-/** Executes the card's real effects with stable hook slots; only the browser transport is replaced. */
+/** Runs the real observation effect with stable hook slots and a controlled browser transport. */
 function harness() {
   const states: unknown[] = []
   const effects: Effect[] = []
@@ -66,147 +65,73 @@ function harness() {
       while (scheduled.length > 0) scheduled.shift()?.()
     }
   }
-  globalThis.fetch = (input, init = {}) => new Promise<Response>((resolve, reject) => {
+  globalThis.fetch = (input, init = {}) => new Promise<Response>(resolve => {
     assert.equal(typeof input, 'string')
-    requests.push({ input: String(input), init, respond: (value, code = 200) => resolve(new Response(JSON.stringify(value), { status: code, headers: { 'content-type': 'application/json' } })), reject: () => reject(new Error('synthetic transport failure')) })
+    requests.push({ input: String(input), init, respond: (value, code = 200) => resolve(new Response(JSON.stringify(value), { status: code, headers: { 'content-type': 'application/json' } })) })
   })
-  function button(action: keyof typeof labels) {
+  function check(repeat = false) {
     render()
-    const node = elements(tree).find(candidate => candidate.type === 'button' && text(candidate) === labels[action])
-    assert.ok(node, 'expected card control')
-    return node
-  }
-  function click(action: keyof typeof labels) {
-    const node = button(action)
-    assert.equal(node.props.disabled, false, `${action} must be enabled`)
-    assert.equal(typeof node.props.onClick, 'function')
+    const node = elements(tree).find(candidate => candidate.type === 'button' && text(candidate) === 'Check status / 检查状态')
+    assert.ok(node, 'read-only status button is present')
+    assert.equal(node.props.disabled, false)
     const handler = node.props.onClick as () => void
     handler()
-    return handler
+    if (repeat) handler()
+    return node
   }
   async function settle() {
-    // Response.json() reads a stream; allow its I/O task to complete before checking dependent state.
     await new Promise<void>(resolve => setImmediate(resolve))
     render()
   }
   render()
-  return { requests, click, settle, render, button,
-    summary: () => { render(); return text(tree) },
-    disabled: (action: keyof typeof labels) => button(action).props.disabled,
+  return { requests, check, settle, render, summary: () => { render(); return text(tree) },
     unmount() { mounted = false; for (const effect of effects) effect.cleanup?.() },
-    writesAfterUnmount: () => writesAfterUnmount,
-  }
+    writesAfterUnmount: () => writesAfterUnmount }
 }
 
 const originalFetch = globalThis.fetch
 try {
   const card = harness()
-  assert.equal(card.requests.length, 0, 'mount must not query')
+  assert.equal(card.requests.length, 0, 'mount is passive and does not start or poll a service')
   assert.ok(card.summary().includes('Not checked / 尚未检查'))
   assert.ok(card.summary().includes('Synthetic · no exchange connection'))
-  assert.ok(card.summary().includes('Separate from legacy paper/AI books and Linear Testnet.'))
-  assert.equal(card.disabled('start'), true)
-  assert.equal(card.disabled('stop'), true)
-  const clickAgain = card.click('check')
-  clickAgain()
-  card.render()
-  assert.equal(card.requests.length, 1, 'same-turn repeated clicks must own one request')
-  for (const action of ['check', 'start', 'stop'] as const) assert.equal(card.disabled(action), true)
-  const check = card.requests[0]!
-  assert.equal(check.input, '/api/bybit-quant/paper')
-  assert.equal(check.init.method, 'GET')
-  assert.equal(check.init.credentials, 'same-origin')
-  assert.equal(check.init.cache, 'no-store')
-  assert.equal(check.init.body, undefined)
-  check.respond(status())
+  assert.ok(card.summary().includes('Status is observation-only'))
+  assert.ok(!card.summary().includes('Start paper'))
+  assert.ok(!card.summary().includes('Stop paper'))
+  card.check(true); card.render()
+  assert.equal(card.requests.length, 1, 'rapid repeated status checks share one request')
+  const request = card.requests[0]!
+  assert.equal(request.input, '/api/bybit-quant/paper')
+  assert.equal(request.init.method, 'GET')
+  assert.equal(request.init.credentials, 'same-origin')
+  assert.equal(request.init.cache, 'no-store')
+  assert.equal(request.init.body, undefined)
+  request.respond(status())
   await card.settle()
-  assert.equal(card.disabled('start'), false, 'idle ready:false must permit first Start')
-  assert.equal(card.disabled('stop'), true)
   assert.ok(card.summary().includes('Execution ready / 执行就绪: false'))
+  assert.ok(!card.summary().includes('Start paper'))
+  assert.ok(!card.summary().includes('Stop paper'))
 
-  const startAgain = card.click('start')
-  startAgain()
-  card.render()
-  assert.equal(card.requests.length, 2)
-  const start = card.requests[1]!
-  assert.equal(start.init.method, 'POST')
-  assert.equal(start.init.body, '{"action":"start"}')
-  assert.deepEqual(start.init.headers, { accept: 'application/json', 'content-type': 'application/json' })
-  start.respond(status({ state: 'protected', native_process_alive: true }))
+  card.check(); card.render()
+  card.requests.at(-1)!.respond(status({ session_id: 'another-session' }))
   await card.settle()
-  assert.equal(card.disabled('start'), true)
-  assert.equal(card.disabled('stop'), false, 'protected/unready native-alive must retain Stop')
-  assert.ok(card.summary().includes('protected · Check status'))
-  card.click('stop'); card.render()
-  assert.equal(card.requests[2]!.init.body, '{"action":"stop"}')
-  card.requests[2]!.respond({ ...context, ok: false, code: 'outcome_uncertain', cause: 'unavailable', recovery: { action: 'query_status' } })
-  await card.settle()
-  assert.ok(card.summary().includes('outcome_uncertain · Check status'))
-  assert.equal(card.disabled('start'), true)
-  assert.equal(card.disabled('stop'), true)
-  await card.settle()
-  assert.equal(card.requests.length, 3, 'uncertainty must not retry or poll')
-  card.click('check'); card.render()
-  assert.equal(card.requests[3]!.init.method, 'GET', 'recovery observes status')
-  card.requests[3]!.respond(status({ state: 'stopping', native_process_alive: true }))
-  await card.settle()
-  assert.ok(card.summary().includes('cleanup is not confirmed'))
-  assert.equal(card.disabled('stop'), true)
+  assert.ok(card.summary().includes('invalid_response'))
 
-  async function observe(value: unknown) {
-    card.click('check'); card.render()
-    card.requests.at(-1)!.respond(value)
-    await card.settle()
-  }
-  await observe(status({ state: 'stopped' }))
-  assert.equal(card.disabled('start'), true, 'stopped service cannot restart the same session')
-  assert.equal(card.disabled('stop'), true)
-  await observe(status({ state: 'protected' }))
-  assert.equal(card.disabled('start'), true)
-  assert.equal(card.disabled('stop'), true, 'protected without native owner cannot stop or start')
-  await observe(status({ state: 'running', native_process_alive: true, ready: false }))
-  assert.equal(card.disabled('stop'), false, 'running unready still permits Stop')
-  await observe(status({ state: 'running', native_process_alive: false }))
-  assert.ok(card.summary().includes('inconsistent state/liveness'))
-  assert.equal(card.disabled('start'), true)
-  assert.equal(card.disabled('stop'), true)
-  await observe({ ...status(), control_enabled: false })
-  assert.ok(card.summary().includes('Controls enabled / 控制已启用: false'))
-  assert.equal(card.disabled('start'), true)
-  await observe({ ...context, configured: false, control_enabled: false, ok: false, code: 'paper_disabled' })
-  assert.ok(card.summary().includes('paper_disabled'))
-  assert.ok(card.summary().includes('Configured / 已配置: false'))
-  assert.equal(card.disabled('start'), true)
-  await observe({ ...context, ok: false, code: 'unavailable' })
-  assert.equal(card.disabled('stop'), true, 'unavailable clears prior actionable state')
-  await observe(status({ session_id: 'another-session' }))
-  assert.ok(card.summary().includes('invalid_response'))
-  assert.equal(card.disabled('start'), true, 'runtime session change must fail closed')
-  await observe({ ...status(), source: 'legacy-paper' })
-  assert.ok(card.summary().includes('invalid_response'))
-  await observe({ ...context, ok: false, code: 'untrusted arbitrary text' })
-  assert.ok(!card.summary().includes('untrusted arbitrary text'))
-  await observe(status())
-  card.click('start'); card.render()
-  card.requests.at(-1)!.reject()
+  card.check(); card.render()
+  card.requests.at(-1)!.respond({ ...context, ok: false, code: 'unavailable' })
   await card.settle()
-  assert.ok(card.summary().includes('outcome_uncertain'), 'lost mutation response cannot prove no side effects')
-  const count = card.requests.length
-  await card.settle()
-  assert.equal(card.requests.length, count)
-  assert.equal(card.disabled('start'), true)
+  assert.ok(card.summary().includes('unavailable'))
   card.unmount()
 
   const closing = harness()
-  closing.click('check'); closing.render()
+  closing.check(); closing.render()
   const inFlight = closing.requests[0]!
   assert.equal(inFlight.init.signal?.aborted, false)
   closing.unmount()
-  assert.equal(inFlight.init.signal?.aborted, true, 'unmount must abort the owned HTTP request')
+  assert.equal(inFlight.init.signal?.aborted, true, 'unmount aborts only the status request')
   inFlight.respond(status())
   await closing.settle()
   assert.equal(closing.writesAfterUnmount(), 0)
-  assert.equal(closing.requests.length, 1, 'unmount must not send Stop')
-  assert.ok(!closing.summary().includes('Session / 会话:'), 'late response must not update closed card')
-  console.log('ok native-paper Client effects: demand only, scoped status, action table, one request, query-only uncertainty and unmount abort; installed browser/auth not exercised')
+  assert.equal(closing.requests.length, 1, 'unmount cannot send Stop')
+  console.log('ok native-paper Client: observation-only GET, no controls or auto-poll, bounded status validation and unmount abort')
 } finally { globalThis.fetch = originalFetch }

@@ -12,6 +12,7 @@ const ENDPOINTS = {
 const CALLBACK_HOST = '127.0.0.1'
 const CALLBACK_PATH = '/callback'
 const CALLBACK_PORT_START = 9876
+const MAX_AI_SUB_ACCOUNTS = 5
 
 type OAuthToken = {
   access_token: string
@@ -132,6 +133,10 @@ export class BybitOAuth {
 
   /** Creates an AI sub-account only when explicitly requested by the user. */
   async createAccount(): Promise<void> {
+    const accounts = await this.accounts()
+    if (accounts.length >= MAX_AI_SUB_ACCOUNTS) {
+      throw new Error(`Bybit permits at most ${MAX_AI_SUB_ACCOUNTS} AI sub-accounts; refusing to create another`)
+    }
     const token = await this.validToken()
     const response = await this.get('/oauth/v1/resource/restrict/ai_accounts?is_create=true', token)
     const account = accountFrom(response)

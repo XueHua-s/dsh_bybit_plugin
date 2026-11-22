@@ -58,7 +58,7 @@ function snapshot({ withPosition = true }: { withPosition?: boolean } = {}): Cli
     env: 'demo',
     hasKeys: false,
     automation: 'conversation_only',
-    backgroundLoop: 'not_running',
+    backgroundLoop: 'disabled',
     executionAuthority: 'unavailable',
     accountReadiness: 'unknown',
     maxOrderNotionalUsd: 200,
@@ -142,6 +142,10 @@ function snapshot({ withPosition = true }: { withPosition?: boolean } = {}): Cli
       },
       limits: { riskPerTradePct: 1, maxOpenPositions: 2, symbols: ['BTCUSDT', 'ETHUSDT'] },
     },
+    aiCandidatePool: {
+      category: 'linear', status: 'fresh', observedAt: start, eligibleCount: 2,
+      candidates: ['XRPUSDT', 'ADAUSDT'],
+    },
     updatedAt: start,
   }
 }
@@ -157,13 +161,44 @@ function render(initial: ClientSnapshot): string {
 function testTranslate(key: string): string {
   return {
     writesUnavailable: 'Exchange writes unavailable',
+    systemDetails: 'System and runtime status',
     readinessTitle: 'Operating boundary',
     readinessConversationOnly: 'Conversation-triggered only',
+    readinessBackgroundSimulation: 'Background simulated decisions',
     readinessNotRunning: 'Not running',
+    readinessLoopDisabled: 'Disabled (default)',
+    readinessLoopNotConfigured: 'Agent service not configured',
+    readinessLoopEnvironmentRejected: 'Environment rejects background loop',
+    readinessLoopStarting: 'Starting Agent',
+    readinessLoopRunning: 'AI decision cycle (simulated only)',
+    readinessLoopBackoff: 'Backing off after failure',
+    readinessLoopBlocked: 'Stopped after repeated failures',
+    readinessLoopStopping: 'Stopping',
+    readinessLoopIdle: 'Waiting for next cycle',
+    readinessLoopCadence: 'Cycle interval',
+    readinessLoopEnvironment: 'Loop environment',
+    readinessLastCycle: 'Last cycle receipt',
+    readinessNoCompletedCycle: 'No completed cycle yet',
+    readinessCycleCompleted: 'Cycle completed',
+    readinessCycleFailed: 'Cycle failed',
+    readinessNoDecisionReceipt: 'No decision write receipt (does not prove abstention)',
+    readinessDecisionOpen: 'Simulated position opened',
+    readinessDecisionFlat: 'Simulated position closed',
+    readinessDecisionRejected: 'Rejected by risk gate and recorded',
+    readinessDecisionUncertain: 'Outcome uncertain; background loop stopped',
+    readinessEnvironmentTestnet: 'Bybit Testnet',
+    readinessEnvironmentInternalPaper: 'Internal paper',
+    readinessEnvironmentDemo: 'Bybit Demo (rejected)',
+    readinessEnvironmentLive: 'Mainnet (rejected)',
     readinessAuthority: 'Execution authority',
     readinessUnavailable: 'Exchange writes unavailable (executor not implemented)',
     readinessUnknown: 'Unknown',
-    readinessHint: 'No background AI loop is running. The trade tool only previews intent and cannot submit real orders; account state, order reconciliation, and recovery are not complete. OAuth, API keys, or healthy market data do not mean execution is ready.',
+    readinessHint: 'The background loop is disabled by default. When enabled, it records simulated decisions only and never submits exchange orders. The latest cycle receipt reports whether the simulated journal was written; no receipt is not the same as abstention. Account state, reconciliation, execution, and recovery are incomplete.',
+    marketView: 'Market view (display only)',
+    symbol: 'Chart symbol',
+    category: 'Chart market',
+    interval: 'Chart candle interval',
+    viewFiltersHint: 'These controls only change displayed market data and candles. They do not affect AI trading decisions. The AI independently chooses whether to trade, the symbol, direction, size, exits, and holding horizon.',
     aiTitle: 'AI simulated decisions',
     aiSub: 'Simulated track only; no exchange orders are submitted',
     aiEquity: 'AI simulated equity',
@@ -192,25 +227,75 @@ assert.ok(populated.includes('Operating boundary'), 'operating boundary card is 
 assert.ok(populated.includes('Exchange writes unavailable'), 'exchange execution boundary is not visible')
 assert.ok(populated.includes('AI simulated decisions'), 'AI track is not labeled as simulated')
 assert.ok(populated.includes('Conversation-triggered only'), 'conversation-only automation state is missing')
-assert.ok(populated.includes('No background AI loop is running.'), 'background loop boundary is missing')
+assert.ok(populated.includes('The background loop is disabled by default.'), 'background loop boundary is missing')
 assert.ok(!populated.includes('approval-card'), 'unavailable exchange writes must not look like a missing toggle or setup step')
 assert.ok(populated.includes('Linear Testnet'), 'engine environment/category label is missing')
 assert.ok(populated.includes('Not checked / 尚未检查'), 'SSR must not invent a completed engine request')
 assert.ok(populated.includes('account, reconciliation and execution readiness unknown'), 'unknown execution boundary is missing')
 assert.ok(!populated.includes('Unavailable / 无法连接'), 'SSR must not claim the unqueried engine is unavailable')
 assert.ok(populated.includes('Native internal paper / 原生内部模拟'), 'native-paper card is missing')
+assert.ok(populated.includes('<details class="bq-system-details"><summary>System and runtime status</summary>'), 'runtime diagnostics should be grouped in a collapsed details section')
+assert.ok(populated.indexOf('Market view (display only)') < populated.indexOf('Operating boundary'), 'market analytics should precede runtime diagnostics')
+assert.ok(populated.includes('Market view (display only)'), 'display-only market filters need a clear heading')
+assert.ok(populated.includes('Chart candle interval'), 'chart interval must be distinguished from the AI holding horizon')
+assert.ok(populated.includes('The AI independently chooses whether to trade'), 'AI decision ownership must be clear beside display controls')
+assert.ok(populated.includes('value="XRPUSDT"') && populated.includes('value="ADAUSDT"'), 'chart suggestions must reflect the fresh AI-discovered candidate set')
+assert.ok(!populated.includes('value="DOGEUSDT"'), 'chart suggestions must not invent a fixed starter universe')
 assert.ok(populated.includes('Synthetic · no exchange connection'), 'native synthetic identity is missing')
 assert.ok(populated.includes('Separate from legacy paper/AI books and Linear Testnet.'), 'native/legacy/Testnet distinction is missing')
 assert.ok(populated.includes('source: quant-engine-paper · environment: internal_paper'), 'native-paper source/environment must be explicit')
-assert.match(populated, /<button[^>]*disabled=""[^>]*>Start paper \/ 启动模拟<\/button>/u, 'SSR must disable unqueried Start')
-assert.match(populated, /<button[^>]*disabled=""[^>]*>Stop paper \/ 停止模拟<\/button>/u, 'SSR must disable unqueried Stop')
+assert.ok(populated.includes('Status is observation-only'), 'native-paper status must be explicitly read-only')
+assert.ok(!populated.includes('Start paper / 启动模拟'), 'dashboard must not expose Start')
+assert.ok(!populated.includes('Stop paper / 停止模拟'), 'dashboard must not expose Stop')
 assert.ok(!populated.includes('Session / 会话:'), 'SSR must not invent native session state')
+
+const completedCycle = render({
+  data: {
+    ...snapshot(),
+    automation: 'background_simulated_decisions',
+    backgroundLoop: 'idle',
+    backgroundLoopEnvironment: 'testnet',
+    backgroundLoopIntervalMs: 60_000,
+    backgroundLoopLastRun: {
+      outcome: 'completed', decisionsRecorded: 1, latestDecisionId: 'd1',
+      latestDecisionStatus: 'open', completedAt: Date.now(),
+    },
+  },
+  error: null,
+  at: Date.now(),
+})
+assert.ok(completedCycle.includes('Last cycle receipt'), 'background cycle receipt needs a clear label')
+assert.ok(completedCycle.includes('Cycle completed · 1 · Simulated position opened'), 'persisted simulated decision status is not visible')
+assert.ok(completedCycle.includes('no receipt is not the same as abstention'), 'cycle hint must distinguish abstention from a missing receipt')
+
+const noDecisionReceipt = render({
+  data: {
+    ...snapshot(),
+    backgroundLoopLastRun: {
+      outcome: 'completed', decisionsRecorded: 0, latestDecisionId: null,
+      latestDecisionStatus: null, completedAt: Date.now(),
+    },
+  },
+  error: null,
+  at: Date.now(),
+})
+assert.ok(noDecisionReceipt.includes('No decision write receipt (does not prove abstention)'), 'empty cycle must not be presented as an explicit abstention')
 
 const empty = render({ data: { ...snapshot({ withPosition: false }), klines: [], lastBacktest: null, lastSignal: null, ai: null }, error: null, at: 0 })
 assert.ok(empty.includes('noPositions'), 'empty paper book is not reported')
 assert.ok(empty.includes('noBacktest'), 'missing backtest is not reported')
 assert.ok(empty.includes('aiNoDecision'), 'missing AI track is not reported')
 assert.ok(!empty.includes('NaN'), 'empty markup contains NaN')
+
+const staleCandidates = render({
+  data: {
+    ...snapshot(),
+    aiCandidatePool: { category: 'linear', status: 'stale', observedAt: Date.now(), eligibleCount: 2, candidates: ['XRPUSDT', 'ADAUSDT'] },
+  },
+  error: null,
+  at: Date.now(),
+})
+assert.ok(!staleCandidates.includes('value="ADAUSDT"'), 'stale AI candidates must not be shown as current chart suggestions')
 
 const failed = render({ data: null, error: 'HTTP 401', at: 0 })
 assert.ok(failed.includes('HTTP 401'), 'error detail is not shown')
@@ -224,4 +309,4 @@ const loading = renderToStaticMarkup(React.createElement(Panel, {
 assert.ok(loading.includes('bq-root'), 'loading state did not render')
 assert.ok(!loading.includes('NaN'), 'loading markup contains NaN')
 
-console.log('ok real React19 panel render: populated, empty, failed, loading, honestly unqueried engine/native-paper cards and disabled native controls (SSR effects do not run)\n')
+console.log('ok real React19 panel render: populated, empty, failed, loading, display-only filters and observation-only paper status (SSR effects do not run)\n')

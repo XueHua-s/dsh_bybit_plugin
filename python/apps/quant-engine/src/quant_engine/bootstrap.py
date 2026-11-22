@@ -8,8 +8,10 @@ import json
 from pathlib import Path
 
 import uvicorn
+from quant_data.market_store import MarketSnapshotStore
 
 from .api import create_app, validate_symbols
+from .service import EngineService
 
 
 def loopback_host(value: str) -> str:
@@ -27,13 +29,19 @@ def main() -> None:
     parser.add_argument("--host", type=loopback_host, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--stale-after", type=float, default=30.0)
+    parser.add_argument(
+        "--database", type=Path, required=True, help="existing SQLite database migrated to Alembic head"
+    )
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
     try:
         symbols = validate_symbols(tuple(args.symbols))
-        app = create_app(symbols, stale_after=args.stale_after)
+        store = MarketSnapshotStore.sqlite(args.database)
+        app = create_app(symbols, service=EngineService(symbols, market_store=store), stale_after=args.stale_after)
     except ValueError as error:
+        parser.error(str(error))
+    except (FileNotFoundError, RuntimeError) as error:
         parser.error(str(error))
     uvicorn.run(app, host=args.host, port=args.port)
 

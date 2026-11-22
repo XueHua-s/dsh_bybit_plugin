@@ -1,6 +1,6 @@
 /** Input normalization, signed query encoding and response parsing for Bybit V5. */
 import { BybitError } from './bybit-error.js'
-import type { Category, Instrument } from './bybit-types.js'
+import type { Category, Instrument, Ticker } from './bybit-types.js'
 import { INTERVALS, INTERVAL_ALIASES, INTERVAL_MS } from './bybit-constants.js'
 
 export function normalizeInterval(value: string | undefined): string {
@@ -81,6 +81,32 @@ export function mapInstrument(row: Record<string, unknown>, category: Category):
   }
 }
 
+/** Normalize one untrusted V5 ticker row without leaking venue response shapes. */
+export function mapTicker(value: unknown, category: Category): Ticker {
+  const row = record(value)
+  const symbol = typeof row.symbol === 'string' ? row.symbol.trim().toUpperCase() : ''
+  if (symbol === '') throw new BybitError('Bybit returned a ticker without a symbol')
+  const last = number(row.lastPrice)
+  const previous = number(row.prevPrice24h)
+  return {
+    symbol,
+    category,
+    last,
+    change24hPct: previous > 0 ? ((last - previous) / previous) * 100 : 0,
+    high24h: number(row.highPrice24h),
+    low24h: number(row.lowPrice24h),
+    volume24h: number(row.volume24h),
+    turnover24h: number(row.turnover24h),
+    bid: number(row.bid1Price),
+    ask: number(row.ask1Price),
+    markPrice: optionalNumber(row.markPrice),
+    indexPrice: optionalNumber(row.indexPrice),
+    fundingRate: optionalNumber(row.fundingRate),
+    openInterest: optionalNumber(row.openInterest),
+    time: optionalNumber(row.ts) ?? Date.now(),
+  }
+}
+
 export function number(value: unknown): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
@@ -92,4 +118,10 @@ function record(value: unknown): Record<string, unknown> {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }

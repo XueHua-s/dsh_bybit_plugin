@@ -30,7 +30,7 @@ class Response:
 
 
 async def _serve(
-    fixture: PaperFixture,
+    fixture: PaperFixture | tuple[PaperFixture, ...],
     commands: Queue,
     replies: Queue,
     events: Queue,
@@ -66,13 +66,13 @@ async def _serve(
             await asyncio.sleep(0.005)
         else:
             raise RuntimeError("native_start_timeout")
-        native.feed(fixture.initial_depth, initial=True)
+        for item in native.fixtures:
+            native.feed(item.initial_depth, initial=True, symbol=item.instrument.symbol)
         await asyncio.sleep(0.01)
 
         def snapshot() -> PaperSnapshot:
             total, free, position, orders = native.account()
             unrealized, realized = native.pnl()
-            depth = native.depth
             return PaperSnapshot(
                 status="protected" if protected else "running",
                 account_id="SIM-001",
@@ -84,11 +84,11 @@ async def _serve(
                 process_id=os.getpid(),
                 loop_closed=False,
                 node_instance_id=str(native.node.kernel.instance_id),
-                market_timestamp_ns=depth.timestamp_ns,
-                bid=depth.bid,
-                ask=depth.ask,
-                bid_size=depth.bid_size,
-                ask_size=depth.ask_size,
+                market_timestamp_ns=max(item.timestamp_ns for item in native.depth_by_symbol.values()),
+                bid=native.depth_by_symbol[native.fixture.instrument.symbol].bid,
+                ask=native.depth_by_symbol[native.fixture.instrument.symbol].ask,
+                bid_size=native.depth_by_symbol[native.fixture.instrument.symbol].bid_size,
+                ask_size=native.depth_by_symbol[native.fixture.instrument.symbol].ask_size,
                 failure_reason=None if event_stream_complete else "native_event_queue_full",
                 event_stream_complete=event_stream_complete,
                 equity=total + unrealized,
@@ -96,6 +96,7 @@ async def _serve(
                 unrealized_pnl=unrealized,
                 realized_pnl=realized,
                 snapshot_timestamp_ns=native.node.kernel.clock.timestamp_ns(),
+                instruments=native.instrument_snapshots(),
             )
 
         replies.put_nowait(Response(0, snapshot()))
@@ -129,7 +130,7 @@ async def _serve(
                 elif request.action == "feed":
                     if not isinstance(request.value, PaperDepth):
                         raise ValueError("invalid_private_depth")
-                    native.feed(request.value)
+                    native.feed(request.value, symbol=request.value.symbol)
                 await asyncio.sleep(0.01)
                 replies.put_nowait(Response(request.sequence, snapshot()))
             except ValueError as exc:

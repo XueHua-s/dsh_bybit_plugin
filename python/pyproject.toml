@@ -3,7 +3,7 @@ name = "bybit-quant-workspace"
 version = "0.1.0"
 description = "uv workspace for the Bybit AI Quant data plane"
 requires-python = ">=3.12,<3.15"
-dependencies = ["bybit-quant-data", "bybit-quant-engine", "bybit-quant-execution", "bybit-quant-risk"]
+dependencies = ["bybit-quant-data", "bybit-quant-engine", "bybit-quant-execution", "bybit-quant-portfolio", "bybit-quant-risk", "bybit-quant-strategies"]
 
 [tool.uv]
 package = false
@@ -15,7 +15,9 @@ override-dependencies = ["fsspec==2026.6.0"]
 bybit-quant-data = { workspace = true }
 bybit-quant-engine = { workspace = true }
 bybit-quant-execution = { workspace = true }
+bybit-quant-portfolio = { workspace = true }
 bybit-quant-risk = { workspace = true }
+bybit-quant-strategies = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]

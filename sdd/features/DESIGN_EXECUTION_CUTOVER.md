@@ -40,7 +40,7 @@ Operator -> trusted settings/approval + secure credential references ---------> 
                   account/market/reconciliation -> next server context
 ```
 
-Existing `run_simulation()` owns a finite, stationary-fixture BacktestEngine run and disposes it. It does **not** provide a live paper session, durable admission, independent account risk, authenticated control or restart reconciliation. It stays a backtest API. The next slice must own a continuously running native node after HTTP/Tool completion, accept later commands against that same OMS, and process later market events. Disabling existing TS mutations alone would close a bypass but would not implement this slice or satisfy AT-014.
+Existing `run_simulation()` owns a finite, stationary-fixture BacktestEngine run and disposes it. It does **not** provide a live paper session, durable admission, independent account risk, authenticated control or restart reconciliation. It stays a backtest API. The bounded TypeScript exchange-mutation closure is now recorded as complete for the DSH surface, removing that alternate writer; it did not implement this slice or satisfy AT-014. The next slice must own a continuously running native node after HTTP/Tool completion, accept later commands against that same OMS, and process later market events.
 
 Source hierarchy: latest explicit user authorization > DEFINE > Brainstorm for requirements; inspected current source for facts. The complete 1,974-line original brief is the detailed scope baseline. Historical audit absence statements are superseded only where newer source/evidence exists. The full strategy/regime/portfolio/AI/research/evolution platform remains mandatory and incomplete.
 
@@ -143,13 +143,13 @@ Source hierarchy: latest explicit user authorization > DEFINE > Brainstorm for r
 
 | Attribute | Value |
 |---|---|
-| **Status** | Proposed; existing direct REST drift remains open |
+| **Status** | Partially superseded: bounded TypeScript writer closure is complete; replacement execution path remains unimplemented |
 | **Date** | 2026-11-17 |
 | **Source** | DEFINE Nautilus MUST; `apps/dsh-plugin/src/host-tools-trade.ts` |
 
-**Context:** Existing TS create/cancel/cancel-all/close call signed REST directly. A preview/flag/confirmation string does not establish sole Nautilus execution or final risk.
+**Context at the 2026-11-17 design snapshot:** TypeScript create/cancel/cancel-all/close called signed REST directly. A preview/flag/confirmation string did not establish sole Nautilus execution or final risk. The separate `BUILD_REPORT_TS_MUTATION_CLOSURE.md` records removal of the signed TypeScript mutation path, its 98-case denial matrix, and the GET-only client surface.
 
-**Choice:** Stage transport/auth/admission/native runtime first, then route paper Tool commands through generated control client. Before any Demo/Testnet activation, remove reachable signed REST mutations from TS tools and low-level public client surface, including close and bulk cancellation. Preserve public/private read capability only under proper credential/environment separation. Unsupported exchange actions return explicit unavailable status; that is a limitation, not completion. No silent fallback to TS REST when engine is down.
+**Choice:** Keep exchange writes unavailable until the transport, authentication, admission, risk, durable ledger, and native runtime are integrated through the generated control client. The bounded TypeScript writer-removal prerequisite is complete; preserve only scoped read capability and return explicit unavailable status for unsupported exchange actions. No silent fallback to TypeScript REST is permitted when the engine is down.
 
 **Rationale:** Delivers a working replacement while avoiding two writable exchange authorities at exchange activation.
 

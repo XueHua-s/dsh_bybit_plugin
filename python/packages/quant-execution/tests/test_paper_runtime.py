@@ -15,6 +15,37 @@ def fixture():
     )
 
 
+def test_multi_instrument_runtime_routes_orders_and_positions_by_symbol():
+    alpha = PaperFixture(
+        InstrumentSpec("ALPHA-PERP", "ALPHA", D("0.1"), D("0.01"), D("0.01"), D(100), D(1)),
+        PaperDepth(D("10.0"), D("10.1"), D("1.00"), D("1.00"), time_ns(), "ALPHA-PERP"),
+        D(100000),
+    )
+    beta = PaperFixture(
+        InstrumentSpec("BETA.PERP", "BETA", D("0.01"), D("0.001"), D("0.001"), D(100), D(1)),
+        PaperDepth(D("20.00"), D("20.01"), D("2.000"), D("2.000"), time_ns(), "BETA.PERP"),
+        D(100000),
+    )
+    runtime = PaperRuntime((alpha, beta))
+    try:
+        started = runtime.start()
+        assert {item.symbol for item in started.instruments} == {"ALPHA-PERP", "BETA.PERP"}
+        runtime.submit(PaperOrder("alpha-order", "BUY", D("0.50"), D("10.1"), "ALPHA-PERP"))
+        runtime.submit(PaperOrder("beta-order", "SELL", D("0.250"), D("20.00"), "BETA.PERP"))
+        snapshot = runtime.snapshot()
+        by_symbol = {item.symbol: item for item in snapshot.instruments}
+        assert by_symbol["ALPHA-PERP"].position_quantity == D("0.50")
+        assert by_symbol["BETA.PERP"].position_quantity == D("-0.250")
+        assert {event.client_order_id for event in runtime.read_events() if event.status == "FILLED"} == {
+            "alpha-order",
+            "beta-order",
+        }
+        with pytest.raises(ValueError, match="unknown_order_symbol"):
+            runtime.submit(PaperOrder("unknown", "BUY", D("0.1"), D("10.1"), "GAMMA_1"))
+    finally:
+        assert runtime.stop().status == "stopped"
+
+
 def test_real_native_continuous_session():
     runtime = PaperRuntime(fixture())
     try:

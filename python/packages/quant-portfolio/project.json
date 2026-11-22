@@ -1,0 +1,10 @@
+{
+  "name": "quant-portfolio",
+  "sourceRoot": "python/packages/quant-portfolio/src",
+  "targets": {
+    "lint": {"command": "uv run --project python --locked ruff check python/packages/quant-portfolio"},
+    "typecheck": {"command": "uv run --project python --locked pyright python/packages/quant-portfolio"},
+    "test": {"command": "uv run --project python --locked pytest python/packages/quant-portfolio/tests"},
+    "build": {"command": "uv build --project python/packages/quant-portfolio --out-dir /tmp/bybit-quant-portfolio-dist"}
+  }
+}

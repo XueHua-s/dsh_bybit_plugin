@@ -51,6 +51,11 @@ try {
     const init = JSON.parse(readFileSync(oauth.initFile, 'utf8')) as { state: string; verifier: string }
     const challenge = createHash('sha256').update(init.verifier).digest('base64url')
     assert.equal(authorize.origin, 'https://testnet.bybit.com')
+    assert.equal(authorize.pathname, '/oauth')
+    assert.equal(authorize.searchParams.get('client_id'), 'ai-agent')
+    assert.equal(authorize.searchParams.get('response_type'), 'code')
+    assert.equal(authorize.searchParams.get('scope'), 'ai-account')
+    assert.equal(authorize.searchParams.get('redirect_uri'), `http://127.0.0.1:${port}/callback`)
     assert.equal(authorize.searchParams.get('code_challenge_method'), 'S256')
     assert.equal(authorize.searchParams.get('code_challenge'), challenge)
     assert.equal(authorize.searchParams.get('state'), init.state)
@@ -82,6 +87,26 @@ try {
     assert.equal(stored.access_token, 'access-fixture')
     assert.equal(existsSync(oauth.callbackFile), false)
     assert.equal(existsSync(oauth.initFile), false)
+  })
+
+  await check('AI sub-account creation enforces Bybit five-account limit', async () => {
+    const oauth = new BybitTestnetOAuth(tempDirectory())
+    writeJson(oauth.tokenFile, {
+      access_token: 'testnet-access-fixture', refresh_token: 'testnet-refresh-fixture', expires_in: 3600,
+      refresh_token_expires_in: 86_400, token_type: 'bearer', created_at: Math.floor(Date.now() / 1000), env: 'testnet',
+    })
+    let calls = 0
+    globalThis.fetch = async (input) => {
+      calls += 1
+      assert.equal(String(input), 'https://api2-testnet.bybit.com/oauth/v1/resource/restrict/ai_accounts')
+      return new Response(JSON.stringify({ result: { accounts: [
+        { sub_member_id: '1', nickname: 'one' }, { sub_member_id: '2', nickname: 'two' },
+        { sub_member_id: '3', nickname: 'three' }, { sub_member_id: '4', nickname: 'four' },
+        { sub_member_id: '5', nickname: 'five' },
+      ] } }), { status: 200 })
+    }
+    await assert.rejects(oauth.createAccount(), /at most 5 AI sub-accounts/u)
+    assert.equal(calls, 1)
   })
 
   await check('Mainnet OAuth selects production endpoints without enabling trading', async () => {

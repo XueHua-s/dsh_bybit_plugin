@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { createQuantApiClient } from '../dist/index.js';
-import type { HealthResponse, MarketResponse } from '../src/index.ts';
+import type { HealthResponse, MarketResponse, StrategyEvidenceRequest, StrategyEvidenceResponse } from '../src/index.ts';
 
 const health: HealthResponse = { environment: 'testnet', status: 'ready', ready: true, supervisor_state: 'running', restart_count: 0, max_restarts: 2, last_error: null, process: { rss_bytes: 1024, cpu_user_seconds: 0, cpu_system_seconds: 0 }, market: null, execution: { status: 'unknown', reconciliation: 'unknown' } };
 const market: MarketResponse = { environment: 'testnet', symbol: 'BTCUSDT', last_price: 100, ask_price: null, bid_price: null, event_time_ms: 123, received_at: '2026-11-17T00:00:00Z', partial: true, exchange_lag_seconds: 0, age_seconds: 0 };
+const evidenceRequest: StrategyEvidenceRequest = { symbol: 'BTCUSDT', market: 'linear', interval: '60', bars: [{ timestamp_ms: 123, open: 100, high: 101, low: 99, close: 100, volume: 10 }], funding_rate: null };
+const evidence: StrategyEvidenceResponse = {
+  symbol: 'BTCUSDT', market: 'linear', interval: '60', snapshot_status: 'fresh', snapshot_age_ms: 1,
+  newest_timestamp_ms: 123, strategy_count: 1, research_only: true, deployment_eligible: false,
+  strategies: [{ strategy_id: 'sma_cross', name: 'SMA Cross', version: '1', source_repository: 'https://github.com/example/research',
+    source_commit: null, license: 'MIT', lifecycle_status: 'research', validation_status: 'not_started', supported_markets: ['linear'],
+    ready: false, research_target_exposure: null, reason: 'not_ready', features: [], research_only: true, deployment_eligible: false }],
+};
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 const withResponse = (response: () => Response) => createQuantApiClient({ fetch: async () => response() });
 
@@ -78,4 +86,35 @@ test('deadline includes stalled streaming body and releases reader', async () =>
 test('engine-accepted future event lag is preserved', async () => {
   const data = { ...market, exchange_lag_seconds: -4.5 };
   assert.deepEqual(await withResponse(() => json(data)).market('BTCUSDT'), { ok: true, status: 200, data });
+});
+
+test('strategy evidence accepts only matching, research-only responses', async () => {
+  let calls = 0;
+  const client = createQuantApiClient({ fetch: async request => {
+    calls += 1;
+    const wireRequest = request instanceof Request ? request : new Request(request);
+    assert.equal(wireRequest.method, 'POST');
+    assert.equal(new URL(wireRequest.url).pathname, '/api/v1/research/strategy-evidence');
+    const body = await wireRequest.json();
+    assert.deepEqual(body, evidenceRequest);
+    return json(evidence);
+  } });
+  assert.deepEqual(await client.strategyEvidence(evidenceRequest), { ok: true, status: 200, data: evidence });
+  assert.equal(calls, 1);
+});
+
+test('strategy evidence fails closed for invalid requests, HTTP errors, and mismatched or approved responses', async () => {
+  let calls = 0;
+  const client = createQuantApiClient({ fetch: async () => { calls += 1; return json(evidence); } });
+  assert.deepEqual(await client.strategyEvidence({ ...evidenceRequest, bars: [{ ...evidenceRequest.bars[0]!, timestamp_ms: -1 }] }), { ok: false, code: 'invalid_request' });
+  assert.equal(calls, 0, 'invalid request must be rejected before transport');
+  assert.deepEqual(await createQuantApiClient({ fetch: async () => json({ detail: 'private error' }, 503) }).strategyEvidence(evidenceRequest), { ok: false, code: 'unavailable', status: 503 });
+  for (const value of [
+    { ...evidence, symbol: 'ETHUSDT' },
+    { ...evidence, deployment_eligible: true },
+    { ...evidence, strategies: [{ ...evidence.strategies[0], research_only: false }] },
+    { ...evidence, strategies: [{ ...evidence.strategies[0], ready: true }] },
+  ]) {
+    assert.deepEqual(await createQuantApiClient({ fetch: async () => json(value) }).strategyEvidence(evidenceRequest), { ok: false, code: 'invalid_response', status: 200 });
+  }
 });

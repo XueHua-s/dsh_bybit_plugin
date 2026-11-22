@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { createQuantApiClient } from '../dist/index.js';
-import type { PaperCommand, PaperStatus, PaperSubmitRequest } from '../src/index.ts';
+import type { PaperCommand, PaperFixtureSnapshot, PaperStatus, PaperSubmitRequest } from '../src/index.ts';
 
 // Synthetic fixture only. Never load Host state, environment credentials or configuration.
 const syntheticCapability = 'synthetic-paper-test-capability-000001';
@@ -92,6 +92,32 @@ test('strict generated response boundary rejects extra fields, wrong schema and 
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.code, 'outcome_uncertain');
   }
+});
+
+test('fixture accepts bounded epoch nanoseconds while rejecting oversized ordinary numbers', async () => {
+  const stamp = 1_795_329_387_385_984_000;
+  const fixture: PaperFixtureSnapshot = {
+    schema_version: '1', fixture_id: 'builtin-synthetic', bundle_digest: 'a'.repeat(64),
+    observed_at_ns: stamp, expires_at_ns: stamp + 60_000_000_000, correlations: [],
+    candidates: [{
+      symbol: 'BTCUSDT', snapshot_id: `builtin-synthetic:BTCUSDT:${stamp}`,
+      observed_at_ns: stamp, expires_at_ns: stamp + 60_000_000_000,
+      bid: '49999.9', ask: '50000', bid_size: '0.1', ask_size: '0.1',
+      rules: { base_currency: 'BTC', price_increment: '0.1', size_increment: '0.001', min_quantity: '0.001', max_quantity: '1', min_notional: '5' },
+      bars: [{ timestamp_ns: stamp, open: '49999', high: '50002', low: '49998', close: '50000', volume: '10' }],
+      selector_evidence: [{
+        strategy_id: 'sma_cross', version: '0.1.0', approval_ref: 'fixture-approval:test', current_status: 'approved',
+        validation_status: 'paper_passed', oos_score: 1, confidence: 0.8, expected_cost_bps: 2,
+        evaluation_ref: 'fixture-evidence:test', evaluated_at_ns: stamp, expires_at_ns: stamp + 60_000_000_000,
+        out_of_sample_samples: 64, supported_regimes: ['trend_up'], ready_signal: true,
+        provenance: 'synthetic_fixture_only', evidence_digest: 'b'.repeat(64),
+      }],
+    }],
+  };
+  assert.deepEqual(await client(async () => json(fixture)).paper.fixture(fixture.fixture_id), { ok: true, status: 200, data: fixture });
+  const unsafe = structuredClone(fixture);
+  unsafe.candidates[0]!.selector_evidence[0]!.confidence = Number.MAX_SAFE_INTEGER + 1;
+  assert.deepEqual(await client(async () => json(unsafe)).paper.fixture(fixture.fixture_id), { ok: false, code: 'invalid_response', status: 200 });
 });
 
 test('capability provider failures and reflected escaped capability cannot leak', async () => {

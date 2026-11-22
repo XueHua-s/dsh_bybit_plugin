@@ -1,6 +1,7 @@
 """Ticker schema validation, independent of transport lifecycle."""
 
 import json
+from decimal import Decimal
 
 import pytest
 from quant_engine.market_data import BybitMarketDataAdapter
@@ -34,7 +35,7 @@ def test_partial_delta_fields_keep_valid_topic_identity(data: dict[str, object])
     event = BybitMarketDataAdapter._parse(_frame(data))
     assert event is not None
     assert event.symbol == "BTCUSDT"
-    assert event.last_price == (100.0 if "lastPrice" in data else None)
+    assert event.last_price == (Decimal(100) if "lastPrice" in data else None)
     assert event.bid_price == (99.0 if "bid1Price" in data else None)
     assert event.ask_price == (101.0 if "ask1Price" in data else None)
 

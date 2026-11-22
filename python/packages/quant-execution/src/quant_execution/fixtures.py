@@ -1,5 +1,6 @@
 """Construct native instruments and finite quote streams from explicit offline metadata."""
 
+import re
 from decimal import Decimal
 
 from nautilus_trader.model.currencies import USDT
@@ -11,6 +12,12 @@ from nautilus_trader.model.objects import Currency, Money, Price, Quantity
 
 from .models import InstrumentSpec, Quote
 
+_SYMBOL_PATTERN = re.compile(r"[A-Z0-9]+(?:[-._][A-Z0-9]+)*")
+
+
+def _valid_fixture_symbol(value: str) -> bool:
+    return len(value) <= 40 and _SYMBOL_PATTERN.fullmatch(value) is not None
+
 
 def make_instrument(spec: InstrumentSpec) -> CryptoPerpetual:
     for value in (spec.price_increment, spec.size_increment, spec.min_quantity, spec.max_quantity, spec.min_notional):
@@ -18,8 +25,8 @@ def make_instrument(spec: InstrumentSpec) -> CryptoPerpetual:
             raise ValueError("instrument rules must be finite and positive")
     if spec.min_quantity > spec.max_quantity:
         raise ValueError("invalid instrument quantity range")
-    if not spec.symbol or not spec.symbol.isalnum():
-        raise ValueError("fixture symbol must be alphanumeric")
+    if not _valid_fixture_symbol(spec.symbol):
+        raise ValueError("fixture symbol must use uppercase exchange-style syntax")
     for fee in (spec.maker_fee, spec.taker_fee):
         if not fee.is_finite() or fee < 0:
             raise ValueError("fixture fee must be finite and nonnegative")

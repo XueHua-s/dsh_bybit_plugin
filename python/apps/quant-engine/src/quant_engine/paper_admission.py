@@ -25,15 +25,18 @@ from quant_data.commands import (
     RiskCode,
     Side,
 )
+from quant_data.cycle_receipt_store import CycleReceiptStore
 from quant_data.ledger import CommandLedger
-from quant_execution.paper_models import PaperOrder
+from quant_data.migrations import revision_is_at_least
+from quant_execution.paper_models import PaperOrder, PaperSnapshot
 from quant_execution.paper_runtime import PaperRuntime
 from quant_risk.evaluator import evaluate
 from quant_risk.models import OrderIntent
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
+from . import paper_cycle_service
 from .paper_api_models import PaperStatus, SubmitRequest
 from .paper_config import PaperConfig
 from .paper_context import risk_context
@@ -48,12 +51,7 @@ def _digest(value: object) -> str:
 
 
 class PaperAdmission:
-    """Hide ownership, risk generations, reservation and event persistence behind proposals.
-
-    A threading lock serializes background native ingestion, all admissions and lifecycle.
-    The bounded async entrance limits pending requests; HTTP lifetime never owns an order.
-    Restart always protects a previous session, because native Sandbox cannot replay it.
-    """
+    """Serialized synthetic account authority with durable risk and dispatch state."""
 
     def __init__(self, config: PaperConfig) -> None:
         self.config = config
@@ -63,15 +61,16 @@ class PaperAdmission:
         self._state = "idle"
         self._store: AdmissionStore | None = None
         self._ledger: CommandLedger | None = None
+        self._receipt_store: CycleReceiptStore | None = None
         self._runtime: PaperRuntime | None = None
         self._snapshot: SessionSnapshot | None = None
         self._poll: asyncio.Task[None] | None = None
         self._pending = 0
         self._ids: dict[str, str] = {}
         self._totals: dict[str, tuple[Decimal, Decimal]] = {}
-        self._peak_equity = config.fixture.starting_balance
-        self._consumed_bid = Decimal(0)
-        self._consumed_ask = Decimal(0)
+        self._peak_equity = config.fixtures[0].starting_balance
+        self._consumed_bid: dict[str, Decimal] = {}
+        self._consumed_ask: dict[str, Decimal] = {}
 
     async def open(self) -> None:
         await asyncio.to_thread(self._open)
@@ -88,10 +87,11 @@ class PaperAdmission:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             engine = create_engine(f"sqlite:///{path}", connect_args={"check_same_thread": False})
             with engine.connect() as connection:
-                if connection.scalar(text("select version_num from alembic_version")) != "0004_admission_state":
+                if not revision_is_at_least(connection, "0004_admission_state"):
                     raise PaperUnavailable("paper_schema_required")
             sessions = sessionmaker(engine, expire_on_commit=False)
             self._store = AdmissionStore(sessions)
+            self._receipt_store = CycleReceiptStore(sessions)
             self._ledger = CommandLedger(sessions)
             self._snapshot = self._store.open_session(
                 Environment.INTERNAL_PAPER,
@@ -99,9 +99,10 @@ class PaperAdmission:
                 self.config.session_id,
                 self._owner,
                 _digest({"policy": asdict(self.config.policy), "accounting": "linear_perpetual"}),
-                self.config.fixture.starting_balance,
+                self.config.fixtures[0].starting_balance,
                 AccountingModel.LINEAR_PERPETUAL,
             )
+            self._receipt_store.protect_inflight(self.config.session_id, self._owner)
             self._file = fd
             self._state = "protected" if self._snapshot.protected else "idle"
         except Exception:  # noqa: BLE001 - fail closed at native/persistence boundary
@@ -118,7 +119,7 @@ class PaperAdmission:
             if self._state != "idle":
                 raise PaperUnavailable("explicit_new_session_required")
             try:
-                self._runtime = PaperRuntime(self.config.fixture)
+                self._runtime = PaperRuntime(self.config.fixtures)
                 native = self._runtime.start()
                 if native.account_id != self.config.policy.account_id or not native.process_alive:
                     raise PaperUnavailable("native_account_unavailable")
@@ -128,11 +129,33 @@ class PaperAdmission:
                 raise PaperUnavailable("native_start_failed") from None
             return self._status()
 
+    async def planning_snapshot(self) -> tuple[SessionSnapshot, PaperSnapshot]:
+        return await paper_cycle_service.planning_snapshot(self)
+
     async def submit(self, request: SubmitRequest) -> CommandRecord:
+        return await self._submit_async(request)
+
+    async def submit_ai_order(
+        self,
+        request: SubmitRequest,
+        *,
+        request_digest: str,
+        decision_id: str,
+        fixture_digest: str,
+    ) -> CommandRecord:
+        return await paper_cycle_service.submit_ai_order(
+            self, request, request_digest=request_digest, decision_id=decision_id, fixture_digest=fixture_digest
+        )
+
+    async def _submit_async(
+        self,
+        request: SubmitRequest,
+        binding: tuple[str, str, str] | None = None,
+    ) -> CommandRecord:
         if self._pending >= self.config.queue_capacity:
             raise PaperUnavailable("admission_queue_full")
         self._pending += 1
-        job = asyncio.create_task(asyncio.to_thread(self._submit_guarded, request))
+        job = asyncio.create_task(asyncio.to_thread(self._submit_guarded, request, binding))
         try:
             return await asyncio.shield(job)
         finally:
@@ -147,17 +170,17 @@ class PaperAdmission:
 
                 job.add_done_callback(completed)
 
-    def _submit_guarded(self, request: SubmitRequest) -> CommandRecord:
+    def _submit_guarded(self, request: SubmitRequest, binding: tuple[str, str, str] | None = None) -> CommandRecord:
         with self._lock:
             try:
-                return self._submit(request)
+                return self._submit(request, binding)
             except LedgerConflict:
                 raise
             except Exception:  # noqa: BLE001 - native/persistence uncertainty freezes before releasing writer
                 self._protect("admission_or_dispatch_failed")
                 raise PaperUnavailable("admission_or_dispatch_failed") from None
 
-    def _submit(self, request: SubmitRequest) -> CommandRecord:
+    def _submit(self, request: SubmitRequest, binding: tuple[str, str, str] | None = None) -> CommandRecord:
         with self._lock:
             store, ledger, runtime = self._required()
             self._drain()
@@ -178,13 +201,16 @@ class PaperAdmission:
             native = runtime.snapshot()
             now = time.time_ns()
             self._peak_equity = max(self._peak_equity, native.equity)
-            position = sum((item.quantity for item in durable.positions), Decimal(0))
+            durable_positions = {item.symbol: item.quantity for item in durable.positions if item.quantity}
+            native_positions = {
+                item.symbol: item.position_quantity for item in native.instruments if item.position_quantity
+            }
             if (
                 not native.process_alive
                 or native.status != "running"
                 or not native.event_stream_complete
                 or native.failure_reason is not None
-                or position != native.position_quantity
+                or durable_positions != native_positions
                 or abs(durable.balance - native.balance_total) > Decimal("0.00000001")
                 or abs(durable.realized_pnl - durable.cumulative_fee - native.realized_pnl) > Decimal("0.00000001")
             ):
@@ -204,8 +230,8 @@ class PaperAdmission:
                 native,
                 intent,
                 now // 1_000_000,
-                self._consumed_bid,
-                self._consumed_ask,
+                self._consumed_bid.get(request.symbol, Decimal(0)),
+                self._consumed_ask.get(request.symbol, Decimal(0)),
                 self._peak_equity,
             )
             decision = evaluate(intent, context, self.config.policy)
@@ -218,11 +244,23 @@ class PaperAdmission:
                 _digest(asdict(context)),
                 now,
                 expires,
-                max(native.ask, Decimal(request.limit_price)),
+                max(
+                    next(item.ask for item in native.instruments if item.symbol == request.symbol),
+                    Decimal(request.limit_price),
+                ),
                 decision.reasons,
             )
             try:
-                record = store.decide(self.config.session_id, self._owner, durable.generation, command, evidence)
+                record = store.decide(
+                    self.config.session_id,
+                    self._owner,
+                    durable.generation,
+                    command,
+                    evidence,
+                    decision_request_digest=None if binding is None else binding[0],
+                    decision_id=None if binding is None else binding[1],
+                    fixture_digest=None if binding is None else binding[2],
+                )
                 if record.state != CommandState.READY:
                     return record
                 current = store.snapshot(self.config.session_id, self._owner)
@@ -238,7 +276,13 @@ class PaperAdmission:
                 if claimed:
                     self._ids[record.native_client_order_id] = record.id
                     runtime.submit(
-                        PaperOrder(record.native_client_order_id, intent.side, command.quantity, command.limit_price)
+                        PaperOrder(
+                            record.native_client_order_id,
+                            intent.side,
+                            command.quantity,
+                            command.limit_price,
+                            command.symbol,
+                        )
                     )
                 self._drain()
                 return ledger.get(record.id)
@@ -260,8 +304,6 @@ class PaperAdmission:
             if command_id is None:
                 self._protect("unknown_native_event")
                 raise PaperUnavailable("unknown_native_event")
-            # Native initialization/submission are not venue acceptance. Lifecycle events
-            # are projected only when they carry an authoritative state supported by ledger.
             states = {
                 "ACCEPTED": CommandState.ACCEPTED,
                 "PARTIALLY_FILLED": CommandState.PARTIALLY_FILLED,
@@ -292,10 +334,8 @@ class PaperAdmission:
                 notional += event.last_fill_quantity * (event.last_fill_price or Decimal(0))
                 fee += event.commission or Decimal(0)
                 command = ledger.get(command_id).command
-                if command.side == Side.BUY:
-                    self._consumed_ask += event.last_fill_quantity
-                else:
-                    self._consumed_bid += event.last_fill_quantity
+                consumed = self._consumed_ask if command.side == Side.BUY else self._consumed_bid
+                consumed[command.symbol] = consumed.get(command.symbol, Decimal(0)) + event.last_fill_quantity
             self._totals[command_id] = (notional, fee)
             store.observe(
                 self.config.session_id,
@@ -371,17 +411,7 @@ class PaperAdmission:
         return await asyncio.to_thread(lookup)
 
     async def get_by_request(self, request_id: str) -> CommandRecord:
-        def lookup() -> CommandRecord:
-            with self._lock:
-                if self._store is None:
-                    raise PaperUnavailable("database_unavailable")
-                try:
-                    return self._store.get_by_request(request_id, self.config.session_id, self._owner)
-                except SQLAlchemyError:
-                    self._protect("command_read_failed")
-                    raise PaperUnavailable("command_read_failed") from None
-
-        return await asyncio.to_thread(lookup)
+        return await paper_cycle_service.get_by_request(self, request_id)
 
     async def status(self) -> PaperStatus:
         return await asyncio.to_thread(self._locked_status)

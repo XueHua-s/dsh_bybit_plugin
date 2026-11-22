@@ -17,7 +17,9 @@ Reference shorthand: N `execution.py` / `config.py` / `factories.py` mean N `ada
 
 ## Findings that determine the cutover
 
-1. **DRIFT-ORIGINAL-003 remains OPEN.** The DSH Host still registers a reachable signed TS exchange writer. Adding Python exchange execution before closing it would leave two authorities.
+> **Historical-audit correction (2026-11-20):** The findings below describe the source tree as audited on 2026-11-17. The later bounded TypeScript Mutation Closure changed the current workspace: the named Host mutation tools and the public signed POST escape hatch are now removed/denied, and `apps/dsh-plugin/test/trade-cutover.ts` plus the Bundle scan verify that closure. Keep the original observations as historical evidence; use `sdd/reports/BUILD_REPORT_TS_MUTATION_CLOSURE.md` and the current source for present status.
+
+1. **DRIFT-ORIGINAL-003 was open in this 2026-11-17 audit.** At that time the DSH Host still registered a reachable signed TS exchange writer. Adding Python exchange execution before closing it would have left two authorities. **Current status:** the bounded TS mutation closure is recorded as complete for that surface; native Testnet execution, account admission, reconciliation and recovery remain unimplemented and must not be inferred from the closure.
 2. Native upstream already provides identity details, account state, instruments, private streams, stable client order IDs, order/fill/position reports and reconciliation machinery. Reimplementing an OMS or fill simulator is unnecessary.
 3. The installed Python account-details binding does **not expose permission buckets or IP bindings**, although the matching Rust response contains them. `read_only == 0` cannot establish permitted product operations or the absence of withdrawal/transfer permission.
 4. Upstream native account ID is a configured name plus `-UNIFIED`, not verified exchange UID. Native account-state conversion also drops aggregate wallet equity/available-balance fields; paper account arithmetic is not a substitute.

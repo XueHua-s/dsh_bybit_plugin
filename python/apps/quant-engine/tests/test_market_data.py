@@ -1,5 +1,6 @@
 import asyncio
 import json
+from decimal import Decimal
 
 import pytest
 from quant_engine.market_data import BybitMarketDataAdapter, WebSocketConnection
@@ -73,9 +74,9 @@ def test_subscribes_parses_and_closes_public_testnet_socket() -> None:
         assert json.loads(socket.sent[0]) == {"op": "subscribe", "args": ["tickers.BTCUSDT"]}
         assert (event.symbol, event.last_price, event.bid_price, event.ask_price) == (
             "BTCUSDT",
-            64000.1,
-            64000.0,
-            64001.0,
+            Decimal("64000.1"),
+            Decimal(64000),
+            Decimal(64001),
         )
         health = adapter.health()
         assert health.state == "closed"
@@ -84,7 +85,7 @@ def test_subscribes_parses_and_closes_public_testnet_socket() -> None:
 
         object_event = BybitMarketDataAdapter._parse(_object_frame())
         assert object_event is not None
-        assert (object_event.symbol, object_event.last_price) == ("ETHUSDT", 3000.0)
+        assert (object_event.symbol, object_event.last_price) == ("ETHUSDT", Decimal(3000))
 
     asyncio.run(scenario())
 
@@ -105,9 +106,9 @@ def test_bounded_queue_applies_backpressure_and_tracks_depth() -> None:
         await asyncio.sleep(0)
         assert adapter.health().queue_depth == 1
         assert adapter.health().parsed == 1
-        assert (await adapter.next_event()).last_price == 64000.1
+        assert (await adapter.next_event()).last_price == Decimal("64000.1")
         next_event = await asyncio.wait_for(adapter.next_event(), timeout=1)
-        assert next_event.last_price == 64002.0
+        assert next_event.last_price == Decimal(64002)
         await adapter.close()
 
     asyncio.run(scenario())

@@ -48,6 +48,7 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 | **MUST** | Deliver required Bybit public/private recovery and reconciliation, all specified deterministic risk controls and emergency stop, faithful cost/validation/performance accounting, plugin Tools/Skills and DSH Dashboard, persistence, observability, tests and CI described in original §§11–22. |
 | **MUST** | Implement bounded learning/evolution of approved strategy weights/parameters, periodic degradation review and reproducible model/data/parameter versions; new algorithms/models and increased risk limits require the original validation and authorization gates (§23). |
 | **MUST** | Complete source-level audits of every original upstream reference; resolve incompatibility/license conflicts explicitly. A shallow audit or a convenience-based decision to omit mandatory NautilusTrader does not satisfy §6. |
+| **MUST** | Keep the DSH dashboard view-only for market analytics, simulated P&L, decisions and operational state. Symbol/market/timeframe filters change only displayed data; they never select or parameterize a trade. The AI chooses whether to act and selects eligible instruments and decision parameters within configured risk and environment limits. |
 
 ---
 
@@ -65,6 +66,8 @@ The existing repository has useful plugin, simulation and safety scaffolding, bu
 - [ ] TypeScript and Python SBOMs are generated; dependency audit and secret scan report no unhandled high/critical issue or credential leak.
 - [ ] Every GitHub reference in the project brief has a recorded commit, license, architecture, dependency/security review and explicit reuse/adaptation decision.
 - [ ] English and Chinese READMEs match the verified feature set, include safe setup instructions and contain no credentials.
+- [ ] Dashboard symbol/market/timeframe changes affect only the displayed market snapshot; candidate eligibility, AI decisions and simulated book state remain unchanged.
+- [ ] AI decision cycles may abstain or choose eligible instruments and their decision parameters from the analysis evidence; dashboard selections are never decision inputs.
 
 ---
 
@@ -106,6 +109,11 @@ The following criteria remain **unchecked**: engine runs independently with a pr
 | AT-029 | Event-driven | **When** §19 domain state changes, persistence **shall** retain the specified metadata, versions, results, decisions, targets, orders, executions, positions, snapshots and append-only risk/audit records. | test |
 | AT-030 | Event-driven | **When** scheduled performance review detects degradation, learning **shall** record a bounded approved weight/parameter adjustment or candidate experiment with versioned rollback and unchanged user risk ceilings. | test |
 | AT-031 | Event-driven | **When** release validation runs, CI **shall** verify the complete §21–22 TS/Python/quant/exchange/schema/SDK/security matrix and record unavailable external gates as incomplete. | test |
+| AT-032 | Event-driven | **When** dashboard symbol, market or timeframe filters change, **then** only the displayed market snapshot **shall** change; the eligible candidate universe, decision journal and simulated portfolio **shall** remain unchanged. | test |
+| AT-033 | Event-driven | **When** the AI evaluates its eligible candidate universe, it **shall** choose zero or more eligible instruments and determine each simulated decision's action, sizing and exit parameters from evidence, or abstain; dashboard filters **shall not** supply those values. | test |
+| AT-034 | Event-driven | **When** an AI research cycle starts without a user allow-list, the plugin **shall** discover all pages of the selected Bybit Spot or USDT-linear instrument catalogue, join a current ticker snapshot, and give the AI a bounded, deterministic candidate set containing only Trading instruments with valid quantity/price rules and configured liquidity/spread eligibility. | test |
+| AT-035 | Unwanted | **If** instrument or ticker discovery fails, returns incomplete data, or yields no eligible candidate, **then** the AI tools **shall** fail closed without using static BTC/ETH defaults; a new directional decision **shall** be limited to the fresh eligible set, while an existing simulated position may only be selected outside it for an explicit flat decision. | test |
+| AT-036 | Event-driven | **When** the AI requests detailed evidence for symbols selected from the current fresh candidate universe, `quant_brief` **shall** attach bounded Python strategy-family results from the already fetched primary-timeframe bars as research-only evidence; unavailable or invalid engine responses **shall** be explicit, and no result **shall** select a symbol, approve deployment, prescribe portfolio exposure, bypass code-owned risk, or authorize an exchange action. | test |
 
 **Coverage status (2026-11-17):** AT-010–031 describe restored required acceptance; they are not claims of existing passing tests. The original brief remains the detailed coverage baseline, including its conditional requirements. The current `pnpm run verify` covers a subset of the plugin only and cannot certify these rows.
 
@@ -120,6 +128,11 @@ The following criteria remain **unchecked**: engine runs independently with a pr
 - [x] (integration) Which trading environment may be tested unattended? → Testnet only; Mainnet funds are out of scope and Mainnet remains disabled.
 - [x] (scope drift correction) The original brief requires the independent engine, Nautilus authority, quant pipeline, AI team, research and evolution. Their prior SHOULD/COULD classification had no user authorization; restored to MUST with incomplete coverage. This corrects documentation drift and adds no new product scope.
 - [x] (done signal) What indicates completion? → All listed acceptance evidence, bilingual READMEs, clean secret scan, and authorized release workflow; implementation gaps remain open until proved.
+
+### Session 2026-11-19
+
+- [x] (dashboard/decision boundary) Which values may dashboard controls affect? → Market symbol, category and timeframe controls are display-only. The AI decides whether to trade, which eligible instrument to select, and its decision parameters; risk, account, environment and authorization limits remain code-owned. The Bundle now has a default-off, simulation-only background Agent cycle for Testnet/internal-paper; it still has no exchange execution authority and does not claim a complete unattended trader.
+- [x] (dynamic instrument choice) Does the chart symbol or a static starter list choose what the AI evaluates? → No. The AI receives a fresh, bounded candidate set derived from the selected Bybit category's full Instrument Info catalogue and ticker data, then selects instruments for detailed analysis or abstains. A non-empty configured/user allow-list may only narrow discovery; empty means dynamic discovery. Discovery failure has no static-symbol fallback.
 
 ---
 
@@ -207,6 +220,7 @@ None - ready for Design.
 |---|---|---|---|
 | 1.0 | 2026-11-17 | SDD Define by RDD | Initial requirements from the project brief and explicit follow-up decisions. |
 | 1.1 | 2026-11-17 | Original scope audit | Restored mandatory original engine, data, Nautilus, quant/AI/research/evolution scope; added AT-010–031 and explicit incomplete gate coverage; corrected stale topology statement. |
+| 1.2 | 2026-11-19 | User clarification | Added view-only dashboard boundary and AT-032–033 separating display filters from AI candidate selection and decision parameters. |
 
 ---
 

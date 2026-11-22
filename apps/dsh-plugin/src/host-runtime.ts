@@ -30,7 +30,10 @@ import type { DecisionTrack } from './lib/ai-types.js'
 import type { Category, Instrument } from './lib/bybit.js'
 import { resolveSettings, clean, selectCredentialPair } from './lib/host-config.js'
 import { createTrack, markedEquity, rollDay, scoreTrack } from './lib/ai.js'
-import { BYBIT_QUANT_SYSTEM_PROMPT_V2 } from './prompts/bybit-quant/v2.js'
+import { BYBIT_QUANT_SYSTEM_PROMPT_V3 } from './prompts/bybit-quant/v3.js'
+import { createAiScheduler, type AgentServices } from './lib/ai-scheduler.js'
+import { createAiUniverseService, type AiUniverse } from './lib/ai-universe.js'
+import type { PaperFixtureSnapshot } from '@bybit-quant/quant-api-client'
 
 /** Plugin version reported by the health route. */
 const VERSION = '1.4.5'
@@ -80,7 +83,7 @@ export type PluginContext = {
   systemPrompt: { section(section: { name: string, order: number, text: string }): void }
   tools: { register(definition: ToolDefinition): void }
   effect(effect: () => void | (() => void | Promise<void>), label?: string): void
-  inject(dependencies: string[], callback: (context: WebContext) => void): void
+  inject(dependencies: string[], callback: (context: WebContext & Partial<{ agents: AgentServices['agents'], agentDefaultModel: AgentServices['agentDefaultModel'] }>) => void): void
 }
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -116,6 +119,20 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
   const paper = createPaperEngine(config)
   const engine = createEngine(config)
   const settings = resolveSettings(config)
+  const logger = ctx.logger?.('bybit-quant')
+  const aiScheduler = createAiScheduler({
+    enabled: settings.aiBackgroundLoopEnabled,
+    aiEnabled: settings.aiEnabled,
+    environment: settings.env === 'live' ? 'live' : settings.env === 'demo' ? 'demo' : settings.aiBackgroundEnvironment,
+    intervalMs: settings.aiBackgroundLoopIntervalMs,
+    onError: message => logger?.warn?.(`AI background loop: ${message}`),
+  })
+  ctx.inject(['agents', 'agentDefaultModel'], (services) => {
+    if (services.agents !== undefined && services.agentDefaultModel !== undefined) {
+      aiScheduler.configure({ agents: services.agents, agentDefaultModel: services.agentDefaultModel })
+    }
+  })
+  ctx.effect(() => () => aiScheduler.dispose(), 'bybit-quant: AI background loop shutdown')
   ctx.effect(() => () => paper.close(), 'bybit-quant: native paper client shutdown')
   ctx.effect(() => () => engine.close(), 'bybit-quant: engine client shutdown')
   const runtimeMonitor = createRuntimeMonitor({ websocketEnabled: false })
@@ -145,12 +162,15 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
       return { apiKey: settings.fallbackApiKey, apiSecret: settings.fallbackApiSecret }
     },
   })
+  const aiUniverse = createAiUniverseService({
+    instruments: input => client.instruments(input),
+    tickers: input => client.tickers(input),
+  })
   const store = createStore({ file: settings.stateFile, startingBalance: settings.paperBalanceUsd })
   /** Short-lived panel cache keyed by market and interval. */
   const panelCache = new Map<string, { value: Record<string, unknown>, expires: number }>()
   /** Instrument metadata cache keyed by category:symbol. */
   const instrumentCache = new Map<string, { value: Instrument, expires: number }>()
-  const logger = ctx.logger?.('bybit-quant')
   ctx.effect(() => runtimeMonitor.start(5000), 'bybit-quant: runtime monitor')
   ctx.effect(() => () => {
     panelCache.clear()
@@ -165,7 +185,7 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
   ctx.systemPrompt.section({
     name: 'tool:bybit-quant',
     order: 620,
-    text: BYBIT_QUANT_SYSTEM_PROMPT_V2,
+    text: BYBIT_QUANT_SYSTEM_PROMPT_V3,
   })
 
   /** Resolve one mark price for a symbol. */
@@ -214,17 +234,46 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
     return list.length > 0 ? list : settings.aiSymbols
   }
 
+  /** Configured and saved allow-lists can only narrow; disjoint bounds match nothing. */
+  function candidateAllowlist(): string[] | undefined {
+    const configured = settings.aiSymbols
+    const saved = store.get().watchlist?.filter(symbol => typeof symbol === 'string' && symbol !== '') ?? []
+    if (configured.length === 0) return saved.length > 0 ? saved : undefined
+    if (saved.length === 0) return configured
+    return configured.filter(symbol => saved.includes(symbol))
+  }
+
+  /** Refresh a full category catalogue and ticker snapshot before AI research or directional decisions. */
+  async function getAiUniverse(category: Category, signal?: AbortSignal): Promise<AiUniverse> {
+    return aiUniverse.get(category, candidateAllowlist(), signal)
+  }
+
+  /** Read one registry-owned synthetic fixture; never falls back to Bybit. */
+  async function getPaperFixture(signal?: AbortSignal): Promise<PaperFixtureSnapshot> {
+    if (settings.aiBackgroundEnvironment !== 'internal_paper') throw new Error('internal paper fixture is disabled')
+    const result = await paper.fixture(settings.paperFixtureId, signal)
+    if (!result.ok) throw new Error(`paper fixture unavailable: ${result.code}`)
+    return result.data
+  }
+
+  /** Read-only panel status uses the last discovery and never starts an AI scan. */
+  function aiCandidatePool() {
+    const view = aiUniverse.peek(settings.defaultCategory, candidateAllowlist())
+    return {
+      category: settings.defaultCategory,
+      status: view.status,
+      observedAt: view.universe?.observedAt ?? null,
+      eligibleCount: view.universe?.eligibleCount ?? 0,
+      candidates: view.universe?.candidates.slice(0, 5).map(candidate => candidate.symbol) ?? [],
+    }
+  }
+
   /** Persist a watchlist (empty clears back to the configured default). */
   function saveWatchlist(symbols: string[]): void {
     store.mutate((state) => {
       state.watchlist = symbols
       return null
     })
-  }
-
-  /** Symbols a decision may trade: the watchlist plus the configured defaults. */
-  function tradableSymbols() {
-    return [...new Set([...watchlist(), ...settings.aiSymbols])]
   }
 
   /** The AI track, created from the configured starting equity on first use. */
@@ -287,7 +336,7 @@ export function createHostRuntime(ctx: PluginContext, config: Record<string, unk
     }
   }
 
-  return { ctx, tool, engine, paper, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, tradableSymbols, aiTrack, aiLimits, aiSummary, preview }
+  return { ctx, tool, engine, paper, settings, runtimeMonitor, client, store, panelCache, instrumentCache, logger, aiScheduler, markPrice, instrumentFor, paperMarks, statusOfPaper, watchlist, saveWatchlist, getAiUniverse, getPaperFixture, aiCandidatePool, aiTrack, aiLimits, aiSummary, preview }
 }
 
 export type HostRuntime = ReturnType<typeof createHostRuntime>

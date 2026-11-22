@@ -25,10 +25,22 @@ export type PanelPayload = {
   ai?: AiView | null
   klines?: number[][]
   updatedAt?: number
-  automation?: 'conversation_only'
-  backgroundLoop?: 'not_running'
+  automation?: 'conversation_only' | 'background_simulated_decisions'
+  backgroundLoop?: 'disabled' | 'not_configured' | 'environment_rejected' | 'starting' | 'running' | 'idle' | 'backoff' | 'blocked' | 'stopping'
+  backgroundLoopIntervalMs?: number
+  backgroundLoopEnvironment?: 'testnet' | 'internal_paper' | 'demo' | 'live'
+  backgroundLoopReason?: string
+  backgroundLoopLastRun?: null | {
+    outcome: 'completed' | 'failed'
+    decisionsRecorded: number
+    latestDecisionId: string | null
+    latestDecisionStatus: 'open' | 'flat' | 'rejected' | 'uncertain' | null
+    completedAt: number
+  }
+  backgroundLoopMode?: 'simulated_decisions_only'
   executionAuthority?: 'unavailable'
   accountReadiness?: 'unknown' | 'zero_equity' | 'not_checked'
+  aiCandidatePool?: { category: 'spot' | 'linear', status: 'not_checked' | 'fresh' | 'stale', observedAt: number | null, eligibleCount: number, candidates: string[] }
 }
 export type SnapshotInitial = { data: PanelPayload | null, error: string | null, at: number }
 export type PanelContext = {

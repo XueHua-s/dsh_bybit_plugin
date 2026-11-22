@@ -4,7 +4,9 @@ A Bybit toolkit for DeepSeek Harness: the agent can read live market data, backt
 strategy on real candles, run an **AI decision track** whose views are journaled and scored,
 run a simulated USDT book, and validate exchange-order intent as a preview. Exchange writes
 are unavailable in this Bundle. A **Bybit** entry in the sidebar opens a read-only panel with the candle chart, the AI
-decision card, the paper book, and the last backtest.
+decision card, the paper book, and the last backtest. Symbol, market, and timeframe controls
+on that panel change only the displayed market data; they do not select a coin, direction, size,
+or other AI decision input.
 
 - **Market data** — ticker, candles, order book, funding history, and instrument rules for
   USDT perpetuals (`linear`) and spot. Public data is always read from the live venue, so a
@@ -15,12 +17,17 @@ decision card, the paper book, and the last backtest.
 - **Paper book** — a simulated USDT account that fills at the live mark, tracks average
   price, realized and unrealized PnL, and keeps a trade journal. It never touches the
   exchange.
-- **Your symbols** — `quant_watchlist` owns the list: set, add, or remove any Bybit pair
-  (spot or USDT perpetual). Every name is verified against the exchange before it is stored,
-  and the brief, the decision path, and the signal scan all follow it. The plugin config only
-  supplies the starting default.
-- **Signal library** — `quant_signals` evaluates published, attributed algorithms on any
-  symbol and timeframe: Supertrend, Squeeze Momentum (Bollinger inside Keltner), Ichimoku
+- **AI candidate universe** — `quant_watchlist` sets the symbols the AI is allowed to analyze
+  and choose from; it is not a command to trade every listed symbol. It can set, add, or remove
+  an optional allow-list, and each name is verified against the exchange. With no configured or
+  saved allow-list, AI tools discover candidates from Bybit's complete Instrument Info catalogue
+  and a current ticker snapshot. They keep active USDT Spot or linear perpetual instruments
+  with valid quantity/price rules, at least USD 1 million 24-hour turnover, and a spread no
+  wider than 75 bps, then expose up to 30 candidates ranked by turnover. A non-empty allow-list
+  only narrows that set. The AI chooses up to four candidates for detailed analysis at a time,
+  may choose none, and may abstain. Dashboard filters affect only the displayed market data.
+- **Signal library** — `quant_signals` evaluates published, attributed algorithms on eligible
+  candidates and selected timeframes: Supertrend, Squeeze Momentum (Bollinger inside Keltner), Ichimoku
   cloud state, Donchian breakout, and Wilder's ADX/DI regime. Each returns a directional
   score, and the weighted consensus is deliberately conservative: a squeeze that is still
   compressing casts no vote.
@@ -30,11 +37,13 @@ decision card, the paper book, and the last backtest.
   hypothetical position only when the **code-owned risk gate** accepts it; `quant_review` scores the journal
   (hit rate, expectancy, R, Brier calibration, drawdown, buy-and-hold baseline). The model
   supplies the thesis, the code supplies the arithmetic and the veto.
-- **Runtime boundary** — the shipped Bundle is conversation-triggered. It does not run a
-  background AI scheduler, wake the model on a timer, or provide unattended order execution.
-  The browser panel is read-only, and its readiness card reports unavailable exchange
-  writes. Healthy public market data is therefore not evidence that account, reconciliation,
-  recovery, or execution is ready.
+- **Runtime boundary** — the shipped Bundle defaults to conversation-triggered operation.
+  An optional background AI scheduler can wake simulated-decision cycles in Testnet or
+  internal-paper mode; it is disabled by default, exposes no exchange-write or paper-process
+  controls, and does not verify that a completed Agent turn wrote a decision. The browser panel
+  is read-only, and its readiness card reports unavailable exchange writes. Healthy public
+  market data is therefore not evidence that account, reconciliation, recovery, or execution is
+  ready.
   OAuth/API keys and healthy market data do not imply account, reconciliation, or execution readiness.
 - **Exchange writes** — unavailable. `bybit_trade` validates create, cancel, cancel-all, and close
   intent as a local preview. `dryRun: false` returns `execution_authority_unavailable` before any
@@ -50,8 +59,8 @@ decision card, the paper book, and the last backtest.
 | `quant_backtest` | backtest a strategy on real candles and return metrics plus the current signal | no |
 | `quant_paper` | status, buy, sell, reset the simulated book | no |
 | `bybit_instruments` | discover listed instruments (spot / USDT-USDC perpetuals), filter by quote, contract type, name | no |
-| `quant_watchlist` | list / set / add / remove the symbols the AI trades | no |
-| `quant_signals` | Supertrend, Squeeze, Ichimoku, Donchian, ADX + consensus | no |
+| `quant_watchlist` | list / set / add / remove eligible AI candidates; does not request trades | no |
+| `quant_signals` | Supertrend, Squeeze, Ichimoku, Donchian, ADX + consensus on eligible candidates | no |
 | `quant_brief` | multi-timeframe brief plus the risk limits | no |
 | `quant_decide` | journal one decision, risk-gate it, update the simulated AI track | no |
 | `quant_review` | score the journal, calibration, and the baseline | no |
@@ -93,8 +102,11 @@ profile's `cordis.patch.yml`).
 | `aiMaxOpenPositions` | `2` | Concurrent AI positions |
 | `aiMaxDailyLossPct` | `3` | Trading stops for the day after this loss |
 | `aiMaxDrawdownPct` | `20` | Trading stops after this drawdown from peak equity |
-| `aiSymbols` | `[BTCUSDT, ETHUSDT]` | Symbols the brief covers |
+| `aiSymbols` | `[]` | Empty enables dynamic discovery; a non-empty list narrows eligible AI candidates, independent of panel filters |
 | `aiTimeframes` | `[240, 60, D]` | Brief timeframes, primary first |
+| `aiBackgroundLoopEnabled` | `false` | Opt in to periodic simulated-decision Agent cycles; never enables exchange orders |
+| `aiBackgroundLoopIntervalMs` | `900000` | Cycle cadence, clamped to 1 minute–24 hours |
+| `aiBackgroundEnvironment` | `testnet` | `testnet` or `internal_paper`; Demo and Mainnet are rejected |
 
 Authorize an AI sub-account from the repository root with `pnpm --filter @bybit-quant/dsh-plugin oauth -- start`
 for Testnet, or add `--env=live` for Mainnet. Keep `start` running through the Bybit browser
@@ -122,10 +134,13 @@ keys after an update. The plugin ignores those keys; no configuration option ena
   environment pair, or partial Harness Credential Store pair is rejected. Key and secret halves
   are never combined across sources.
 
-## Conversation-triggered AI workflow
+## AI decision workflow
 
-1. `quant_brief` returns a compact brief per symbol plus the limits and the decision schema.
-2. The model picks at most one action per symbol and calls `quant_decide` with a falsifiable
+1. The model first calls `quant_brief` without symbols to receive a fresh candidate snapshot,
+   then chooses up to four eligible candidates for detailed `quant_brief` and `quant_signals`
+   evidence. It decides which eligible symbol or symbols merit a decision, or abstains; panel
+   filters never enter this choice.
+2. For each symbol it actually selects, the model may call `quant_decide` with a falsifiable
    thesis and an invalidation. `quant_signals` gives it objective signal facts (which signal
    says what, and why the consensus is flat) instead of raw candles to eyeball.
 3. The risk gate checks per-trade risk, position cap, open positions, daily loss, and
@@ -137,13 +152,19 @@ keys after an update. The plugin ignores those keys; no configuration option ena
 5. Every decision stores the brief hash and a compact context snapshot, so a later review can
    replay what the model saw.
 
-These steps run when the agent calls the tools in a conversation. They are not a persistent
-background loop and they do not turn the Bundle into an unattended autonomous trader.
+These steps run when an Agent calls the tools in a conversation or in an explicitly enabled
+background simulation cycle. A cycle is a bounded Agent turn, not a persistent trading process;
+an ended turn does not prove that `quant_decide` wrote a journal entry. The loop does not turn
+the Bundle into an unattended exchange trader.
 
 ## Supported instruments
 
 Nothing is hard-coded: `bybit_instruments` reads Bybit's live catalogue
 (`/v5/market/instruments-info`) and the watchlist verifies every symbol against it.
+AI candidate discovery is also automatic: each refresh reads the complete catalogue and current
+ticker snapshot, applies the eligibility and liquidity rules above, and fails closed if discovery
+is unavailable. A configured or saved allow-list can narrow candidates; an empty list does not
+fall back to fixed symbols. The AI still selects the instruments it analyzes or decides on.
 
 | Type | Category | Status |
 |---|---|---|

@@ -19,6 +19,11 @@ const capability = 'synthetic-host-only-capability-0123456789'
 const sessionId = 'paper-test'
 const status: PaperStatus = { environment: 'internal_paper', synthetic: true, session_id: sessionId, state: 'idle', ready: false, native_process_alive: false, generation: 0, pending_reservations: 0 }
 const command: PaperCommand = { environment: 'internal_paper', session_id: sessionId, command_id: 'cmd-original', native_client_order_id: 'native-original', state: 'accepted', cumulative_filled: '0' }
+const fixture = {
+  schema_version: '1' as const, fixture_id: 'bundle-a', bundle_digest: 'a'.repeat(64), observed_at_ns: 1, expires_at_ns: 2_000_000,
+  candidates: [{ symbol: 'ALPHA', snapshot_id: 'bundle-a:ALPHA:1', observed_at_ns: 1, expires_at_ns: 2_000_000, bid: '10', ask: '10.1', bid_size: '1', ask_size: '1', rules: { base_currency: 'ALPHA', price_increment: '0.1', size_increment: '0.01', min_quantity: '0.01', max_quantity: '100', min_notional: '1' }, bars: [{ timestamp_ns: 1, open: '10', high: '10.1', low: '9.9', close: '10', volume: '1' }], selector_evidence: [{ strategy_id: 'sma', version: '1.0.0', approval_ref: 'fixture-approval:sma', current_status: 'approved', validation_status: 'paper_passed', oos_score: 1, confidence: 0.8, expected_cost_bps: 1, evaluation_ref: 'fixture-evidence:sma', evaluated_at_ns: 1, expires_at_ns: 2_000_000, out_of_sample_samples: 30, supported_regimes: ['trend'], ready_signal: true, evidence_digest: 'b'.repeat(64), provenance: 'synthetic_fixture_only' }] }], correlations: [],
+}
+const cycle = { schema_version: '1' as const, request_id: 'cycle-request', payload_digest: 'c'.repeat(64), decision_id: 'decision-1', status: 'filled' as const, reason: null, command_id: 'cmd-cycle', native_client_order_id: 'native-cycle' }
 let mode = 'normal'
 let providerMode = 'normal'
 let providerCalls = 0
@@ -57,13 +62,15 @@ const http = createServer((request, response) => {
       return
     }
     const isCommand = request.url?.includes('/commands') === true
-    let value: Record<string, unknown> = { ...isCommand ? command : status }
+    const isFixture = request.url?.includes('/fixtures/') === true
+    const isCycle = request.url?.includes('/ai-cycles') === true
+    let value: Record<string, unknown> = { ...(isFixture ? fixture : isCycle ? cycle : isCommand ? command : status) }
     if (mode === 'wrong-session') value.session_id = 'another-session'
     if (mode === 'wrong-environment') value.environment = 'testnet'
     if (mode === 'missing-environment') delete value.environment
     if (mode === 'wrong-command') value.command_id = 'another-command'
     if (mode === 'secret-response') value[capability] = capability
-    response.statusCode = isCommand && request.method === 'POST' ? 202 : 200
+    response.statusCode = (isCommand || isCycle) && request.method === 'POST' ? 202 : 200
     response.end(JSON.stringify(value))
   })
 })
@@ -125,10 +132,6 @@ function assertContext(value: Record<string, unknown>, configured = true, contro
   assert.equal(value.configured, configured)
   assert.equal(value.control_enabled, control)
 }
-function panelRequest(body: unknown, headers: Record<string, string> = {}) {
-  return new Request('http://localhost/api/bybit-quant/paper', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
-}
-
 try {
   const host = harness()
   assert.equal(providerCalls, 0)
@@ -169,6 +172,17 @@ try {
     assert.equal(result.code, 'control_disabled'); assertContext(result, true, false)
   }
   assert.equal(providerCalls, beforeDenied)
+  const deniedCycleEngine = createPaperEngine({ paperBaseUrl: origin, paperSessionId: sessionId, paperCapabilitySocket: socketPath, paperControlEnabled: false })
+  engines.push(deniedCycleEngine)
+  const beforeDeniedCycle = [providerCalls, httpCalls, mutations]
+  const deniedCycle = await deniedCycleEngine.cycle({
+    schema_version: '1', environment: 'internal_paper', request_id: 'cycle-denied', payload_digest: 'd'.repeat(64),
+    session_id: sessionId, fixture_id: 'bundle-a', bundle_digest: 'a'.repeat(64), cycle_id: 'cycle-denied',
+    universe_digest: 'a'.repeat(64), expires_at_ns: 2_000_000,
+    decision: { decision_id: 'decision-denied', symbol: 'ALPHA', strategy_id: 'sma', strategy_version: '1.0.0', action: 'long', target_exposure: 0.1, evidence_digest: 'b'.repeat(64) },
+  })
+  assert.ok(!deniedCycle.ok && deniedCycle.code === 'control_disabled')
+  assert.deepEqual([providerCalls, httpCalls, mutations], beforeDeniedCycle, 'a local control denial cannot dispatch or become transport-uncertain')
   for (const extra of [{ paperSessionId: undefined }, { paperBaseUrl: 'https://example.com' }, { paperControlEnabled: 'true' }]) assert.throws(() => harness(extra), /^Error: invalid_config$/u)
 
   const engine = createPaperEngine({ paperBaseUrl: origin, paperSessionId: sessionId, paperCapabilitySocket: socketPath, paperControlEnabled: true })
@@ -206,35 +220,40 @@ try {
   assert.ok(!missing.ok && missing.code === 'not_found')
   mode = 'normal'
   assert.equal((await engine.request(proposal.request_id)).ok, true)
+  const fixtureResult = await engine.fixture('bundle-a')
+  assert.equal(fixtureResult.ok, true)
+  if (fixtureResult.ok) assert.equal(fixtureResult.data.fixture_id, 'bundle-a')
+  const cycleResult = await engine.cycle({
+    schema_version: '1', environment: 'internal_paper', request_id: cycle.request_id,
+    payload_digest: cycle.payload_digest, session_id: sessionId, fixture_id: 'bundle-a', bundle_digest: fixture.bundle_digest,
+    cycle_id: 'cycle-1', universe_digest: fixture.bundle_digest, expires_at_ns: fixture.expires_at_ns,
+    decision: { decision_id: cycle.decision_id, symbol: 'ALPHA', strategy_id: 'sma', strategy_version: '1.0.0', action: 'long', target_exposure: 0.1, evidence_digest: 'b'.repeat(64) },
+  })
+  assert.equal(cycleResult.ok, true)
+  if (cycleResult.ok) assert.equal(cycleResult.data.request_id, cycle.request_id)
+  const cycleLookup = await engine.cycleRequest(cycle.request_id)
+  assert.equal(cycleLookup.ok, true)
+  const invalidCycle = await engine.cycle({
+    schema_version: '1', environment: 'internal_paper', request_id: 'cycle-invalid', payload_digest: 'c'.repeat(64),
+    session_id: 'spoof', fixture_id: 'bundle-a', bundle_digest: fixture.bundle_digest, cycle_id: 'cycle-1', universe_digest: fixture.bundle_digest,
+    expires_at_ns: fixture.expires_at_ns, decision: { decision_id: 'decision-1', symbol: 'ALPHA', strategy_id: 'sma', strategy_version: '1.0.0', action: 'abstain', target_exposure: null, evidence_digest: 'b'.repeat(64) },
+  })
+  assert.equal(invalidCycle.ok, false)
+  if (!invalidCycle.ok) assert.equal(invalidCycle.code, 'invalid_arguments')
 
   const route = host.routes.get('/api/bybit-quant/paper')
   assert.ok(route)
-  assert.equal(route.requestBody, 'streaming')
-  assert.deepEqual(route.methods, ['GET', 'HEAD', 'POST'])
+  assert.equal(route.requestBody, 'buffered')
+  assert.deepEqual(route.methods, ['GET', 'HEAD'])
   let reply = await route.fetch(new Request('http://localhost/api/bybit-quant/paper'))
   assert.equal(reply.status, 200); assert.equal(reply.headers.get('cache-control'), 'no-store')
   assertContext(await reply.json() as Record<string, unknown>)
   reply = await route.fetch(new Request('http://localhost/api/bybit-quant/paper', { method: 'HEAD' }))
   assert.equal(await reply.text(), '')
-  for (const action of ['start', 'stop']) assert.equal((await route.fetch(panelRequest({ action }, { origin: 'http://localhost', 'sec-fetch-site': 'same-origin' }))).status, 200)
   const beforeRejected = [providerCalls, httpCalls]
-  for (const body of [{ action: 'submit' }, { action: 'start', session_id: 'spoof' }, {}, [], null]) assert.equal((await route.fetch(panelRequest(body))).status, 400)
-  assert.equal((await route.fetch(panelRequest({ action: 'start' }, { origin: 'http://evil.example' }))).status, 403)
-  assert.equal((await route.fetch(panelRequest({ action: 'start' }, { 'sec-fetch-site': 'cross-site' }))).status, 403)
-  assert.equal((await route.fetch(panelRequest({ action: 'start' }, { 'content-type': 'text/plain' }))).status, 415)
-  assert.equal((await route.fetch(panelRequest({ action: 'start', padding: 'x'.repeat(513) }))).status, 413)
+  assert.equal((await route.fetch(new Request('http://localhost/api/bybit-quant/paper', { method: 'POST', body: JSON.stringify({ action: 'start' }) }))).status, 405)
   assert.equal((await route.fetch(new Request('http://localhost/api/bybit-quant/paper?session=x'))).status, 400)
-  assert.equal((await route.fetch(new Request('http://localhost/api/bybit-quant/paper', { method: 'DELETE' }))).status, 400)
-  let cancelledBody = false
-  const stall = new ReadableStream<Uint8Array>({ cancel() { cancelledBody = true } })
-  const stalledRequest = new Request('http://localhost/api/bybit-quant/paper', { method: 'POST', headers: { 'content-type': 'application/json' }, body: stall, duplex: 'half' } as RequestInit)
-  assert.equal((await route.fetch(stalledRequest)).status, 400)
-  assert.ok(cancelledBody, 'stalled body is cancelled at its local 2s deadline')
-  const abortBody = new AbortController()
-  const abortedRequest = new Request('http://localhost/api/bybit-quant/paper', { method: 'POST', headers: { 'content-type': 'application/json' }, body: new ReadableStream<Uint8Array>(), signal: abortBody.signal, duplex: 'half' } as RequestInit)
-  const abortedBodyReply = route.fetch(abortedRequest)
-  abortBody.abort()
-  assert.equal((await abortedBodyReply).status, 400)
+  assert.equal((await route.fetch(new Request('http://localhost/api/bybit-quant/paper', { method: 'DELETE' }))).status, 405)
   assert.deepEqual([providerCalls, httpCalls], beforeRejected, 'invalid browser inputs never reach broker or HTTP')
 
   providerMode = 'delay'

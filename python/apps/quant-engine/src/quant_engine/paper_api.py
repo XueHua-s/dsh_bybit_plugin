@@ -1,9 +1,10 @@
 """Authenticated local paper control; transport cannot construct trusted risk context."""
 
 import hmac
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,9 +13,23 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from quant_data.commands import LedgerConflict
 
 from .paper_admission import PaperAdmission, PaperUnavailable
-from .paper_api_models import CommandResponse, Opaque, PaperError, PaperStatus, SessionRequest, SubmitRequest
+from .paper_api_models import (
+    AiPaperCycleReceipt,
+    AiPaperCycleRequest,
+    CommandResponse,
+    FixtureSnapshotResponse,
+    Opaque,
+    PaperError,
+    PaperStatus,
+    SessionRequest,
+    SubmitRequest,
+)
 from .paper_capability import PaperCapabilityBroker
-from .paper_config import Capability, PaperConfig
+from .paper_config import Capability, PaperConfig, config_for_bundle
+from .paper_cycle_service import PaperCycleService
+from .synthetic_fixture_registry import SyntheticFixtureRegistry
+
+AiCycleHandler = Callable[[AiPaperCycleRequest], Awaitable[AiPaperCycleReceipt]]
 
 
 def create_paper_app(
@@ -23,11 +38,22 @@ def create_paper_app(
     *,
     service: PaperAdmission | None = None,
     broker: PaperCapabilityBroker | None = None,
+    fixture_registry: SyntheticFixtureRegistry | None = None,
+    test_only: bool = False,
+    ai_cycle_handler: AiCycleHandler | None = None,
+    ai_cycle_lookup: Callable[[str], Awaitable[AiPaperCycleReceipt]] | None = None,
 ) -> FastAPI:
     """Construct offline; lifespan owns a single explicit paper service and no market network."""
     if capability.session_id != config.session_id:
         raise ValueError("principal_scope_mismatch")
+    if (ai_cycle_handler is not None or ai_cycle_lookup is not None) and not test_only:
+        raise ValueError("paper_cycle_overrides_are_test_only")
+    if fixture_registry is not None:
+        config = config_for_bundle(config, fixture_registry.only_bundle)
+        if service is not None and service.config != config:
+            raise ValueError("paper_service_fixture_mismatch")
     engine = service or PaperAdmission(config)
+    cycle_service = None if fixture_registry is None else PaperCycleService(engine, fixture_registry)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -163,5 +189,84 @@ def create_paper_app(
         if len(command_id) > 128:
             raise HTTPException(404, "unknown_command")
         return response(await engine.get(command_id))
+
+    @app.get(
+        "/api/v1/trading/fixtures/{fixture_id}",
+        response_model=FixtureSnapshotResponse,
+        dependencies=[Depends(observe)],
+        responses={**errors, 404: {"model": PaperError}},
+    )
+    async def fixture_snapshot(fixture_id: Opaque) -> FixtureSnapshotResponse:
+        if fixture_registry is None:
+            raise HTTPException(503, "fixture_unavailable")
+        try:
+            payload = fixture_registry.snapshot(fixture_id, now_ns=time.time_ns(), ttl_ns=60_000_000_000)
+            candidates = cast(list[dict[str, object]], payload["candidates"])
+            payload["candidates"] = tuple(
+                {
+                    **candidate,
+                    "bars": tuple(cast(list[dict[str, object]], candidate["bars"])),
+                    "selector_evidence": tuple(
+                        {
+                            **evidence,
+                            "supported_regimes": tuple(cast(list[str], evidence["supported_regimes"])),
+                        }
+                        for evidence in cast(list[dict[str, object]], candidate["selector_evidence"])
+                    ),
+                }
+                for candidate in candidates
+            )
+            payload["correlations"] = tuple(cast(list[dict[str, object]], payload["correlations"]))
+            return FixtureSnapshotResponse.model_validate(payload)
+        except ValueError:
+            raise HTTPException(404, "fixture_unavailable") from None
+
+    @app.post(
+        "/api/v1/trading/ai-cycles",
+        response_model=AiPaperCycleReceipt,
+        status_code=202,
+        dependencies=[Depends(control)],
+        responses={**errors, 409: {"model": PaperError}},
+    )
+    async def submit_ai_cycle(request: AiPaperCycleRequest) -> AiPaperCycleReceipt:
+        if request.session_id != config.session_id:
+            raise HTTPException(403, "session_forbidden")
+        if fixture_registry is None or cycle_service is None:
+            raise HTTPException(503, "paper_cycle_unavailable")
+        try:
+            request.validate_payload_digest()
+            bundle = fixture_registry.resolve(request.fixture_id, request.bundle_digest)
+            if request.universe_digest != bundle.digest:
+                raise ValueError("stale_or_mismatched_ai_cycle")
+            if request.decision.action != "abstain":
+                bundle.resolve(request.decision.symbol)
+            if ai_cycle_handler is not None:
+                return await ai_cycle_handler(request)
+            return await cycle_service.submit(request)
+        except LedgerConflict:
+            raise HTTPException(409, "request_conflict") from None
+        except ValueError:
+            raise HTTPException(422, "invalid_ai_cycle") from None
+
+    @app.get(
+        "/api/v1/trading/ai-cycles/by-request/{request_id}",
+        response_model=AiPaperCycleReceipt,
+        dependencies=[Depends(observe)],
+        responses={**errors, 404: {"model": PaperError}},
+    )
+    async def ai_cycle_by_request(request_id: Opaque) -> AiPaperCycleReceipt:
+        if cycle_service is None:
+            raise HTTPException(503, "paper_cycle_unavailable")
+        try:
+            receipt = (
+                await ai_cycle_lookup(request_id)
+                if ai_cycle_lookup is not None
+                else await cycle_service.get(request_id)
+            )
+        except KeyError:
+            raise HTTPException(404, "unknown_request") from None
+        if receipt.request_id != request_id:
+            raise HTTPException(404, "unknown_request")
+        return receipt
 
     return app

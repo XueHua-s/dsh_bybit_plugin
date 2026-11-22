@@ -4,8 +4,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .ai_paper_contracts import CycleReceipt, DecisionRequest, FixtureSnapshot
+
 Opaque = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$", max_length=128)]
 DecimalText = Annotated[str, Field(pattern=r"^(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,8})?$", max_length=21)]
+SymbolText = Annotated[str, Field(pattern=r"^[A-Z0-9]+(?:[-._][A-Z0-9]+)*$", max_length=40)]
 
 
 class PaperModel(BaseModel):
@@ -19,7 +22,7 @@ class SessionRequest(PaperModel):
 
 class SubmitRequest(SessionRequest):
     request_id: Opaque
-    symbol: Literal["BTCUSDT"]
+    symbol: SymbolText
     side: Literal["buy", "sell"]
     order_type: Literal["limit"]
     quantity: DecimalText
@@ -59,3 +62,9 @@ class PaperStatus(PaperModel):
 
 class PaperError(PaperModel):
     detail: str
+
+
+# Re-export the single strict cross-language DTO authority at the paper API boundary.
+FixtureSnapshotResponse = FixtureSnapshot
+AiPaperCycleRequest = DecisionRequest
+AiPaperCycleReceipt = CycleReceipt

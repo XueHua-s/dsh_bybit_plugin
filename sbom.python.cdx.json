@@ -511,6 +511,20 @@
       "version": "0.1.0"
     },
     {
+      "bom-ref": "bybit-quant-portfolio==0.1.0",
+      "description": "Deterministic target-exposure planning without exchange authority",
+      "externalReferences": [
+        {
+          "comment": "PackageSource: Local",
+          "type": "distribution",
+          "url": "file:///Users/litlesnow/Desktop/Project/%E5%B9%BB%E6%96%B9%E9%87%8F%E5%8C%96/bybit-quant/python/packages/quant-portfolio"
+        }
+      ],
+      "name": "bybit-quant-portfolio",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
       "bom-ref": "bybit-quant-risk==0.1.0",
       "description": "Independent pure deterministic risk veto; no execution or exchange access",
       "externalReferences": [
@@ -521,6 +535,20 @@
         }
       ],
       "name": "bybit-quant-risk",
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
+      "bom-ref": "bybit-quant-strategies==0.1.0",
+      "description": "Pure deterministic target-exposure strategy families for Bybit AI Quant",
+      "externalReferences": [
+        {
+          "comment": "PackageSource: Local",
+          "type": "distribution",
+          "url": "file:///Users/litlesnow/Desktop/Project/%E5%B9%BB%E6%96%B9%E9%87%8F%E5%8C%96/bybit-quant/python/packages/quant-strategies"
+        }
+      ],
+      "name": "bybit-quant-strategies",
       "type": "library",
       "version": "0.1.0"
     },
@@ -3328,7 +3356,9 @@
       "dependsOn": [
         "bybit-quant-data==0.1.0",
         "bybit-quant-execution==0.1.0",
+        "bybit-quant-portfolio==0.1.0",
         "bybit-quant-risk==0.1.0",
+        "bybit-quant-strategies==0.1.0",
         "fastapi==0.163.1",
         "psutil==7.2.2",
         "pydantic==2.14.3",
@@ -3345,7 +3375,13 @@
       "ref": "bybit-quant-execution==0.1.0"
     },
     {
+      "ref": "bybit-quant-portfolio==0.1.0"
+    },
+    {
       "ref": "bybit-quant-risk==0.1.0"
+    },
+    {
+      "ref": "bybit-quant-strategies==0.1.0"
     },
     {
       "ref": "certifi==2026.10.23"

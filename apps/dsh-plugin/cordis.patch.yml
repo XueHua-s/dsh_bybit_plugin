@@ -29,4 +29,9 @@
         aiMaxDailyLossPct: 3
         aiMaxDrawdownPct: 20
         # Starting default only: quant_watchlist owns the list afterwards.
-        aiSymbols: [BTCUSDT, ETHUSDT]
+        aiSymbols: []
+        # Background AI wake-ups are opt-in and record simulated decisions only.
+        # Dashboard chart filters never change the AI candidate universe.
+        aiBackgroundLoopEnabled: false
+        aiBackgroundLoopIntervalMs: 900000
+        aiBackgroundEnvironment: testnet

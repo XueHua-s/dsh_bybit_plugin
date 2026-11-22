@@ -8,7 +8,7 @@ import type { StrategyParams } from './strategies.js'
 import { evidenceEnvelope } from './trust.js'
 
 export type Settings = {
-  env: 'live' | 'demo' | 'testnet'; apiKeyEnv: string; apiSecretEnv: string; fallbackApiKey: string; fallbackApiSecret: string; fallbackCredentialSource: string; credentialsFile: string; credentialsSource: string; maxOrderNotionalUsd: number; paperBalanceUsd: number; defaultSymbol: string; defaultCategory: ReturnType<typeof normalizeCategory>; stateFile: string; feeBps: number; recvWindow: number; timeoutMs: number; aiEnabled: boolean; aiStartEquity: number; aiRiskPerTradePct: number; aiMaxPositionPct: number; aiMaxOpenPositions: number; aiMaxDailyLossPct: number; aiMaxDrawdownPct: number; aiFeeBps: number; aiSymbols: string[]; aiTimeframes: string[]
+  env: 'live' | 'demo' | 'testnet'; apiKeyEnv: string; apiSecretEnv: string; fallbackApiKey: string; fallbackApiSecret: string; fallbackCredentialSource: string; credentialsFile: string; credentialsSource: string; maxOrderNotionalUsd: number; paperBalanceUsd: number; defaultSymbol: string; defaultCategory: ReturnType<typeof normalizeCategory>; stateFile: string; feeBps: number; recvWindow: number; timeoutMs: number; aiEnabled: boolean; aiStartEquity: number; aiRiskPerTradePct: number; aiMaxPositionPct: number; aiMaxOpenPositions: number; aiMaxDailyLossPct: number; aiMaxDrawdownPct: number; aiFeeBps: number; aiSymbols: string[]; aiTimeframes: string[]; aiBackgroundLoopEnabled: boolean; aiBackgroundLoopIntervalMs: number; aiBackgroundEnvironment: 'testnet' | 'internal_paper'; paperFixtureId: string; paperSessionId: string
 }
 type CredentialsDocument = { apiKey: string, apiSecret: string, env?: string }
 export type CleanJson = null | boolean | string | number | CleanJson[] | { [key: string]: CleanJson }
@@ -70,6 +70,11 @@ function resolveSettings(config: Record<string, unknown>): Settings {
     aiFeeBps: clamp(Number(config.aiFeeBps), 0, 100, 6),
     aiSymbols: normalizeSymbolList(config.aiSymbols),
     aiTimeframes: normalizeTimeframes(config.aiTimeframes),
+    aiBackgroundLoopEnabled: config.aiBackgroundLoopEnabled === true,
+    aiBackgroundLoopIntervalMs: clamp(Number(config.aiBackgroundLoopIntervalMs), 60_000, 24 * 60 * 60_000, 15 * 60_000),
+    aiBackgroundEnvironment: config.aiBackgroundEnvironment === 'internal_paper' ? 'internal_paper' : 'testnet',
+    paperFixtureId: text(config.paperFixtureId) || 'paper-bundle',
+    paperSessionId: text(config.paperSessionId),
   }
 }
 
@@ -78,7 +83,7 @@ function normalizeSymbolList(value: unknown): string[] {
   const list = Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string').map(item => normalizeSymbol(item)).filter((symbol, index, all) => all.indexOf(symbol) === index).slice(0, 4)
     : []
-  return list.length > 0 ? list : ['BTCUSDT', 'ETHUSDT']
+  return list
 }
 
 /** Timeframes the brief covers, primary first. */

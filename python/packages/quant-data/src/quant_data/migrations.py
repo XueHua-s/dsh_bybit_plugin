@@ -21,7 +21,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, Connection
 
 from alembic import command
 
@@ -37,6 +37,45 @@ def migration_config() -> Config:
     else:
         config = Config(str(PROJECT_ROOT / "alembic.ini"))
     return config
+
+
+def revision_is_at_least(connection: Connection, minimum_revision: str) -> bool:
+    """Return whether one known Alembic revision descends from a required schema.
+
+    Runtime stores use this instead of pinning themselves to today's exact head;
+    additive migrations can then keep existing consumers compatible.
+    """
+    try:
+        has_version_table = connection.execute(
+            text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+        ).first()
+        if has_version_table is None:
+            return False
+        revisions = connection.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+        if len(revisions) != 1 or not isinstance(revisions[0], str):
+            return False
+        scripts = ScriptDirectory.from_config(migration_config())
+        required = scripts.get_revision(minimum_revision)
+        pending = [scripts.get_revision(revisions[0])]
+    except Exception:  # noqa: BLE001 - unknown schema revisions fail closed
+        return False
+    if required is None or pending[0] is None:
+        return False
+
+    visited: set[str] = set()
+    while pending:
+        current = pending.pop()
+        if current is None or current.revision in visited:
+            continue
+        if current.revision == required.revision:
+            return True
+        visited.add(current.revision)
+        parents = current.down_revision
+        if isinstance(parents, str):
+            pending.append(scripts.get_revision(parents))
+        elif parents is not None:
+            pending.extend(scripts.get_revision(parent) for parent in parents)
+    return False
 
 
 @dataclass(frozen=True)

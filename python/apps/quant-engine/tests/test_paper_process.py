@@ -1,5 +1,7 @@
 """Independent HTTP process, private capability pipe, SIGTERM and crash protection."""
 
+import hashlib
+import json
 import os
 import re
 import signal
@@ -232,3 +234,69 @@ def test_crash_after_dispatch_preserves_order_and_reaps_orphan(tmp_path: Path) -
         assert record.status_code == 200
         assert record.json()["command_id"] == command_id
         assert not status.json()["native_process_alive"]
+
+
+def test_bootstrap_exposes_authenticated_fixture_and_durable_ai_cycle(tmp_path: Path) -> None:
+    """The deployed CLI provisions its trusted fixture registry and receipt API."""
+    config = config_at(tmp_path)
+    with server(config.database, config.session_id) as (_process, url, headers):
+        snapshot = httpx.get(url + "/api/v1/trading/fixtures/builtin-synthetic", headers=headers, timeout=3)
+        assert snapshot.status_code == 200, snapshot.text
+        fixture = snapshot.json()
+        assert fixture["fixture_id"] == "builtin-synthetic"
+        assert [item["symbol"] for item in fixture["candidates"]] == ["BTCUSDT"]
+        candidate = fixture["candidates"][0]
+        evidence = candidate["selector_evidence"][0]
+        session = {"environment": "internal_paper", "session_id": config.session_id}
+        started = httpx.post(url + "/api/v1/trading/start", headers=headers, json=session, timeout=10)
+        assert started.status_code == 200, started.text
+        assert started.json()["ready"] is True
+        body: dict[str, object] = {
+            "schema_version": "1",
+            "environment": "internal_paper",
+            "request_id": "process-cycle-order",
+            "session_id": config.session_id,
+            "fixture_id": fixture["fixture_id"],
+            "bundle_digest": fixture["bundle_digest"],
+            "cycle_id": "process-cycle",
+            "universe_digest": fixture["bundle_digest"],
+            "expires_at_ns": fixture["expires_at_ns"],
+            "decision": {
+                "decision_id": "process-decision-order",
+                "symbol": candidate["symbol"],
+                "strategy_id": evidence["strategy_id"],
+                "strategy_version": evidence["version"],
+                "action": "long",
+                "target_exposure": 0.01,
+                "evidence_digest": evidence["evidence_digest"],
+            },
+        }
+        body["payload_digest"] = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+        ).hexdigest()
+        posted = httpx.post(url + "/api/v1/trading/ai-cycles", headers=headers, json=body, timeout=5)
+        assert posted.status_code == 202, posted.text
+        receipt = posted.json()
+        assert receipt["request_id"] == body["request_id"]
+        assert receipt["payload_digest"] == body["payload_digest"]
+        deadline = time.monotonic() + 8
+        while receipt["status"] not in {"filled", "risk_rejected", "rejected", "protected", "unknown"}:
+            assert time.monotonic() < deadline, "ai_cycle_terminal_deadline"
+            time.sleep(0.05)
+            refreshed = httpx.get(
+                url + "/api/v1/trading/ai-cycles/by-request/" + str(body["request_id"]),
+                headers=headers,
+                timeout=3,
+            )
+            assert refreshed.status_code == 200, refreshed.text
+            receipt = refreshed.json()
+        assert receipt["status"] == "filled", receipt
+        assert isinstance(receipt["command_id"], str)
+        assert isinstance(receipt["native_client_order_id"], str)
+        recovered = httpx.get(
+            url + "/api/v1/trading/ai-cycles/by-request/" + str(body["request_id"]), headers=headers, timeout=3
+        )
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json() == receipt
+        unauthenticated = httpx.get(url + "/api/v1/trading/fixtures/builtin-synthetic", timeout=3)
+        assert unauthenticated.status_code == 401

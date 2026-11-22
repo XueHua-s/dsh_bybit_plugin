@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createQuantApiClient } from '@bybit-quant/quant-api-client'
-import type { PaperCommand, PaperResult, PaperStatus, PaperSubmitRequest } from '@bybit-quant/quant-api-client'
+import type { PaperAiCycleReceipt, PaperCommand, PaperResult, PaperStatus, PaperSubmitRequest } from '@bybit-quant/quant-api-client'
 import { apply } from '../dist/index.js'
 import { createPaperCapabilityProvider } from '../dist/lib/paper-capability.js'
 import type { PluginContext, ToolDefinition } from '../src/host-runtime.ts'
@@ -34,6 +34,12 @@ let passed = false
 type Identity = { pid: number, created: number, role: 'native' | 'tracker' }
 type Exit = { code: number | null, signal: NodeJS.Signals | null }
 type Service = { child: ChildProcess, exit: Promise<Exit>, children: Identity[] }
+type AiHarness = {
+  releaseCreation(): void
+  completion: Promise<Record<string, unknown>>
+  run?: (cycleId: string) => Promise<Record<string, unknown>>
+  queryCycle?: (requestId: string) => Promise<PaperAiCycleReceipt>
+}
 type Host = { call(name: string, args?: Record<string, unknown>): Promise<Record<string, unknown>>, close(): Promise<void> }
 
 class VerificationFailure extends Error {}
@@ -67,19 +73,100 @@ function hostData<T extends PaperStatus | PaperCommand>(result: Record<string, u
 function sdkData<T>(result: PaperResult<T>): T { check(result.ok, 'sdk_success_required'); return result.data }
 function capture(value: string): void { privateOutput.push(Buffer.from(value)) }
 
-function host(): Host {
+function host(config: Record<string, unknown> = {}, aiHarness?: AiHarness): Host {
   const tools = new Map<string, ToolDefinition>()
   const disposers: Array<() => void | Promise<void>> = []
+  let releaseCreation!: () => void
+  const creation = new Promise<void>(resolve => { releaseCreation = resolve })
+  let completeCycle!: (value: Record<string, unknown>) => void
+  const completion = new Promise<Record<string, unknown>>(resolve => { completeCycle = resolve })
+  if (aiHarness !== undefined) {
+    aiHarness.releaseCreation = releaseCreation
+    aiHarness.completion = completion
+    aiHarness.run = async cycleId => {
+      const execute = async (name: string, args: Record<string, unknown> = {}) => {
+        const definition = tools.get(name)
+        check(definition !== undefined, `ai_tool_missing:${name}`)
+        return object(await definition.execute(args, {}))
+      }
+      const deadline = performance.now() + 12_000
+      while (true) {
+        const status = await execute('quant_get_paper_status')
+        const data = status.ok === true ? object(status.data) : undefined
+        if (data?.state === 'running') break
+        check(performance.now() < deadline, 'ai_paper_running_deadline')
+        await delay(30)
+      }
+      const discovered = await execute('quant_brief')
+      check(discovered.brief === null, 'ai_discovery_must_be_brief_free')
+      const universe = object(discovered.candidateUniverse)
+      check(universe.status === 'fresh' && universe.category === 'linear' && universe.eligibleCount === 1, 'ai_fixture_universe_required')
+      const candidates = universe.candidates
+      check(Array.isArray(candidates) && candidates.length === 1, 'ai_fixture_candidate_count')
+      const candidate = object(candidates[0])
+      check(candidate.symbol === 'BTCUSDT', 'ai_fixture_candidate_symbol')
+      const detailed = await execute('quant_brief', { symbols: ['BTCUSDT'] })
+      const selected = detailed.selectedCandidates
+      check(Array.isArray(selected) && selected.length === 1, 'ai_selected_candidate_required')
+      const selectedCandidate = object(selected[0])
+      check(selectedCandidate.symbol === 'BTCUSDT', 'ai_selected_symbol_required')
+      const evidenceValues = selectedCandidate.selector_evidence
+      check(Array.isArray(evidenceValues) && evidenceValues.length > 0, 'ai_selector_evidence_required')
+      const evidence = object(evidenceValues[0])
+      const decision = await execute('quant_decide_background', {
+        cycleId,
+        symbol: 'BTCUSDT',
+        action: 'long',
+        strategyId: evidence.strategy_id,
+        strategyVersion: evidence.version,
+        evidenceDigest: evidence.evidence_digest,
+        targetExposure: 0.1,
+      })
+      completeCycle(decision)
+      return decision
+    }
+  }
   const effect: PluginContext['effect'] = factory => { const dispose = factory(); if (dispose) disposers.push(dispose) }
   const ctx: PluginContext = {
     tools: { register: definition => { tools.set(definition.name, definition) } }, effect,
     systemPrompt: { section: () => {} },
     credentials: { resolve: async () => { throw new Error('exchange_credentials_forbidden') } },
     logger: () => ({ info: capture, warn: capture, error: capture }),
-    inject: (_dependencies, callback) => callback({ effect, connection: { fetch: { register: () => async () => {} } } }),
+    inject: (_dependencies, callback) => callback({
+      effect,
+      connection: { fetch: { register: () => async () => {} } },
+      ...(aiHarness === undefined ? {} : {
+        agents: {
+          create: async (options: { sessionId: string, setup(context: { tools: { restrict(filter: { allow: readonly string[] }): unknown }, systemPrompt: { section(section: { name: string, order: number, text: string }): unknown } }): void }) => {
+            options.setup({ tools: { restrict: () => {} }, systemPrompt: { section: () => {} } })
+            await creation
+            let idleResolve!: () => void
+            const idle = new Promise<void>(resolve => { idleResolve = resolve })
+            let started = false
+            const agent = {
+              followup: () => {
+                if (started) return
+                started = true
+                void aiHarness.run?.(options.sessionId).then(idleResolve, error => {
+                  completeCycle({ ok: false, code: error instanceof Error ? error.message : 'ai_cycle_failed' })
+                  idleResolve()
+                })
+              },
+              cancel: () => { idleResolve() },
+              whenIdle: () => idle,
+            }
+            return { agent, dispose: async () => { idleResolve() } }
+          },
+        },
+        agentDefaultModel: { currentSelection: () => ({ provider: 'paper-test', model: 'paper-test-model' }) },
+      }),
+    }),
   }
   apply(ctx, {
+    ...config,
     paperBaseUrl: origin, paperSessionId: sessionId, paperCapabilitySocket: socketPath, paperControlEnabled: true,
+    aiEnabled: true, aiBackgroundEnvironment: 'internal_paper', aiBackgroundLoopEnabled: aiHarness !== undefined,
+    paperFixtureId: 'builtin-synthetic',
     credentialsFile: join(directory, 'nonexistent-credentials.json'), stateFile: join(directory, `host-${hosts.length}.json`),
   })
   let closed = false
@@ -116,7 +203,7 @@ async function listenerClosed(): Promise<void> {
   })
   check(!connected, 'http_listener_not_closed')
 }
-async function startService(): Promise<{ service: Service, host: Host }> {
+async function startService(config: Record<string, unknown> = {}, aiHarness?: AiHarness): Promise<{ service: Service, host: Host }> {
   const port = await freePort()
   origin = `http://127.0.0.1:${port}`
   const child = spawn(python, ['-m', 'quant_engine.paper_bootstrap', '--database', database, '--session', sessionId,
@@ -128,7 +215,7 @@ async function startService(): Promise<{ service: Service, host: Host }> {
   child.once('error', () => { spawnError = true })
   const service: Service = { child, children: [], exit: new Promise<Exit>(accept => child.once('close', (code, signal) => accept({ code, signal }))) }
   services.push(service)
-  const value = host()
+  const value = host(config, aiHarness)
   const deadline = performance.now() + 12000
   while (true) {
     check(!spawnError && child.exitCode === null && child.signalCode === null, 'paper_cli_exited_before_ready')
@@ -137,6 +224,15 @@ async function startService(): Promise<{ service: Service, host: Host }> {
       const observer = createPaperCapabilityProvider({ origin, sessionId, socketPath })
       providers.push(observer)
       capabilities.add(await observer.resolve())
+      if (aiHarness !== undefined) {
+        const queryClient = createQuantApiClient({ baseUrl: origin, timeoutMs: 5000, serviceCapability: () => observer.resolve() })
+        clients.push(queryClient)
+        aiHarness.queryCycle = async requestId => {
+          const result = await queryClient.paper.cycleRequest(requestId)
+          check(result.ok, 'ai_cycle_query_failed')
+          return result.data
+        }
+      }
       break
     }
     check(performance.now() < deadline, 'paper_cli_startup_deadline')
@@ -225,9 +321,10 @@ const proposal = (request_id: string) => ({ request_id, symbol: 'BTCUSDT', side:
 try {
   check(process.platform === 'darwin' || process.platform === 'linux', 'posix_platform_required')
   check(existsSync(python), 'locked_python_environment_required')
+  const migrationHead = pythonFixture(['-c', "from alembic.script import ScriptDirectory; from quant_data.migrations import migration_config; print(ScriptDirectory.from_config(migration_config()).get_current_head())"]).trim()
   pythonFixture(['-c', "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('PRAGMA user_version=0'); c.close()", database])
   pythonFixture(['-m', 'quant_data.migrations', database])
-  check(pythonFixture(['-c', "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute('select version_num from alembic_version').fetchone()[0]); c.close()", database]).trim() === '0004_admission_state', 'temporary_schema_required')
+  check(pythonFixture(['-c', "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute('select version_num from alembic_version').fetchone()[0]); c.close()", database]).trim() === migrationHead, 'temporary_schema_required')
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init)
     check(new URL(request.url).origin === origin && new URL(request.url).pathname.startsWith('/api/v1/trading/'), 'nonpaper_network_forbidden')
@@ -235,7 +332,8 @@ try {
     return originalFetch(request)
   }
   stage = 'built_host_unix_sdk_cli_start'
-  const first = await startService()
+  const aiHarness: AiHarness = {} as AiHarness
+  const first = await startService({}, aiHarness)
   let status = hostData<PaperStatus>(await first.host.call('quant_get_paper_status'))
   check(status.state === 'idle' && !status.ready && !status.native_process_alive, 'initial_idle_required')
   const startResult = await first.host.call('quant_start_paper')
@@ -300,6 +398,24 @@ queries={'commands':'select count(*) from execution_commands','filled':"select c
 print(json.dumps({key:c.execute(query).fetchone()[0] for key,query in queries.items()})); c.close()`, database])))
   check(proof.commands === 4 && proof.filled === 3 && proof.risk_rejected === 1 && proof.allowed === 3 && proof.denied === 1
     && proof.native_filled === 3 && proof.dispatches === 3, 'durable_native_risk_evidence_required')
+  stage = 'host_ai_internal_paper_cycle_receipt'
+  // The scheduler is opt-in and receives a fake Agent only for this process
+  // test. The model-facing tools still execute through the real Host and the
+  // real Python fixture/cycle service.
+  aiHarness.releaseCreation()
+  const aiDecision = await bounded(aiHarness.completion, 15_000, 'ai_cycle_completion_deadline')
+  check(aiDecision.accepted === true && aiDecision.status === 'open', `ai_decision_receipt_status:${JSON.stringify(aiDecision)}`)
+  const paperReceipt = object(aiDecision.paperReceipt)
+  check(paperReceipt.status === 'filled' && typeof paperReceipt.request_id === 'string'
+    && typeof paperReceipt.payload_digest === 'string' && typeof paperReceipt.decision_id === 'string', 'ai_paper_receipt_required')
+  const decisionReceipt = object(aiDecision.decisionReceipt)
+  check(decisionReceipt.status === 'open' && decisionReceipt.decisionId === paperReceipt.decision_id, 'ai_scheduler_receipt_binding')
+  check(typeof aiHarness.queryCycle === 'function', 'ai_cycle_query_client_required')
+  const recoveredCycle = await aiHarness.queryCycle(String(paperReceipt.request_id))
+  check(recoveredCycle.request_id === paperReceipt.request_id
+    && recoveredCycle.payload_digest === paperReceipt.payload_digest
+    && recoveredCycle.decision_id === paperReceipt.decision_id
+    && recoveredCycle.status === paperReceipt.status, 'ai_cycle_original_request_recovery')
   stage = 'host_close_independent_service_and_stop_reaping'
   await first.host.close()
   status = sdkData(await sdk.paper.status())

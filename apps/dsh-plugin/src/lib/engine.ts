@@ -1,4 +1,5 @@
 import { createQuantApiClient } from '@bybit-quant/quant-api-client'
+import type { StrategyEvidenceRequest } from '@bybit-quant/quant-api-client'
 
 /** Owns the read-only engine boundary; never receives account credentials or starts a process. */
 export function createEngine(config: Record<string, unknown>) {
@@ -19,6 +20,13 @@ export function createEngine(config: Record<string, unknown>) {
     /** Preserve partial/null ticker facts; never fill gaps with REST or chart data. */
     async market(symbol: string, signal?: AbortSignal) {
       const result = environmentMatches ? await client.market(symbol, signal === undefined ? {} : { signal }) : mismatch
+      return { ...context, ...result }
+    },
+    /** Submit only caller-fetched OHLCV to the bounded research endpoint. */
+    async strategyEvidence(request: StrategyEvidenceRequest, signal?: AbortSignal) {
+      const result = environmentMatches
+        ? await client.strategyEvidence(request, signal === undefined ? {} : { signal })
+        : mismatch
       return { ...context, ...result }
     },
     close: () => client.close(),

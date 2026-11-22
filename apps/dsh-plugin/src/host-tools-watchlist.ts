@@ -24,18 +24,19 @@ import { SIGNAL_SOURCES, evaluateSignals } from './lib/signals.js'
 
 
 import { pick, round2 } from './lib/host-config.js'
+import { selectAiSymbols } from './lib/ai-universe.js'
 
 
 import type { HostRuntime } from './host-runtime.js'
 
 export function registerTools(runtime: HostRuntime): void {
-  const { ctx, tool, settings, client, store, watchlist, saveWatchlist } = runtime
+  const { ctx, tool, settings, client, store, watchlist, saveWatchlist, getAiUniverse } = runtime
 
   ctx.tools.register(tool({
     name: 'quant_watchlist',
     description:
-      'List or change the symbols the AI track follows. The list starts from the plugin config and belongs to the user: '
-      + 'set/add/remove any Bybit pair, and every name is verified against the exchange before it is stored.',
+      'List or change the AI eligible candidate universe. This defines which symbols the AI may analyze or choose; it is not a trade command '
+      + 'and does not require trading every listed symbol. The dashboard market-view filters are separate.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -52,11 +53,13 @@ export function registerTools(runtime: HostRuntime): void {
       const category = normalizeCategory(args.category ?? settings.defaultCategory)
       if (action === 'list') {
         const stored = store.get().watchlist ?? []
+        const universe = await getAiUniverse(category, exec.signal)
         return {
           action,
           symbols: watchlist(),
-          source: stored.length === 0 ? 'plugin config default' : 'user list',
-          note: 'quant_brief and quant_signals cover the first 4 symbols; quant_decide accepts any of them.',
+          source: stored.length > 0 ? 'user allow-list' : settings.aiSymbols.length > 0 ? 'plugin config allow-list' : 'dynamic discovery',
+          candidateUniverse: universe,
+          note: 'This allow-list only narrows dynamic discovery; an empty list means no symbol restriction. The AI chooses among eligible candidates or abstains. Dashboard filters never change this universe.',
         }
       }
 
@@ -95,7 +98,7 @@ export function registerTools(runtime: HostRuntime): void {
       const next = current.filter(item => item !== symbol)
       if (next.length === current.length) throw new Error(`${symbol} is not on the watchlist`)
       saveWatchlist(next)
-      return { action, symbols: watchlist(), removed: symbol, note: next.length === 0 ? 'the plugin config default applies again' : undefined }
+      return { action, symbols: watchlist(), removed: symbol, note: next.length === 0 ? 'dynamic discovery or the plugin config allow-list applies again' : undefined }
     },
   }))
 
@@ -109,7 +112,7 @@ export function registerTools(runtime: HostRuntime): void {
       type: 'object',
       additionalProperties: false,
       properties: {
-        symbols: { type: 'array', items: { type: 'string' }, description: 'Symbols to evaluate, up to 4; defaults to the watchlist.' },
+        symbols: { type: 'array', items: { type: 'string' }, description: 'Optional AI-selected subset of eligible candidates, up to 4; defaults to the candidate universe.' },
         category: { type: 'string', enum: ['linear', 'spot'], description: 'Defaults to linear.' },
         timeframes: { type: 'array', items: { type: 'string' }, description: 'Intervals such as 240, 60, D; defaults to the configured brief timeframes.' },
         bars: { type: 'integer', description: 'Candles per timeframe, 120-500; defaults to 300.' },
@@ -118,9 +121,8 @@ export function registerTools(runtime: HostRuntime): void {
     concurrent: true,
     async run(args, exec) {
       const category = normalizeCategory(args.category ?? settings.defaultCategory)
-      const symbols = Array.isArray(args.symbols) && args.symbols.length > 0
-        ? args.symbols.slice(0, 4).map(item => normalizeSymbol(item))
-        : watchlist().slice(0, 4)
+      const universe = await getAiUniverse(category, exec.signal)
+      const symbols = args.symbols === undefined ? [] : selectAiSymbols(args.symbols, universe)
       const timeframes = Array.isArray(args.timeframes) && args.timeframes.length > 0
         ? args.timeframes.slice(0, 3).map(item => normalizeInterval(item))
         : settings.aiTimeframes.slice(0, 2)
@@ -161,7 +163,10 @@ export function registerTools(runtime: HostRuntime): void {
         sources: SIGNAL_SOURCES,
         timeframes: timeframes.map(intervalLabel),
         symbols: results,
-        note: 'Weighted consensus: Supertrend 0.30, Ichimoku 0.25, Donchian 0.15, Squeeze momentum 0.15, ADX 0.15. |score| >= 0.3 is a directional bias; otherwise flat.',
+        candidateUniverse: universe,
+        note: symbols.length === 0
+          ? 'No signals were requested. Choose up to four symbols from candidateUniverse and call again; the AI decides whether evidence justifies an action.'
+          : 'Weighted consensus: Supertrend 0.30, Ichimoku 0.25, Donchian 0.15, Squeeze momentum 0.15, ADX 0.15. |score| >= 0.3 is a directional bias; otherwise flat.',
       }
     },
   }))

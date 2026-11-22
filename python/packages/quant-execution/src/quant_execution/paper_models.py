@@ -14,6 +14,7 @@ class PaperDepth:
     bid_size: Decimal
     ask_size: Decimal
     timestamp_ns: int
+    symbol: str | None = None
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,20 @@ class PaperOrder:
     side: Literal["BUY", "SELL"]
     quantity: Decimal
     limit_price: Decimal | None = None
+    symbol: str | None = None
+
+
+@dataclass(frozen=True)
+class InstrumentSnapshot:
+    """One instrument's last registry-owned quote and finite displayed depth."""
+
+    symbol: str
+    market_timestamp_ns: int
+    bid: Decimal
+    ask: Decimal
+    bid_size: Decimal
+    ask_size: Decimal
+    position_quantity: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True)
@@ -72,3 +87,4 @@ class PaperSnapshot:
     realized_pnl: Decimal = Decimal(0)
     snapshot_timestamp_ns: int = 0
     available_equity: Decimal = Decimal(0)
+    instruments: tuple[InstrumentSnapshot, ...] = ()

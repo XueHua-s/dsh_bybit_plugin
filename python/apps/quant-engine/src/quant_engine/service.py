@@ -6,6 +6,8 @@ import asyncio
 from collections.abc import Sequence
 from dataclasses import replace
 
+from quant_data.market_store import MarketSnapshotRecord, MarketSnapshotRepository
+
 from .market_data import BybitMarketDataAdapter, Connector, MarketDataHealth, TickerEvent
 from .runtime import EngineRuntime
 from .supervisor import EngineSupervisor
@@ -18,8 +20,9 @@ class MarketWorker:
     both ingestion and consumption rather than silently filling the queue.
     """
 
-    def __init__(self, adapter: BybitMarketDataAdapter) -> None:
+    def __init__(self, adapter: BybitMarketDataAdapter, market_store: MarketSnapshotRepository | None = None) -> None:
         self._adapter = adapter
+        self._market_store = market_store
         self._consumer: asyncio.Task[None] | None = None
         self._symbols: frozenset[str] = frozenset()
         self._latest: dict[str, TickerEvent] = {}
@@ -58,7 +61,45 @@ class MarketWorker:
         while True:
             event = await self._adapter.next_event()
             if event.symbol in self._symbols:
-                self._latest[event.symbol] = event
+                merged = self._merge(self._latest.get(event.symbol), event)
+                if self._market_store is not None:
+                    await self._persist(merged)
+                self._latest[event.symbol] = merged
+
+    @staticmethod
+    def _merge(previous: TickerEvent | None, event: TickerEvent) -> TickerEvent:
+        """Apply Bybit ticker delta fields without erasing known market values."""
+        if previous is None:
+            return event
+        return replace(
+            event,
+            last_price=event.last_price if event.last_price is not None else previous.last_price,
+            bid_price=event.bid_price if event.bid_price is not None else previous.bid_price,
+            ask_price=event.ask_price if event.ask_price is not None else previous.ask_price,
+        )
+
+    async def _persist(self, event: TickerEvent) -> None:
+        assert self._market_store is not None
+        record = MarketSnapshotRecord(
+            environment="testnet",
+            symbol=event.symbol,
+            last_price=event.last_price,
+            bid_price=event.bid_price,
+            ask_price=event.ask_price,
+            event_time_ms=event.event_time_ms,
+            received_at=event.received_at,
+            source="bybit-v5-public-linear-tickers",
+        )
+        write = asyncio.create_task(asyncio.to_thread(self._market_store.upsert, record))
+        cancelled = False
+        while not write.done():
+            try:
+                await asyncio.shield(write)
+            except asyncio.CancelledError:
+                cancelled = True
+        write.result()
+        if cancelled:
+            raise asyncio.CancelledError
 
 
 class EngineService:
@@ -69,12 +110,14 @@ class EngineService:
         symbols: Sequence[str],
         *,
         connector: Connector | None = None,
+        market_store: MarketSnapshotRepository | None = None,
         max_restarts: int = 3,
         poll_interval: float = 0.1,
     ) -> None:
         self.symbols = tuple(sorted({symbol.strip().upper() for symbol in symbols}))
         self.worker: MarketWorker | None = None
         self._connector = connector
+        self.market_store = market_store
         self.supervisor = EngineSupervisor(
             symbols=self.symbols,
             factory=self._new_worker,
@@ -86,14 +129,23 @@ class EngineService:
         adapter = (
             BybitMarketDataAdapter() if self._connector is None else BybitMarketDataAdapter(connector=self._connector)
         )
-        self.worker = MarketWorker(adapter)
+        self.worker = MarketWorker(adapter, self.market_store)
         return self.worker, EngineRuntime()
 
     async def start(self) -> None:
         await self.supervisor.start()
 
     async def close(self) -> None:
-        await self.supervisor.close()
+        try:
+            await self.supervisor.close()
+        finally:
+            if self.market_store is not None:
+                self.market_store.close()
 
     def latest(self, symbol: str) -> TickerEvent | None:
         return self.worker.latest(symbol) if self.worker is not None else None
+
+    async def persisted_latest(self, symbol: str) -> MarketSnapshotRecord | None:
+        if self.market_store is None:
+            raise RuntimeError("market provenance store is not configured")
+        return await asyncio.to_thread(self.market_store.latest, "testnet", symbol)

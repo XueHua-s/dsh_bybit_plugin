@@ -94,3 +94,71 @@ was not directly exposed as a callable tool in this session, so activation,
 rollback, and state-preservation behavior for that service method remain
 unverified. The prior “upgrade blocked” statement applies to the
 public-registry attempt only.
+
+## Current-source disposable install/remove receipt (2026-11-20)
+
+Status: **PASS for local install/remove smoke; upgrade and Host activation remain
+separate evidence boundaries.** This run used a newly created temporary
+`DSH_HOME` and the installed official CLI at
+`/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh`
+(version `0.2.2-rc.5`). The active Harness profile was not opened or changed,
+and no credential, account, endpoint or order data was read.
+
+| Step | Exact command | Exit | Observed state |
+|---|---|---:|---|
+| Version | `dsh --version` | 0 | `0.2.2-rc.5` |
+| Template discovery | `dsh --profile sdk --dump-config` | 0 | Official SDK template rendered successfully in the temporary profile. |
+| Install current source | `dsh plugin --profile sdk add "/Users/litlesnow/Desktop/Project/幻方量化/bybit-quant/apps/dsh-plugin"` | 0 | Profile dependency resolved as `link:/Users/litlesnow/Desktop/Project/幻方量化/bybit-quant/apps/dsh-plugin`; package version was `1.4.5`. |
+| Remove current source | `dsh plugin --profile sdk remove '@bybit-quant/dsh-plugin'` | 0 | Dependency and selected bundle entry were removed from the temporary profile. |
+
+The package was also packed from the current source as
+`/tmp/bybit-quant-dsh-plugin-1.4.5.tgz`; `bundle:check` and the pack command
+completed successfully, and the tarball contained the declared Host/Client
+entries, patch, locales, docs and scripts. This receipt proves the current
+source can pass the official CLI's local install/remove path. It does not prove
+the Host `plugin_manager.install_bundle`/`updateBundle` activation method,
+rollback, or state-preservation behavior. The earlier loopback registry receipt
+remains the version-to-version CLI upgrade evidence; no public-registry package
+is claimed.
+
+## Packed current-source preservation smoke (2026-11-20)
+
+The same `1.4.5` tarball was installed and removed through the official CLI in
+another temporary `DSH_HOME` using DSH `0.2.2-rc.5`:
+
+| Step | Command | Exit | Evidence |
+|---|---|---:|---|
+| Install packed artifact | `dsh plugin --profile sdk add '/tmp/bybit-quant-dsh-plugin-1.4.5.tgz'` | 0 | Temporary profile selected `@bybit-quant/dsh-plugin`; dependency was `file:/tmp/bybit-quant-dsh-plugin-1.4.5.tgz`. |
+| Remove packed artifact | `DSH_HOME=/tmp/bybit-dsh-packed-acceptance.LsPHdb dsh plugin --profile sdk remove '@bybit-quant/dsh-plugin'` | 0 | Temporary profile dependency and Bundle selection were absent after removal. |
+| User-state fixtures | `find "$DSH_HOME/bybit-quant" -type f -exec shasum -a 256 {} \;` before and after | 0 | Synthetic Testnet/Mainnet credential, token and state/history sentinel-file hashes were unchanged across install and removal. Fixture contents were not emitted. |
+
+One initial remove invocation omitted the `DSH_HOME` environment and therefore
+reached the default profile; pnpm refused because that profile had no target
+dependency (exit 1). Read-only manifest checks confirmed the default profile
+was unchanged and the temporary profile still had the packed Bundle installed.
+Repeating removal with the explicit temporary `DSH_HOME` succeeded. This smoke
+is evidence for CLI package lifecycle and files kept outside the package tree;
+it does not exercise live Host activation, Host rollback, or an actual
+version-to-version upgrade preserving active user state.
+
+## Reproducible lifecycle smoke script (2026-11-22)
+
+The repository now includes `apps/dsh-plugin/scripts/plugin-manager-smoke.ts`
+and the `bundle:lifecycle` package/Nx target. It creates a temporary
+`DSH_HOME`, packs the current Bundle, runs the installed official DSH CLI, and
+checks the disposable profile after each package operation. The fixture files
+are synthetic sentinels only; their contents are never printed.
+
+Exact command and result:
+
+```text
+pnpm --dir apps/dsh-plugin run bundle:lifecycle  # exit 0
+{"ok":true,"dshVersion":"0.2.2-rc.5","package":"@bybit-quant/dsh-plugin",
+ "lifecycle":["install","remove"],"selectedAfterInstall":true,
+ "selectedAfterUninstall":false,"statePreserved":true,"exchangeRequests":0,
+ "dshHome":"<temporary>"}
+```
+
+This is a repeatable disposable CLI install/remove and state-preservation
+receipt. It does not close the separate gaps for Host service activation,
+version-to-version upgrade, rollback, or active-profile state preservation.

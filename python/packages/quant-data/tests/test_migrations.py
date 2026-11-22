@@ -6,11 +6,12 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import URL
 
 from alembic import command
 from quant_data.migrations import upgrade_sqlite
+from quant_data.models import ExecutionCommand
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,6 +87,10 @@ def test_upgrade_preserves_strategy_trade_and_audit_rows_and_backups(tmp_path: P
         "paper_positions",
         "paper_native_events",
         "paper_protection_events",
+        "market_snapshot_projections",
+        "ai_paper_decision_bindings",
+        "ai_paper_cycle_receipts",
+        "ai_paper_cycle_events",
     }
     assert {"event_type", "environment", "payload_json"} <= {
         column["name"] for column in inspector.get_columns("trade_events")
@@ -209,7 +214,8 @@ def test_migration_preserves_special_characters_in_database_path(tmp_path: Path)
     engine = create_engine(URL.create("sqlite", database=str(database)))
     with engine.connect() as connection:
         assert (
-            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004_admission_state"
+            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            == "0006_ai_paper_decision_binding"
         )
     engine.dispose()
 
@@ -233,5 +239,37 @@ def test_current_head_metadata_matches_published_migrations(tmp_path: Path) -> N
         assert {"name": None, "column_names": ["strategy_id", "version"]} in inspector.get_unique_constraints(
             "strategy_versions"
         )
+        assert {
+            "name": "ix_ai_paper_binding_decision_id",
+            "column_names": ["decision_id"],
+            "unique": 0,
+            "dialect_options": {},
+        } in inspector.get_indexes("ai_paper_decision_bindings")
+    finally:
+        engine.dispose()
+
+
+def test_new_binding_table_keeps_legacy_execution_command_orm_query_valid(tmp_path: Path) -> None:
+    database = tmp_path / "legacy-orm-after-binding.sqlite"
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{database}")
+    command.upgrade(config, "0005_market_snapshot_projection")
+    command.upgrade(config, "head")
+    command.downgrade(config, "0005_market_snapshot_projection")
+
+    engine = create_engine(f"sqlite:///{database}")
+    try:
+        with engine.connect() as connection:
+            assert connection.execute(select(ExecutionCommand)).all() == []
+            assert "ai_paper_decision_bindings" not in inspect(connection).get_table_names()
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(f"sqlite:///{database}")
+    try:
+        with engine.connect() as connection:
+            assert connection.execute(select(ExecutionCommand)).all() == []
+            assert "ai_paper_decision_bindings" in inspect(connection).get_table_names()
     finally:
         engine.dispose()

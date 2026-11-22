@@ -20,7 +20,7 @@ from .paper_worker import Request, Response, worker_main
 class PaperRuntime:
     def __init__(
         self,
-        fixture: PaperFixture,
+        fixture: PaperFixture | tuple[PaperFixture, ...],
         *,
         queue_capacity: int = 128,
         event_capacity: int = 4096,
@@ -30,7 +30,10 @@ class PaperRuntime:
             raise ValueError("invalid_queue_capacity")
         if not 0 < timeout_seconds <= 30:
             raise ValueError("invalid_timeout")
-        self._fixture = fixture
+        self._fixtures = (fixture,) if isinstance(fixture, PaperFixture) else fixture
+        if not self._fixtures or len({item.instrument.symbol for item in self._fixtures}) != len(self._fixtures):
+            raise ValueError("invalid_fixture_instruments")
+        self._fixture = self._fixtures[0]
         self._timeout = timeout_seconds
         ctx = multiprocessing.get_context("spawn")
         self._commands = ctx.Queue(maxsize=queue_capacity)
@@ -38,7 +41,7 @@ class PaperRuntime:
         self._events = ctx.Queue(maxsize=event_capacity)
         self._process: BaseProcess = ctx.Process(
             target=worker_main,
-            args=(fixture, self._commands, self._replies, self._events),
+            args=(self._fixtures, self._commands, self._replies, self._events),
             name="quant-paper-native",
             daemon=True,
         )

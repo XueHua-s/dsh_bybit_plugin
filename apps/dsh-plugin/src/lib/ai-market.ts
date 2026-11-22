@@ -124,8 +124,13 @@ export function bookPressure(book: OrderBookSnapshot) {
  * One symbol's multi-timeframe brief.
  * @param {{ client: BybitClient, symbol: string, category: string, timeframes?: string[], signal?: AbortSignal }} input
  */
-export async function buildSymbolBrief({ client, symbol, category, timeframes = ['240', '60', 'D'], signal }: {
-  client: BybitClient, symbol: string, category: Category, timeframes?: string[], signal?: AbortSignal | undefined,
+type MarketBriefClient = Pick<BybitClient, 'ticker' | 'orderbook' | 'funding' | 'instrument' | 'klines'>
+type ResearchEvidenceRequest = { symbol: string, category: Category, interval: string, bars: Candle[], fundingRate: number | undefined }
+type ResearchEvidenceLoader = (request: ResearchEvidenceRequest) => Promise<Record<string, unknown>>
+
+export async function buildSymbolBrief({ client, symbol, category, timeframes = ['240', '60', 'D'], signal, researchEvidence }: {
+  client: MarketBriefClient, symbol: string, category: Category, timeframes?: string[], signal?: AbortSignal | undefined,
+  researchEvidence?: ResearchEvidenceLoader,
 }) {
   const [ticker, book, funding, instrument] = await Promise.all([
     client.ticker({ category, symbol, ...(signal === undefined ? {} : { signal }) }),
@@ -145,6 +150,20 @@ export async function buildSymbolBrief({ client, symbol, category, timeframes = 
   }
   const signals = primaryBars.length >= 80 ? evaluateSignals(primaryBars) : null
   const primary = frames[timeframes[0] ?? '']
+  let strategyEvidence: Record<string, unknown> | undefined
+  if (researchEvidence !== undefined) {
+    try {
+      strategyEvidence = await researchEvidence({
+        symbol,
+        category,
+        interval: timeframes[0] ?? '60',
+        bars: primaryBars,
+        fundingRate: ticker.fundingRate,
+      })
+    } catch {
+      strategyEvidence = { status: 'unavailable', code: 'research_evidence_unavailable' }
+    }
+  }
   return {
     symbol,
     category,
@@ -169,6 +188,7 @@ export async function buildSymbolBrief({ client, symbol, category, timeframes = 
       signals: signals === null ? null : { bias: signals.bias, score: signals.score, notes: signals.notes },
     },
     signals,
+    ...(strategyEvidence === undefined ? {} : { strategyEvidence }),
     roundTripCostBps: AI_FEE_BPS * 2,
   }
 }
@@ -177,12 +197,13 @@ export async function buildSymbolBrief({ client, symbol, category, timeframes = 
  * Whole-book brief plus the risk limits the decision must respect.
  * @param {{ client: BybitClient, symbols: string[], category: string, timeframes?: string[], signal?: AbortSignal | undefined, limits: object }} input
  */
-export async function buildBrief({ client, symbols, category, timeframes, signal, limits }: {
-  client: BybitClient, symbols: string[], category: Category, timeframes?: string[], signal?: AbortSignal | undefined, limits: object,
+export async function buildBrief({ client, symbols, category, timeframes, signal, limits, researchEvidence }: {
+  client: MarketBriefClient, symbols: string[], category: Category, timeframes?: string[], signal?: AbortSignal | undefined, limits: object,
+  researchEvidence?: ResearchEvidenceLoader,
 }) {
   const items: Awaited<ReturnType<typeof buildSymbolBrief>>[] = []
   for (const symbol of symbols) {
-    items.push(await buildSymbolBrief({ client, symbol, category, ...(timeframes === undefined ? {} : { timeframes }), ...(signal === undefined ? {} : { signal }) }))
+    items.push(await buildSymbolBrief({ client, symbol, category, ...(timeframes === undefined ? {} : { timeframes }), ...(signal === undefined ? {} : { signal }), ...(researchEvidence === undefined ? {} : { researchEvidence }) }))
   }
   return {
     at: new Date().toISOString(),

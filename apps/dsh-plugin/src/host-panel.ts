@@ -35,7 +35,7 @@ const PANEL_PATH = '/api/bybit-quant'
 const PANEL_CACHE_MS = 4_000
 
 export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
-  const { settings, runtimeMonitor, client, store, panelCache, logger, statusOfPaper, aiSummary } = runtime
+  const { settings, runtimeMonitor, client, store, panelCache, logger, statusOfPaper, aiSummary, aiScheduler, aiCandidatePool } = runtime
   // The panel reads through the connection bridge's exact Fetch route, so it
   // shares the Web GUI's Host/Origin fence and browser authentication instead
   // of exposing an unauthenticated webserver path.
@@ -47,6 +47,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
       const symbol = normalizeSymbol(url.searchParams.get('symbol') ?? settings.defaultSymbol)
       const interval = normalizeInterval(url.searchParams.get('interval') ?? '60')
       const bars = Math.min(Math.max(Math.trunc(Number(url.searchParams.get('bars') ?? 160)), 40), 400)
+      const loop = aiScheduler.snapshot()
       const key = `${category}:${symbol}:${interval}:${bars}`
       const cached = panelCache.get(key)
       const base = {
@@ -54,8 +55,13 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         version: VERSION,
         env: client.env,
         hasKeys: client.hasCredentials,
-        automation: 'conversation_only' as const,
-        backgroundLoop: 'not_running' as const,
+        automation: loop.enabled ? 'background_simulated_decisions' as const : 'conversation_only' as const,
+        backgroundLoop: loop.state,
+        backgroundLoopIntervalMs: loop.intervalMs,
+        backgroundLoopEnvironment: loop.environment,
+        backgroundLoopReason: loop.reason,
+        backgroundLoopLastRun: loop.lastRun,
+        backgroundLoopMode: 'simulated_decisions_only' as const,
         executionAuthority: 'unavailable' as const,
         accountReadiness: 'unknown' as const,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,
@@ -66,6 +72,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         lastBacktest: store.get().lastBacktest,
         lastSignal: store.get().lastSignal,
         ai: aiSummary(),
+        aiCandidatePool: aiCandidatePool(),
       }
       if (cached !== undefined && cached.expires > Date.now()) return Response.json({ ...base, ...cached.value, cached: true })
       try {
@@ -91,6 +98,7 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
 
     /** Diagnostics the panel's error state and a human can read. */
     async function health(request: Request) {
+      const loop = aiScheduler.snapshot()
       return {
         ok: true,
         engine: await runtime.engine.status(request.signal),
@@ -98,8 +106,13 @@ export function registerPanel(ctx: PluginContext, runtime: HostRuntime): void {
         env: client.env,
         tradingBase: client.tradingBase,
         hasKeys: client.hasCredentials,
-        automation: 'conversation_only' as const,
-        backgroundLoop: 'not_running' as const,
+        automation: loop.enabled ? 'background_simulated_decisions' as const : 'conversation_only' as const,
+        backgroundLoop: loop.state,
+        backgroundLoopIntervalMs: loop.intervalMs,
+        backgroundLoopEnvironment: loop.environment,
+        backgroundLoopReason: loop.reason,
+        backgroundLoopLastRun: loop.lastRun,
+        backgroundLoopMode: 'simulated_decisions_only' as const,
         executionAuthority: 'unavailable' as const,
         accountReadiness: 'unknown' as const,
         maxOrderNotionalUsd: settings.maxOrderNotionalUsd,

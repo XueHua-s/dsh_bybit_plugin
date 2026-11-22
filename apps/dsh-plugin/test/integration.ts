@@ -100,17 +100,35 @@ apply(ctx, {
 check('registers the expected tools and a prompt note', () => {
   assert.deepEqual([...tools.keys()].sort(), [
     'bybit_account', 'bybit_instruments', 'bybit_market', 'bybit_trade', 'quant_backtest', 'quant_brief',
-    'quant_decide', 'quant_get_engine_status', 'quant_get_market_snapshot', 'quant_get_paper_command',
+    'quant_decide', 'quant_decide_background', 'quant_get_engine_status', 'quant_get_market_snapshot', 'quant_get_paper_command',
     'quant_get_paper_status', 'quant_paper', 'quant_review', 'quant_signals', 'quant_start_paper',
     'quant_stop_paper', 'quant_submit_paper_order', 'quant_watchlist',
   ])
   assert.match(sectionText, /preview-only/)
   assert.match(sectionText, /execution_authority_unavailable/)
+  assert.match(sectionText, /First call quant_brief without symbols to obtain the fresh dynamic eligible universe/)
+  assert.match(sectionText, /watchlist only narrows discovery/)
+  assert.match(sectionText, /research_only=true plus deployment_eligible=false must be preserved/)
+  assert.match(sectionText, /research_target_exposure is an observation, never a portfolio target or instruction/)
   for (const definition of tools.values()) {
     assert.equal(definition.parameters.type, 'object')
     assert.ok(definition.parameters.properties !== undefined)
     assert.equal(definition.output.schema.type, 'object')
   }
+})
+
+check('ordinary and scheduled decision tools enforce separate cycle contracts', async () => {
+  const ordinary = tools.get('quant_decide')
+  const scheduled = tools.get('quant_decide_background')
+  assert.ok(ordinary !== undefined && scheduled !== undefined)
+  const ordinaryProperties = ordinary.parameters.properties as Record<string, unknown>
+  const scheduledProperties = scheduled.parameters.properties as Record<string, unknown>
+  const scheduledRequired = scheduled.parameters.required as unknown[]
+  assert.equal(ordinaryProperties.cycleId, undefined)
+  assert.ok(scheduledProperties.cycleId !== undefined)
+  assert.ok(scheduledRequired.includes('cycleId'))
+  await assert.rejects(() => call('quant_decide', { cycleId: 'not-a-cycle' }), /cycleId is accepted only by quant_decide_background/)
+  await assert.rejects(() => call('quant_decide_background', {}), /cycleId is required for background decisions/)
 })
 
 await check('reads a live ticker', async () => {
@@ -329,7 +347,9 @@ await check('rejects an unknown symbol on the watchlist', async () => {
 })
 
 await check('the brief and decisions follow the user watchlist', async () => {
-  const brief = await call('quant_brief', {})
+  const candidates = await call('quant_brief', {})
+  assert.deepEqual(candidates.candidateUniverse.candidates.map((item: { symbol: string }) => item.symbol), ['BTCUSDT', 'XRPUSDT'])
+  const brief = await call('quant_brief', { symbols: ['BTCUSDT', 'XRPUSDT'] })
   assert.deepEqual(brief.brief.symbols.map((item: { symbol: string }) => item.symbol), ['BTCUSDT', 'XRPUSDT'])
   assert.ok(brief.brief.limits.watchlist.includes('XRPUSDT'))
   const decision = await call('quant_decide', {
@@ -338,6 +358,22 @@ await check('the brief and decisions follow the user watchlist', async () => {
     invalidation: 'a 4h close outside the range',
   })
   assert.equal(decision.status, 'flat')
+})
+
+await check('dashboard filters do not replace the AI candidate boundary', async () => {
+  const route = routes.get('/api/bybit-quant')
+  assert.ok(route !== undefined)
+  const before = await call('quant_brief', {})
+  const viewed = await (await route.fetch(new Request('http://localhost/api/bybit-quant?symbol=SOLUSDT&category=spot&interval=15'))).json() as Record<string, unknown>
+  assert.equal(viewed.symbol, 'SOLUSDT')
+  assert.equal(viewed.category, 'spot')
+  const after = await call('quant_brief', {})
+  assert.deepEqual(after.candidateUniverse.candidates.map((item: { symbol: string }) => item.symbol), before.candidateUniverse.candidates.map((item: { symbol: string }) => item.symbol))
+  await assert.rejects(() => call('quant_brief', { symbols: ['NOTACOIN'] }), /eligible candidate universe|invalid|unknown/i)
+  await assert.rejects(() => call('quant_decide', {
+    symbol: 'DOGEUSDT', action: 'flat', confidence: 0.5, horizonHours: 4,
+    thesis: 'display-only filter must not grant decision eligibility', invalidation: 'not applicable',
+  }), /eligible|watchlist|universe/i)
 })
 
 await check('evaluates the curated signals on the watchlist', async () => {

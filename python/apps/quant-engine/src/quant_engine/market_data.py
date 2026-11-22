@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import random
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Protocol, cast
 
 import websockets.asyncio.client
@@ -39,9 +39,9 @@ class TickerEvent:
     """A validated linear ticker update from the public V5 stream."""
 
     symbol: str
-    last_price: float | None
-    bid_price: float | None
-    ask_price: float | None
+    last_price: Decimal | None
+    bid_price: Decimal | None
+    ask_price: Decimal | None
     event_time_ms: int
     received_at: str
 
@@ -207,7 +207,7 @@ class BybitMarketDataAdapter:
     @staticmethod
     def _parse(raw: str | bytes) -> TickerEvent | None:
         try:
-            decoded = json.loads(raw.decode() if isinstance(raw, bytes) else raw)
+            decoded = json.loads(raw.decode() if isinstance(raw, bytes) else raw, parse_float=Decimal)
         except (UnicodeDecodeError, json.JSONDecodeError):
             return None
         if not isinstance(decoded, dict) or not isinstance(decoded.get("topic"), str):
@@ -235,24 +235,31 @@ class BybitMarketDataAdapter:
         if symbol != topic_symbol:
             return None
         event_time = decoded.get("ts")
-        if (
-            isinstance(event_time, bool)
-            or not isinstance(event_time, (int, float))
-            or event_time <= 0
-            or event_time > _MAX_EVENT_TIME_MS
-            or (isinstance(event_time, float) and (not math.isfinite(event_time) or not event_time.is_integer()))
+        if isinstance(event_time, bool) or not isinstance(event_time, (int, Decimal)):
+            return None
+        if isinstance(event_time, Decimal) and (
+            not event_time.is_finite() or event_time != event_time.to_integral_value()
         ):
             return None
+        if event_time <= 0 or event_time > _MAX_EVENT_TIME_MS:
+            return None
 
-        def number(key: str) -> float | None:
+        def number(key: str) -> Decimal | None:
             value = item.get(key)
             if value is None or isinstance(value, bool):
                 return None
-            try:
-                parsed = float(value) if isinstance(value, (int, float, str)) else None
-            except (OverflowError, ValueError):
+            if not isinstance(value, (int, Decimal, str)):
                 return None
-            return parsed if parsed is not None and math.isfinite(parsed) and parsed > 0 else None
+            text = str(value)
+            if len(text) > 64:
+                return None
+            try:
+                parsed = Decimal(text)
+            except InvalidOperation:
+                return None
+            if not parsed.is_finite() or parsed <= 0 or abs(parsed.adjusted()) > 100:
+                return None
+            return parsed
 
         prices = tuple(number(key) for key in ("lastPrice", "bid1Price", "ask1Price"))
         for key, price in zip(("lastPrice", "bid1Price", "ask1Price"), prices, strict=True):

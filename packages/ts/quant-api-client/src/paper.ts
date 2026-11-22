@@ -7,6 +7,9 @@ export type PaperStatus = components['schemas']['PaperStatus'];
 export type PaperSessionRequest = components['schemas']['SessionRequest'];
 export type PaperSubmitRequest = components['schemas']['SubmitRequest'];
 export type PaperCommand = components['schemas']['CommandResponse'];
+export type PaperFixtureSnapshot = components['schemas']['FixtureSnapshot'];
+export type PaperAiCycleRequest = components['schemas']['DecisionRequest'];
+export type PaperAiCycleReceipt = components['schemas']['CycleReceipt'];
 export interface PaperFailure { ok: false; code: ClientErrorCode; status?: number }
 export interface PaperUncertain {
   ok: false;
@@ -23,6 +26,9 @@ export interface PaperApi {
   submit(input: PaperSubmitRequest, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperCommand, 202> | PaperUncertain>;
   command(commandId: string, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperCommand>>;
   request(requestId: string, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperCommand>>;
+  fixture(fixtureId: string, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperFixtureSnapshot>>;
+  cycle(input: PaperAiCycleRequest, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperAiCycleReceipt, 202> | PaperUncertain>;
+  cycleRequest(requestId: string, options?: { signal?: AbortSignal }): Promise<PaperResult<PaperAiCycleReceipt>>;
 }
 
 function httpCode(status: number): ClientErrorCode {
@@ -47,8 +53,8 @@ function uncertain<T, S extends number>(result: PaperResult<T, S>, recovery: Pap
 
 /** Owns the paper wire boundary and ambiguity policy. No mutation is ever retried. */
 export function createPaperApi(baseUrl: string, transport: ReturnType<typeof createTransport>, capability?: () => string | Promise<string>): PaperApi {
-  async function send<T extends 'PaperStatus' | 'CommandResponse', S extends 200 | 202>(
-    path: keyof paths, schema: T, expectedStatus: S, signal?: AbortSignal, body?: PaperSessionRequest, pathId?: string,
+  async function send<T extends 'PaperStatus' | 'CommandResponse' | 'FixtureSnapshot' | 'CycleReceipt', S extends 200 | 202>(
+    path: keyof paths, schema: T, expectedStatus: S, signal?: AbortSignal, body?: PaperSessionRequest | PaperAiCycleRequest, pathId?: string,
   ): Promise<PaperResult<components['schemas'][T], S>> {
     if (!capability) return { ok: false, code: 'capability_unavailable' };
     try {
@@ -103,6 +109,25 @@ export function createPaperApi(baseUrl: string, transport: ReturnType<typeof cre
     request(requestId, options = {}) {
       if (!validateRequestId(requestId)) return Promise.resolve({ ok: false, code: 'invalid_request' });
       return send('/api/v1/trading/commands/by-request/{request_id}', 'CommandResponse', 200, options.signal, undefined, requestId);
+    },
+    fixture(fixtureId, options = {}) {
+      if (!validateRequestId(fixtureId)) return Promise.resolve({ ok: false, code: 'invalid_request' });
+      return send('/api/v1/trading/fixtures/{fixture_id}', 'FixtureSnapshot', 200, options.signal, undefined, fixtureId);
+    },
+    async cycle(input, options = {}) {
+      if (!validateResponse('DecisionRequest', input)) return { ok: false, code: 'invalid_request' };
+      const requestId = input.request_id;
+      const payloadDigest = input.payload_digest;
+      const result = await send('/api/v1/trading/ai-cycles', 'CycleReceipt', 202, options.signal, input);
+      if (result.ok && (result.data.request_id !== requestId || result.data.payload_digest !== payloadDigest)) {
+        return uncertain({ ok: false, code: 'invalid_response' }, { action: 'query_request', request_id: requestId });
+      }
+      return uncertain(result, { action: 'query_request', request_id: requestId });
+    },
+    async cycleRequest(requestId, options = {}) {
+      if (!validateRequestId(requestId)) return Promise.resolve({ ok: false, code: 'invalid_request' });
+      const result = await send('/api/v1/trading/ai-cycles/by-request/{request_id}', 'CycleReceipt', 200, options.signal, undefined, requestId);
+      return result.ok && result.data.request_id !== requestId ? { ok: false, code: 'invalid_response', status: 200 } : result;
     },
   };
 }

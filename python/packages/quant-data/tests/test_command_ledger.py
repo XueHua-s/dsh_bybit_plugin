@@ -40,9 +40,12 @@ def database(tmp_path: Path) -> Path:
     command.upgrade(config, "head")
     with create_engine(f"sqlite:///{path}").connect() as connection:
         assert (
-            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004_admission_state"
+            connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            == "0006_ai_paper_decision_binding"
         )
-        assert {"execution_commands", "command_events"} <= set(inspect(connection).get_table_names())
+        assert {"execution_commands", "command_events", "market_snapshot_projections"} <= set(
+            inspect(connection).get_table_names()
+        )
     return path
 
 

@@ -57,7 +57,7 @@ This package boundary scores **9/10** against the software-design diagnostic: th
 | Component | Purpose | Technology / Pattern | Inputs | Outputs | Dependencies |
 |---|---|---|---|---|---|
 | `apps/dsh-plugin` Host | Register tools, services, prompt section and lifecycle effects | TypeScript ESM, deep runtime facade | DSH context/config/credentials | Tool results, health route, cleanup | `packages/ts/quant-contracts` |
-| `apps/dsh-plugin` Client | DSH slot UI and locale resources | TypeScript UI factory; no secrets | Host JSON snapshot | Dashboard view/actions | DSH client slots/locale |
+| `apps/dsh-plugin` Client | DSH slot UI and locale resources | TypeScript UI factory; no secrets; view-only analytics | Host JSON snapshot plus display-only market filters | Market/portfolio/decision analysis; no operational mutation | DSH client slots/locale |
 | `packages/ts/quant-contracts` | Stable domain and API types | TypeScript schemas/interfaces | DTO definitions | Shared types | none |
 | `packages/ts/quant-api-client` | Hide HTTP/Bybit transport and retry details | Typed adapter with bounded retry | Contract requests | Domain responses/metrics | contracts |
 | `python/apps/quant-engine` | Long-running market/research/risk loop | uv project, FastAPI service, `quant_engine.market_data`, `quant_engine.supervisor` | Public Bybit Testnet ticker stream | normalized ticker events and typed lifecycle/health snapshot | `websockets`, Python packages |
@@ -150,6 +150,36 @@ Historical integrated control/data boundary score: **5/10**, as scoped in `sdd/r
 
 **Consequences:** Upgrade runner needs explicit pre/post snapshots and migration evidence.
 
+### Decision 5: View-only dashboard and AI-owned trade selection
+
+| Attribute | Value |
+|---|---|
+| **Status** | Accepted |
+| **Date** | 2026-11-19 |
+| **Source** | User clarification and attached dashboard screenshot |
+
+**Context:** The dashboard's symbol/category/timeframe controls sit beside simulated P&L and AI decisions, while `quant_watchlist` was described as the symbols the AI trades and the native paper card exposed Start/Stop actions. This makes display filters and trade selection look coupled.
+
+**Choice:** Keep dashboard controls read-only and label them as market-view filters. Remove browser-side paper Start/Stop controls and make the corresponding panel route GET/HEAD only. Treat the AI watchlist as an eligible analysis universe, never a command to trade every listed symbol. The AI may abstain or select eligible symbols and decision parameters from its evidence; account, environment, authorization and independent risk limits remain hard boundaries. A separate default-off Testnet/internal-paper simulated-decision cycle may run in the background; it does not enable unattended exchange execution.
+
+**Rationale:** A user can inspect a coin without directing the AI to trade it, while the AI remains free to select a permitted candidate or stay flat. A view-only panel also avoids exposing process mutations next to performance analysis.
+
+**Alternatives Rejected:** Using the selected chart symbol as the next trade target; preserving browser Start/Stop process mutations; presenting an eligible watchlist as a guaranteed trade list.
+
+**Consequences:** Host panel GET responses remain independent of decision tools. Candidate symbols are checked against the current eligible universe, while already-open simulated positions remain eligible for an intentional flat/close decision. AT-032/033 and a prompt inventory item are added. The bounded background scheduler is specified separately in `DESIGN_AI_BACKGROUND_LOOP.md`; dynamic strategy selection and exchange execution authority remain future work.
+
+### Decision 6: Discover a bounded AI universe from the full Bybit catalogue
+
+**Context:** The dashboard/decision boundary currently allows the AI to choose only from configured `aiSymbols` and the saved watchlist. The architecture book requires dynamic discovery from Bybit Instrument Info, including trading status and lot/price constraints. A BTC/ETH starter list therefore still decides which coins the AI can consider.
+
+**Choice:** For each selected category, fetch every Instrument Info cursor page and one ticker snapshot, then deterministically keep only `Trading` USDT Spot pairs or USDT linear perpetuals with valid quantity and price increments, turnover of at least USD 1,000,000 over 24h, and top-of-book spread no wider than 75 bps. Sort by turnover descending with symbol as a stable tie-breaker and expose at most 30 candidates to the model. These liquidity/spread thresholds and context cap are code-owned eligibility boundaries, not a trade recommendation. A non-empty config `aiSymbols` or saved watchlist narrows the discovery result; empty configuration uses dynamic discovery. The chart's symbol/category/interval never enters this path.
+
+`quant_brief` without symbols returns the candidate snapshot and freshness metadata. The model then selects up to four candidates for detailed brief/signals, or abstains. `quant_decide` refreshes/checks the candidate boundary; only a symbol in the fresh candidate set may open a simulated position. An already-open position outside the set remains selectable only for `flat`. Discovery errors, stale snapshots, invalid rules and empty candidate sets fail closed and never fall back to BTCUSDT/ETHUSDT. `quant_review` uses a previously AI-selected decision symbol for its buy-and-hold baseline, or reports no baseline when none exists.
+
+**Alternatives Rejected:** Keeping the static BTC/ETH default as an AI shortlist; using the chart filter as a selection input; sending the entire unrestricted catalogue into every detailed analysis call; returning expired cached candidates after a failed refresh.
+
+**Consequences:** `aiSymbols` defaults to empty while `defaultSymbol` remains a chart-only convenience. The service cache is category-scoped and short-lived; a refresh failure is an error, not stale success. The panel may display the last AI discovery count/time as observation, but cannot start scans, select candidates, or mutate allow-lists. AT-034/035, tool contracts, the background loop context assembly, and tests record these boundaries. The bounded top-30 selection may omit thinly traded symbols by design; changing thresholds is a separate reviewed design decision.
+
 ---
 
 ## File Manifest
@@ -194,8 +224,16 @@ Historical integrated control/data boundary score: **5/10**, as scoped in `sdd/r
 | 36 | `apps/dsh-plugin/package.json`, `tsdown.config.ts`, `scripts/check-bundle.ts`, `scripts/sbom.ts`, `scripts/pnpm-environment.ts` | Modify/Create | Inline private SDK runtime, verify packed closure, recursive version-correct SBOM | DSH engine slice | 34,35 |
 | 37 | `python/packages/quant-execution/*`, `sdd/features/DESIGN_NAUTILUS_EXECUTION.md`, `docs/adr/nautilus-execution.md` | Create/Modify | Real native stable 1.231.0 offline fill/cancel/partial fixtures and compatibility evidence | native slice | 10 |
 | 38 | `.githooks/*`, `scripts/git-hooks.ts`, `scripts/test-git-hooks.ts`, `scripts/tsconfig.json`, `sdd/features/DESIGN_GIT_HOOKS.md`, `.github/workflows/ci.yml` | Create/Modify | Sensitive staged-path guards, redacted scanning, fixture safety and actual monorepo gate wiring | hooks/CI slice | workspace scripts |
+| 39 | `apps/dsh-plugin/src/client.ts`, `client-assets.ts`, `client-paper.ts` | Modify | Mark chart filters as display-only and remove browser paper Start/Stop mutations | dashboard boundary | 40,43 |
+| 40 | `apps/dsh-plugin/src/host-paper-panel.ts` | Modify | Restrict the dashboard paper-status route to GET/HEAD observation | dashboard boundary | 39 |
+| 41 | `apps/dsh-plugin/src/host-runtime.ts`, `host-tools-watchlist.ts`, `host-tools-ai.ts` | Modify | Define and enforce the eligible candidate universe separately from dashboard filters | AI decision boundary | 42 |
+| 42 | `apps/dsh-plugin/src/prompts/bybit-quant/v2.ts` | Modify | Direct the AI to select or abstain within eligible candidates; exclude dashboard filters and preserve execution limits | prompt refinement | 41 |
+| 43 | `apps/dsh-plugin/test/render.ts`, `test/integration.ts`, `test/paper.ts` | Modify | Verify read-only panel, display/decision isolation, eligible-universe enforcement and removed UI mutations | dashboard boundary | 39-42 |
+| 44 | `apps/dsh-plugin/docs/DETAIL.md`, `sdd/reports/UX_REVIEW_DSH_BYBIT_UI_2026-11-19.md` | Modify | Document the product boundary, current gaps and UI assessment | dashboard boundary | 39-43 |
+| 45 | `sdd/reports/BUILD_REPORT_AI_DECISION_UI_BOUNDARY.md` | Create | Record scoped implementation and verification evidence | dashboard boundary | 39-44 |
+| 46 | `apps/dsh-plugin/locale/en.json`, `locale/zh.json`, `scripts/check-bundle.ts` | Modify | Make the installed Bundle card describe the default-off simulated AI loop and unavailable exchange writes; reject stale or overclaiming copy in the packed artifact | Bundle metadata correction | 3,13 |
 
-**Manifest:** 38 logical entries, including paired paths/globs; this is a phased plan rather than proof that planned packages exist. Each handwritten source file remains limited to 500 lines.
+**Manifest:** 45 logical entries, including paired paths/globs and the 2026-11-19 dashboard/decision-boundary increment; this is a phased plan rather than proof that planned packages exist. Each handwritten source file remains limited to 500 lines.
 
 ### Agent Assignment Rationale
 
@@ -237,6 +275,11 @@ The caller cannot bypass the final risk decision by calling the exchange adapter
 
 Prompts are runtime inputs to the AI decision track. The system policy is code-owned and contains no interpolated agent/news/GitHub prose. Agent-provided `thesis` and `invalidation` are validated as strings, normalized and bounded, persisted as evidence, and returned to the model only in an explicit `trusted: false` data envelope. The envelope communicates provenance; it is not claimed to make arbitrary model behavior immune to prompt injection. Explicit action/size/stop fields and the independent code-owned risk gate determine simulated decisions; evidence prose is never authorization and cannot bypass the separate guarded order tool. No news or GitHub ingestion connector exists in this implementation phase. Decisions are persisted with brief hash, model/tool metadata, input provenance and risk result, without API credentials.
 
+| ID | Path / runtime | Type | Consumer | Input/output contract | Closed decisions and references |
+|---|---|---|---|---|---|
+| BQP-01 | `apps/dsh-plugin/src/prompts/bybit-quant/v2.ts` | conversation-wide product/tool policy | DSH model invoking `quant_brief`, `quant_watchlist`, `quant_decide`, `quant_review` | Tool schemas/results plus untrusted market and thesis evidence; decisions use existing bounded tool schemas | Start with `quant_brief` without symbols to read the fresh dynamically discovered candidate snapshot; choose zero to four candidates for detailed evidence or abstain. Do not treat turnover rank as a recommendation. Never use dashboard filters as inputs or BTC/ETH as fallback. Only the code-owned fresh candidate boundary and independent risk limits permit simulated directional decisions; `flat` is an explicit close, not abstention. Exchange writes remain unavailable; background cycles remain default-off and simulation-only. Sources: AT-032–035, Decision 5–6, `host-tools-ai.ts`, `host-tools-watchlist.ts`, `DESIGN_AI_BACKGROUND_LOOP.md`. |
+| BQL-01 | `apps/dsh-plugin/src/prompts/bybit-quant/background-loop-v3.ts` | scheduled simulation-cycle prompt | One fresh DSH Agent session per enabled scheduled wake-up | Fixed plugin prompt with cycle ID and untrusted candidate/market/journal evidence; writes only via `quant_decide_background` with an exact current cycle ID | AI chooses zero to four symbols and all simulated decision parameters from fresh eligible candidates/evidence or abstains. Dashboard filters are display-only. The loop is default-off, rejects Demo/Mainnet, and cannot submit exchange orders. Missing receipts are unknown outcomes, not proof of abstention. Independent model-quality evaluation remains incomplete. Source: `DESIGN_AI_BACKGROUND_LOOP.md` LOOP_SPEC v3. |
+
 ---
 
 ## Data Flow
@@ -268,6 +311,8 @@ Prompts are runtime inputs to the AI decision track. The system policy is code-o
    ▼
 9. Host/client health panel exposes state; graceful shutdown persists the reconnect counter and a new process starts with fresh lifecycle timestamps and an empty queue
 ```
+
+The panel forms a separate read-only branch: its symbol/category/timeframe filters query the market snapshot shown to the user and never enter AI tool arguments or mutate the eligible universe, decision journal or portfolio. The AI decision branch receives the configured eligible candidate universe, validated market evidence and code-owned limits; it can choose no exposure or an eligible simulated decision. Browser routes expose paper status only; model-facing tools and future scheduler/execution boundaries remain separate.
 
 ---
 
@@ -368,6 +413,9 @@ Prompts are runtime inputs to the AI decision track. The system policy is code-o
 | MUST trust / AT-007 | trust labels and sandbox | injection/sandbox tests |
 | MUST SBOM / AT-008 | npm/cyclonedx and Python SBOM | `pnpm run sbom`, `pnpm run security:deps` |
 | MUST docs / AT-009 | bilingual README updates | secret scan + docs review |
+| AT-032 | Dashboard display filters | route/integration tests compare candidate and decision state across different display queries |
+| AT-033 | AI-owned candidate/parameter selection | tool/prompt tests verify eligible symbols, abstention and no use of dashboard filter inputs; scheduler remains simulation-only |
+| AT-034/035 | Dynamic Bybit candidate discovery and fail-closed decisions | mocked Instrument Info pagination/tickers, freshness, filter, allow-list, empty/failure and decision-boundary tests |
 
 ---
 
@@ -404,6 +452,10 @@ None — no formal external design review was executed. The installed `software-
 | 1.4 | 2026-11-17 | checkpoint semantics correction | Removes queue depth from persisted state because it is process-local; startup resets backlog to zero and reads legacy v1 queue fields only for compatibility. |
 | 1.5 | 2026-11-17 | checkpoint timestamp correction | Narrows v2 persistence to reconnect count; v1 timestamps are validated for compatibility then ignored. Restart lifecycle timestamps are always fresh process state. |
 | 1.6 | 2026-11-17 | in-process supervisor increment | Defines finite restart semantics and typed health status, with explicit process supervision, hung-worker, order recovery and reconciliation limits. |
+| 1.7 | 2026-11-19 | dashboard/AI decision boundary | Records display-only filters, GET/HEAD-only paper status panel, eligible-universe semantics and prompt inventory BQP-01; adds AT-032/033 and scoped tests. |
+| 1.8 | 2026-11-19 | dynamic AI instrument discovery | Replaces static starter symbols as AI defaults with full-catalogue discovery, explicit liquidity/rule gates, model-visible candidate snapshot, fail-closed refresh, loop sequence, AT-034/035 and deterministic tests. |
+| 1.9 | 2026-11-19 | Bundle card copy correction | Aligns English and Chinese package-card metadata with the default-off simulation loop and unavailable exchange writes; packed-bundle checks prevent stale order claims. |
+| 2.0 | 2026-11-20 | AI-owned discovery and cycle-write boundary | Records that view filters never select trade instruments, AI chooses from a fresh bounded dynamic universe or abstains, and the scheduler uses a dedicated cycle-ID receipt tool; full exchange execution and recovery remain open. |
 
 ---
 
@@ -415,7 +467,7 @@ Execute o **SDD Build by RDD**.
 
 See `DESIGN_ENGINE_SERVICE.md` for the scoped contract and `../reviews/REVIEW_ENGINE_SERVICE_2026-11-17.md` for independent ACCEPT. FastAPI lifespan owns a supervisor and a real queue consumer; the worker restarts as a unit on consumer failure. Pydantic is the sole HTTP schema source. Exporting `contracts/openapi/quant-engine.v1.json` never enters lifespan. CLI requires explicit symbols and loopback binding; endpoints are only `/api/v1/health` and `/api/v1/market/{symbol}`. Readiness requires connected ingestion and receive/exchange freshness for every configured symbol; partial deltas remain explicitly partial, absent values null, and execution/reconciliation unknown.
 
-At that service-only snapshot, SDK/DSH integration was absent; the next increment below implements the read-only portion. Authenticated remote control, full snapshot/persistence, Nautilus sole exchange execution authority, portfolio/risk/AI/research platform and OS process recovery remain incomplete. The existing direct TypeScript order path remains DRIFT-ORIGINAL-003; it is not accepted as a replacement for the mandatory Nautilus architecture. Full original MUST acceptance remains open.
+At that service-only snapshot, SDK/DSH integration was absent; the next increment below implements the read-only portion. Authenticated remote control, full snapshot/persistence, Nautilus sole exchange execution authority, portfolio/risk/AI/research platform and OS process recovery remain incomplete. At that historical point, the direct TypeScript order path remained DRIFT-ORIGINAL-003; its later bounded closure is recorded in `BUILD_REPORT_TS_MUTATION_CLOSURE.md` and does not replace the mandatory Nautilus architecture. Full original MUST acceptance remains open.
 
 ## Generated SDK, DSH, native foundation and hooks — 2026-11-17
 
@@ -423,7 +475,7 @@ Supplements `DESIGN_ENGINE_CLIENT.md`, `DESIGN_DSH_ENGINE.md`, `DESIGN_NAUTILUS_
 
 Host's `createEngine` facade receives configuration without credentials. Two read-only tools (`quant_get_engine_status`, `quant_get_market_snapshot`), authenticated bridge `view=engine` and an explicit Client card query share the SDK. Host environments other than Testnet return environment_mismatch without making a service request. Unload closes requests, not the independently running process. Existing REST candle/account/analysis paths are retained; partial ticker fields stay null. Private workspace packages become build-only dependencies and tsdown inlines their runtime. Packed outside-repository import validates closure but proves no Plugin Manager install/auth/upgrade behavior.
 
-Native `quant-execution` uses pinned stable NautilusTrader 1.231.0 for finite offline BacktestEngine simulations, with real accepted/fill/cancel/partial events, unique native IDs, run-local deduplication and dispose cleanup. Stationary L2 fixtures explicitly consume finite liquidity; they do not model historical replay. Only literal backtest is accepted. Live exchange adapter, durable uncertain-order recovery, complete final risk and TS REST cutover remain open; the existing direct-order authority drift is not resolved by adding offline native tests.
+Native `quant-execution` uses pinned stable NautilusTrader 1.231.0 for finite offline BacktestEngine simulations, with real accepted/fill/cancel/partial events, unique native IDs, run-local deduplication and dispose cleanup. Stationary L2 fixtures explicitly consume finite liquidity; they do not model historical replay. Only literal backtest is accepted. Live exchange adapter, durable uncertain-order recovery and complete final risk remain open. The TypeScript mutation surface was closed in a later bounded increment (`BUILD_REPORT_TS_MUTATION_CLOSURE.md`); offline native tests and that closure still do not implement native exchange execution.
 
 Hooks encapsulate sensitive-path classification, redacted scanner execution and unchanged-index guarantees in one ESM TypeScript module; thin launchers delegate. Tests use isolated repositories. CI shares root SDK/tooling/full TS project checks; hosted CI and actual hook installation require separate evidence. Each new slice has independent ACCEPT, but full original MUST acceptance remains open. Current dependency-security status and aggregate execution receipts are tracked in Verify Gate rather than inferred from tests.
 
@@ -448,9 +500,12 @@ The future engine transaction boundary must bind server-owned account/market
 state, current risk generation, atomic exposure reservation and durable command
 audit to sole Nautilus submission and uncertain-order reconciliation. These
 foundations do not implement that boundary, account locking, long-lived paper or
-private account state. The service still has only two read-only routes. Existing
-TS REST submission remains DRIFT-ORIGINAL-003; no scope reduction or Mainnet
-acceptance follows from local risk/ledger tests. Independent scoped risk/ledger ACCEPT reviews and current
+private account state. The service still has only two read-only routes. At this
+foundation snapshot, TS REST submission remained DRIFT-ORIGINAL-003; the later
+bounded TypeScript writer closure is recorded in
+`BUILD_REPORT_TS_MUTATION_CLOSURE.md` and does not add a replacement execution
+path. No scope reduction or Mainnet acceptance follows from local risk/ledger
+tests. Independent scoped risk/ledger ACCEPT reviews and current
 aggregate/security receipts are recorded in Verify Gate; they do not accept
 the missing execution transaction or full product requirements.
 

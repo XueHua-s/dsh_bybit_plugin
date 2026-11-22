@@ -4,7 +4,9 @@
   "implicitDependencies": [
     "quant-data",
     "quant-risk",
-    "quant-execution"
+    "quant-execution",
+    "quant-portfolio",
+    "quant-strategies"
   ],
   "targets": {
     "lint": {
@@ -17,7 +19,7 @@
       "command": "uv run --project python --locked pytest python/apps/quant-engine/tests"
     },
     "serve": {
-      "command": "uv run --project python --locked quant-engine",
+      "command": "uv run --project python --locked quant-engine --symbols BTCUSDT --database /path/to/existing/quant.sqlite",
       "cache": false
     },
     "openapi": {

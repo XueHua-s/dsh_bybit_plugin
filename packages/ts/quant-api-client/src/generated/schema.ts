@@ -229,6 +229,87 @@ export const schema = {
         "title": "MarketHealth",
         "type": "object"
       },
+      "MarketProvenanceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "ask_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ask Price"
+          },
+          "bid_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Price"
+          },
+          "environment": {
+            "const": "testnet",
+            "default": "testnet",
+            "title": "Environment",
+            "type": "string"
+          },
+          "event_time_ms": {
+            "title": "Event Time Ms",
+            "type": "integer"
+          },
+          "historical_only": {
+            "title": "Historical Only",
+            "type": "boolean"
+          },
+          "last_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Price"
+          },
+          "live_observation": {
+            "title": "Live Observation",
+            "type": "boolean"
+          },
+          "received_at": {
+            "title": "Received At",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "last_price",
+          "bid_price",
+          "ask_price",
+          "event_time_ms",
+          "received_at",
+          "source",
+          "live_observation",
+          "historical_only"
+        ],
+        "title": "MarketProvenanceResponse",
+        "type": "object"
+      },
       "MarketResponse": {
         "additionalProperties": false,
         "properties": {
@@ -332,6 +413,296 @@ export const schema = {
           "cpu_system_seconds"
         ],
         "title": "ProcessMetrics",
+        "type": "object"
+      },
+      "StrategyEvidenceBarRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "close": {
+            "title": "Close",
+            "type": "number"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "open": {
+            "title": "Open",
+            "type": "number"
+          },
+          "timestamp_ms": {
+            "title": "Timestamp Ms",
+            "type": "integer"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "number"
+          }
+        },
+        "required": [
+          "timestamp_ms",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "StrategyEvidenceBarRequest",
+        "type": "object"
+      },
+      "StrategyEvidenceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bars": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyEvidenceBarRequest"
+            },
+            "maxItems": 1000,
+            "title": "Bars",
+            "type": "array"
+          },
+          "funding_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Funding Rate"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "spot",
+              "linear"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "market",
+          "interval",
+          "bars"
+        ],
+        "title": "StrategyEvidenceRequest",
+        "type": "object"
+      },
+      "StrategyEvidenceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "deployment_eligible": {
+            "const": false,
+            "default": false,
+            "title": "Deployment Eligible",
+            "type": "boolean"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "spot",
+              "linear"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "newest_timestamp_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newest Timestamp Ms"
+          },
+          "research_only": {
+            "const": true,
+            "default": true,
+            "title": "Research Only",
+            "type": "boolean"
+          },
+          "snapshot_age_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Age Ms"
+          },
+          "snapshot_status": {
+            "enum": [
+              "fresh",
+              "stale",
+              "empty"
+            ],
+            "title": "Snapshot Status",
+            "type": "string"
+          },
+          "strategies": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyEvidenceResult"
+            },
+            "title": "Strategies",
+            "type": "array"
+          },
+          "strategy_count": {
+            "title": "Strategy Count",
+            "type": "integer"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "market",
+          "interval",
+          "snapshot_status",
+          "snapshot_age_ms",
+          "newest_timestamp_ms",
+          "strategy_count",
+          "strategies"
+        ],
+        "title": "StrategyEvidenceResponse",
+        "type": "object"
+      },
+      "StrategyEvidenceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "deployment_eligible": {
+            "const": false,
+            "default": false,
+            "title": "Deployment Eligible",
+            "type": "boolean"
+          },
+          "features": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "license": {
+            "title": "License",
+            "type": "string"
+          },
+          "lifecycle_status": {
+            "title": "Lifecycle Status",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "research_only": {
+            "const": true,
+            "default": true,
+            "title": "Research Only",
+            "type": "boolean"
+          },
+          "research_target_exposure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Target Exposure"
+          },
+          "source_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Commit"
+          },
+          "source_repository": {
+            "title": "Source Repository",
+            "type": "string"
+          },
+          "strategy_id": {
+            "title": "Strategy Id",
+            "type": "string"
+          },
+          "supported_markets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Markets",
+            "type": "array"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategy_id",
+          "name",
+          "version",
+          "source_repository",
+          "source_commit",
+          "license",
+          "lifecycle_status",
+          "validation_status",
+          "supported_markets",
+          "ready",
+          "research_target_exposure",
+          "reason",
+          "features"
+        ],
+        "title": "StrategyEvidenceResult",
         "type": "object"
       },
       "ValidationError": {

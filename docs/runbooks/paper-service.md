@@ -80,7 +80,11 @@ uv run --project python --locked quant-engine-paper \
 ```
 
 The foreground service initially reports idle; launching it does not start the
-native fixture or submit an order. Configure the following **nonsecret** fields
+native fixture or submit an order. It provisions one in-memory
+`builtin-synthetic` fixture bundle (BTCUSDT bars and fixture-owned selector
+evidence) from the canonical internal-paper config; no fixture file, market
+feed, credential or model argument is accepted. Configure the following
+**nonsecret** fields
 through supported DSH plugin controls, using the exact socket path printed above:
 
 | Setting | Value |
@@ -101,13 +105,19 @@ The service token is not a Bybit API key. Do not print, export or persist it.
 The five Tools are `quant_get_paper_status`, `quant_start_paper`,
 `quant_stop_paper`, `quant_submit_paper_order` and `quant_get_paper_command`.
 Tools cannot select the session, origin, socket, account, risk policy or balance.
-The `Native internal paper / 原生内部模拟` card uses the owner-authenticated exact
-`/api/bybit-quant/paper` bridge for manual Check, Start and Stop; it exposes no
-browser order-submission route. Initial state is Not checked. There is no
-background polling or automatic mutation retry. Idle can Start even with
-`ready:false`; running/protected native-alive state can Stop. Stopping is not
-completed cleanup, and stopped/protected state provides no restart/reset promise.
-Unmounting or unloading DSH cancels its requests without stopping the service.
+The authenticated `GET /api/v1/trading/fixtures/builtin-synthetic` and
+`POST /api/v1/trading/ai-cycles` routes are available to the internal-paper
+Host facade; the latter accepts an abstain or a fixture-bound decision and
+persists the receipt under its original request ID for recovery. A service
+started without the trusted bootstrap registry keeps these routes unavailable.
+The `Native internal paper / 原生内部模拟` card is an observation-only dashboard:
+the owner-authenticated `/api/bybit-quant/paper` bridge exposes status reads only,
+with no browser Start, Stop or order-submission route. Initial state is Not
+checked. There is no background polling or automatic mutation retry. Start/Stop
+remain model-facing Tool operations behind explicit paper configuration and
+default-off control opt-in; chart filters never select a paper or exchange
+instrument. Unmounting or unloading DSH cancels its requests without stopping
+the service.
 
 Use Ctrl-C or SIGTERM to close the foreground service. Successful cleanup requires
 the broker socket and HTTP listener to close and the native child to be reaped;

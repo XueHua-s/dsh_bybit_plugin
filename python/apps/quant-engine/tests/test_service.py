@@ -103,8 +103,10 @@ def test_lifespan_drains_real_adapter_and_reports_status() -> None:
             )
             await eventually(lambda: (event := engine.latest("BTCUSDT")) is not None and event.bid_price == 49998)
             partial = (await client.get("/api/v1/market/BTCUSDT")).json()
-            assert partial["partial"] is True
-            assert partial["last_price"] is None
+            assert partial["partial"] is False
+            assert partial["last_price"] == 50000
+            provenance = await client.get("/api/v1/market/BTCUSDT/provenance")
+            assert provenance.status_code == 503
         assert socket.closed
         assert engine.latest("BTCUSDT") is None
         assert engine.supervisor.snapshot().state == "stopped"
@@ -177,7 +179,12 @@ def test_stale_data_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_offline_schema_and_config_guard() -> None:
     app = create_app(("BTCUSDT",))
     schema = app.openapi()
-    assert set(schema["paths"]) == {"/api/v1/health", "/api/v1/market/{symbol}"}
+    assert set(schema["paths"]) == {
+        "/api/v1/health",
+        "/api/v1/market/{symbol}",
+        "/api/v1/market/{symbol}/provenance",
+        "/api/v1/research/strategy-evidence",
+    }
     assert "HealthResponse" in schema["components"]["schemas"]
     assert loopback_host("127.0.0.1") == "127.0.0.1"
     assert loopback_host("::1") == "::1"

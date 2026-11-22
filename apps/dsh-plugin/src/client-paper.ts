@@ -1,18 +1,16 @@
 import type * as React from 'react'
 import type { PaperStatus } from '@bybit-quant/quant-api-client'
-import type { PaperMutationResult, PaperStatusResult } from './lib/engine-paper.js'
+import type { PaperStatusResult } from './lib/engine-paper.js'
 
-type Action = 'check' | 'start' | 'stop'
-type HostResult = PaperStatusResult | PaperMutationResult
-type Context = Pick<HostResult, 'source' | 'environment' | 'synthetic' | 'configured' | 'control_enabled'>
-type FailureCode = Extract<HostResult, { ok: false }>['code']
+type Context = Pick<PaperStatusResult, 'source' | 'environment' | 'synthetic' | 'configured' | 'control_enabled'>
+type FailureCode = Extract<PaperStatusResult, { ok: false }>['code']
 type Observation = Context & { data: PaperStatus | null, code: FailureCode | null }
-type View = { observation: Observation | null, issue: 'unavailable' | 'invalid_response' | 'outcome_uncertain' | null, pending: Action | null, checked: boolean }
+type View = { observation: Observation | null, issue: 'unavailable' | 'invalid_response' | null, pending: boolean, checked: boolean }
 type Owner = { pending: boolean, closed: boolean, controller: AbortController | null, sessionId: string | null, observation: Observation | null }
 const failureCodes: readonly FailureCode[] = [
   'paper_disabled', 'control_disabled', 'invalid_config', 'closed', 'cancelled', 'timeout', 'network_error',
   'redirect_rejected', 'response_too_large', 'invalid_response', 'not_found', 'unavailable', 'http_error',
-  'authentication_required', 'forbidden', 'conflict', 'invalid_request', 'invalid_arguments', 'invalid_symbol', 'capability_unavailable', 'outcome_uncertain',
+  'authentication_required', 'forbidden', 'conflict', 'invalid_request', 'invalid_arguments', 'invalid_symbol', 'capability_unavailable',
 ]
 const record = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0
@@ -47,21 +45,13 @@ function consistent(data: PaperStatus): boolean {
   return !(data.state === 'protected' && data.ready)
 }
 
-/** Lifecycle authority follows observed state/liveness, independently of execution readiness. */
-function permitted(current: Observation | null, action: 'start' | 'stop'): boolean {
-  const data = current?.data
-  if (!current?.configured || !current.control_enabled || data === null || data === undefined || !consistent(data)) return false
-  return action === 'start' ? data.state === 'idle' && !data.native_process_alive
-    : data.native_process_alive && (data.state === 'running' || data.state === 'protected')
-}
-
 /** Owns one demand-driven request at a time; unmount aborts observation, never the paper service. */
 export function paperPanel(react: Pick<typeof React, 'createElement' | 'useState' | 'useEffect'>) {
   const h = react.createElement
   return function PaperPanel() {
     const [owner] = react.useState<Owner>(() => ({ pending: false, closed: false, controller: null, sessionId: null, observation: null }))
-    const [request, setRequest] = react.useState<{ action: Action } | null>(null)
-    const [view, setView] = react.useState<View>({ observation: null, issue: null, pending: null, checked: false })
+    const [request, setRequest] = react.useState<boolean | null>(null)
+    const [view, setView] = react.useState<View>({ observation: null, issue: null, pending: false, checked: false })
     react.useEffect(() => {
       owner.closed = false
       return () => { owner.closed = true; owner.controller?.abort() }
@@ -70,26 +60,21 @@ export function paperPanel(react: Pick<typeof React, 'createElement' | 'useState
       if (request === null) return
       const controller = new AbortController()
       owner.controller = controller
-      const mutation = request.action !== 'check'
       async function run() {
         try {
-          const response = await fetch('/api/bybit-quant/paper', {
-            method: mutation ? 'POST' : 'GET', signal: controller.signal, cache: 'no-store', credentials: 'same-origin', redirect: 'error',
-            headers: { accept: 'application/json', ...(mutation ? { 'content-type': 'application/json' } : {}) },
-            ...(mutation ? { body: JSON.stringify({ action: request?.action }) } : {}),
-          })
+          const response = await fetch('/api/bybit-quant/paper', { method: 'GET', signal: controller.signal, cache: 'no-store', credentials: 'same-origin', redirect: 'error', headers: { accept: 'application/json' } })
           if (!response.ok) throw new Error('unavailable')
           const parsed = observation(await response.json() as unknown)
           if (controller.signal.aborted || owner.closed) return
           if (parsed === null || (parsed.data !== null && owner.sessionId !== null && owner.sessionId !== parsed.data.session_id)) throw new Error('invalid_response')
           if (parsed.data !== null) owner.sessionId = parsed.data.session_id
           owner.observation = parsed
-          setView({ observation: parsed, issue: null, pending: null, checked: true })
+          setView({ observation: parsed, issue: null, pending: false, checked: true })
         } catch (error: unknown) {
           if (controller.signal.aborted || owner.closed) return
           owner.observation = null
-          const issue = mutation ? 'outcome_uncertain' : error instanceof Error && error.message === 'invalid_response' ? 'invalid_response' : 'unavailable'
-          setView({ observation: null, issue, pending: null, checked: true })
+          const issue = error instanceof Error && error.message === 'invalid_response' ? 'invalid_response' : 'unavailable'
+          setView({ observation: null, issue, pending: false, checked: true })
         } finally {
           if (owner.controller === controller) { owner.controller = null; owner.pending = false }
         }
@@ -97,16 +82,16 @@ export function paperPanel(react: Pick<typeof React, 'createElement' | 'useState
       void run()
       return () => controller.abort()
     }, [request, owner])
-    function act(action: Action) {
-      if (owner.closed || owner.pending || (action !== 'check' && !permitted(owner.observation, action))) return
+    function check() {
+      if (owner.closed || owner.pending) return
       owner.pending = true
-      setView(previous => ({ ...previous, pending: action }))
-      setRequest({ action })
+      setView(previous => ({ ...previous, pending: true }))
+      setRequest(previous => previous === null ? true : !previous)
     }
     const current = view.observation
     const data = current?.data
     const issue = view.issue ?? current?.code
-    const summary = view.pending !== null ? `Pending ${view.pending} / 请求处理中`
+    const summary = view.pending ? 'Checking status / 正在检查状态'
       : issue ?? (data ? consistent(data) ? data.state : 'invalid_response · inconsistent state/liveness / 状态与进程不一致'
         : view.checked ? 'Unavailable / 无法连接' : 'Not checked / 尚未检查')
     return h('section', { className: 'bq-card', style: { marginTop: '12px' }, 'aria-label': 'Native internal paper / 原生内部模拟' },
@@ -117,14 +102,11 @@ export function paperPanel(react: Pick<typeof React, 'createElement' | 'useState
       current ? h('p', null, `Configured / 已配置: ${String(current.configured)} · Controls enabled / 控制已启用: ${String(current.control_enabled)}`) : null,
       data ? h('p', null, `Session / 会话: ${data.session_id} · State / 状态: ${data.state} · Native process alive / 原生进程存活: ${String(data.native_process_alive)} · Execution ready / 执行就绪: ${String(data.ready)}`) : null,
       data ? h('p', null, `Generation / 代次: ${data.generation} · Pending reservations / 待处理预留: ${data.pending_reservations}`) : null,
-      issue === 'outcome_uncertain' ? h('p', { className: 'bq-hint' }, 'outcome_uncertain · Check status to observe the outcome; do not resend. / 结果不确定，请检查状态，不要重发。') : null,
       data?.state === 'protected' ? h('p', { className: 'bq-hint' }, 'protected · Check status; execution is not ready. / 受保护，请检查状态；执行未就绪。') : null,
       data?.state === 'stopping' ? h('p', { className: 'bq-hint' }, 'Stop is in progress; cleanup is not confirmed. / 正在停止，尚未确认清理完成。') : null,
       data?.state === 'stopped' ? h('p', { className: 'bq-hint' }, 'A new session requires operator setup. / 新会话需要操作员配置。') : null,
-      h('p', { className: 'bq-hint' }, 'Stop freezes admission and stops the native owner; it does not flatten positions. / 停止会冻结接单并停止原生进程，不代表平仓。'),
-      h('button', { type: 'button', className: 'bq-button', disabled: view.pending !== null, onClick: () => act('check') }, 'Check status / 检查状态'),
-      h('button', { type: 'button', className: 'bq-button', disabled: view.pending !== null || !permitted(current, 'start'), onClick: () => act('start') }, 'Start paper / 启动模拟'),
-      h('button', { type: 'button', className: 'bq-button', disabled: view.pending !== null || !permitted(current, 'stop'), onClick: () => act('stop') }, 'Stop paper / 停止模拟'),
+      h('p', { className: 'bq-hint' }, 'Status is observation-only. Start, stop, and order controls belong to the separately governed execution service. / 此处仅查看状态；启动、停止和订单控制属于独立治理的执行服务。'),
+      h('button', { type: 'button', className: 'bq-button', disabled: view.pending, onClick: check }, 'Check status / 检查状态'),
     )
   }
 }

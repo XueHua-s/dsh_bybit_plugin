@@ -10,7 +10,7 @@ import { createHmac } from 'node:crypto'
 import type { Env, Category, Candle, Ticker, OrderBookSnapshot, FundingRate, Instrument, WalletBalance, ApiKeyInfo, Position, OpenOrder } from './bybit-types.js'
 import { ENDPOINTS, MARKET_ENDPOINT } from './bybit-constants.js'
 import { BybitError } from './bybit-error.js'
-import { mapInstrument, mapLevels, number as num, toQuery } from './bybit-format.js'
+import { mapInstrument, mapLevels, mapTicker, number as num, toQuery } from './bybit-format.js'
 export { formatQuantity, intervalLabel, intervalMs, normalizeCategory, normalizeInterval, normalizeSymbol, trimNumber } from './bybit-format.js'
 export { BybitError } from './bybit-error.js'
 export { ENDPOINTS, INTERVALS, MARKET_ENDPOINT, MARKET_ENDPOINTS } from './bybit-constants.js'
@@ -188,23 +188,14 @@ export class BybitClient {
     const result = await this.publicRequest('/v5/market/tickers', { category, symbol }, signal)
     const row = (result.list as Array<Record<string, unknown>> | undefined)?.[0]
     if (row === undefined) throw new BybitError(`Bybit returned no ticker for ${symbol}`)
-    return {
-      symbol: String(row.symbol),
-      category,
-      last: num(row.lastPrice),
-      change24hPct: num(row.price24hPcnt) * 100,
-      high24h: num(row.highPrice24h),
-      low24h: num(row.lowPrice24h),
-      volume24h: num(row.volume24h),
-      turnover24h: num(row.turnover24h),
-      bid: num(row.bid1Price),
-      ask: num(row.ask1Price),
-      markPrice: num(row.markPrice) || undefined,
-      indexPrice: num(row.indexPrice) || undefined,
-      fundingRate: row.fundingRate === undefined ? undefined : num(row.fundingRate) * 100,
-      openInterest: row.openInterest === undefined ? undefined : num(row.openInterest),
-      time: Date.now(),
-    }
+    return mapTicker(row, category)
+  }
+
+  /** One public 24-hour market snapshot for every symbol in a category. */
+  async tickers({ category, signal }: { category: Category, signal?: AbortSignal | undefined }): Promise<Ticker[]> {
+    const result = await this.publicRequest('/v5/market/tickers', { category }, signal)
+    const rows = Array.isArray(result.list) ? result.list as Array<Record<string, unknown>> : []
+    return rows.map(row => mapTicker(row, category))
   }
 
   /** Candles as oldest-first bars. Bybit returns newest first; this reverses it. */
@@ -277,14 +268,25 @@ export class BybitClient {
     return mapInstrument(row, category)
   }
 
-  /**
-   * Full instrument catalogue for one category. Bybit returns at most 1000 rows
-   * per page; both supported categories fit today.
-   */
+  /** Read the complete Bybit instrument catalogue, following every cursor page. */
   async instruments({ category, limit = 1000, signal }: { category: Category, limit?: number, signal?: AbortSignal | undefined }): Promise<Instrument[]> {
-    const result = await this.publicRequest('/v5/market/instruments-info', { category, limit }, signal)
-    const rows = Array.isArray(result.list) ? (result.list as Array<Record<string, unknown>>) : []
-    return rows.map(row => mapInstrument(row, category))
+    const instruments = new Map<string, Instrument>()
+    const cursors = new Set<string>()
+    let cursor: string | undefined
+    for (let page = 0; page < 20; page += 1) {
+      const result = await this.publicRequest('/v5/market/instruments-info', { category, limit, cursor }, signal)
+      const rows = Array.isArray(result.list) ? result.list as Array<Record<string, unknown>> : []
+      for (const row of rows) {
+        const instrument = mapInstrument(row, category)
+        instruments.set(instrument.symbol, instrument)
+      }
+      const next = typeof result.nextPageCursor === 'string' ? result.nextPageCursor : ''
+      if (next === '') return [...instruments.values()]
+      if (cursors.has(next)) throw new BybitError('Bybit repeated an instrument catalogue cursor; discovery stopped')
+      cursors.add(next)
+      cursor = next
+    }
+    throw new BybitError('Bybit instrument catalogue exceeded the safe 20-page discovery limit')
   }
 
   /**

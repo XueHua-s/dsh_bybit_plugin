@@ -12,6 +12,7 @@ from .bootstrap import loopback_host
 from .paper_api import create_paper_app
 from .paper_capability import PaperCapabilityBroker
 from .paper_config import Capability, capability_from_fd, synthetic_config
+from .synthetic_fixture_registry import builtin_synthetic_fixture_registry
 
 
 def main() -> None:
@@ -28,6 +29,9 @@ def main() -> None:
         parser.error("invalid_port")
     try:
         config = synthetic_config(args.database, args.session)
+        # The deployed paper process owns one immutable, credential-free bundle.
+        # No fixture file, network feed, or model input is accepted at startup.
+        fixture_registry = builtin_synthetic_fixture_registry(config)
         if args.capability_socket is not None:
             host = str(ipaddress.ip_address(args.host))
             origin_host = f"[{host}]" if ":" in host else host
@@ -38,7 +42,7 @@ def main() -> None:
                 listener.bind((host, args.port))
                 listener.listen(128)
                 listener.setblocking(False)
-                app = create_paper_app(config, capability, broker=broker)
+                app = create_paper_app(config, capability, broker=broker, fixture_registry=fixture_registry)
                 server = uvicorn.Server(
                     uvicorn.Config(app, access_log=False, log_level="critical", timeout_graceful_shutdown=10)
                 )
@@ -47,7 +51,7 @@ def main() -> None:
                     raise ValueError("private_capability_unavailable")
             return
         capability = capability_from_fd(args.capability_fd, args.session)
-        app = create_paper_app(config, capability)
+        app = create_paper_app(config, capability, fixture_registry=fixture_registry)
     except (ValueError, OSError):
         parser.error("private_capability_or_paper_configuration_unavailable")
     uvicorn.run(

@@ -3,13 +3,13 @@
 import os
 import stat
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
 
 from quant_execution.models import InstrumentSpec
 from quant_execution.paper_models import PaperDepth, PaperFixture
-from quant_risk.models import RiskPolicy
+from quant_risk.models import Correlation, RiskPolicy
 
 
 @dataclass(frozen=True)
@@ -42,9 +42,10 @@ def capability_from_fd(fd: int, session_id: str) -> Capability:
 class PaperConfig:
     database: Path
     session_id: str
-    fixture: PaperFixture
+    fixture: PaperFixture | tuple[PaperFixture, ...]
     policy: RiskPolicy
     queue_capacity: int = 32
+    correlations: tuple[Correlation, ...] = ()
 
     def __post_init__(self) -> None:
         from quant_data.commands import identifier
@@ -54,6 +55,47 @@ class PaperConfig:
             raise ValueError("paper policy scope required")
         if not 1 <= self.queue_capacity <= 128:
             raise ValueError("invalid queue capacity")
+        fixtures = self.fixtures
+        symbols = [item.instrument.symbol for item in fixtures]
+        if not fixtures or len(set(symbols)) != len(symbols):
+            raise ValueError("invalid_fixture_instruments")
+        if len({item.starting_balance for item in fixtures}) != 1:
+            raise ValueError("inconsistent_fixture_account")
+        expected = {
+            (first, second) for index, first in enumerate(sorted(symbols)) for second in sorted(symbols)[index + 1 :]
+        }
+        actual = [(item.first, item.second) for item in self.correlations]
+        if any(
+            item.first >= item.second
+            or not item.coefficient.is_finite()
+            or not Decimal(-1) <= item.coefficient <= Decimal(1)
+            for item in self.correlations
+        ):
+            raise ValueError("invalid_fixture_correlation")
+        if len(actual) != len(set(actual)) or set(actual) != expected:
+            raise ValueError("fixture_correlation_pair_coverage")
+
+    @property
+    def fixtures(self) -> tuple[PaperFixture, ...]:
+        return (self.fixture,) if isinstance(self.fixture, PaperFixture) else self.fixture
+
+    def fixture_for(self, symbol: str) -> PaperFixture:
+        for item in self.fixtures:
+            if item.instrument.symbol == symbol:
+                return item
+        raise ValueError("unsupported_fixture_symbol")
+
+
+def config_for_bundle(config: PaperConfig, bundle: object) -> PaperConfig:
+    """Bind a service config to one validated Python registry bundle's instruments."""
+    from .synthetic_fixture_registry import PaperFixtureBundle
+
+    if type(bundle) is not PaperFixtureBundle:
+        raise ValueError("invalid_fixture_bundle")
+    correlations = tuple(
+        Correlation(item.first_symbol, item.second_symbol, item.coefficient) for item in bundle.correlations
+    )
+    return replace(config, fixture=bundle.fixtures, correlations=correlations)
 
 
 def synthetic_config(database: Path, session_id: str) -> PaperConfig:

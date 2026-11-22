@@ -1,6 +1,7 @@
 """Transactional paper admission authority. No external execution or blind retries."""
 
 import json
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
@@ -217,9 +218,22 @@ class AdmissionStore:
         expected_generation: int,
         command: OrderCommand,
         decision: AdmissionDecision,
+        *,
+        decision_request_digest: str | None = None,
+        decision_id: str | None = None,
+        fixture_digest: str | None = None,
     ) -> CommandRecord:
         if not isinstance(decision, AdmissionDecision):
             raise TypeError("typed server decision required")
+        binding = (decision_request_digest, decision_id, fixture_digest)
+        if any(value is not None for value in binding) and (
+            any(type(value) is not str or not value for value in binding)
+            or re.fullmatch(r"[a-f0-9]{64}", decision_request_digest or "") is None
+            or re.fullmatch(r"[a-f0-9]{64}", fixture_digest or "") is None
+        ):
+            raise ValueError("invalid_decision_binding")
+        if decision_id is not None:
+            identifier(decision_id, "decision_id")
         with transaction(self._sessions) as session:
             paper = owned(session, session_id, owner_id)
             if command.environment is not Environment.INTERNAL_PAPER or command.account_ref != paper.account_ref:
@@ -235,6 +249,26 @@ class AdmissionStore:
                 prior = session.get(RiskDecision, existing.id)
                 if prior is None or prior.session_id != session_id:
                     raise LedgerConflict("command not owned by this admission session")
+                if decision_request_digest is not None:
+                    binding_row = session.execute(
+                        text(
+                            "SELECT request_digest, decision_id, fixture_digest, command_id "
+                            "FROM ai_paper_decision_bindings WHERE environment=:environment "
+                            "AND account_ref=:account_ref AND request_id=:request_id"
+                        ),
+                        {
+                            "environment": command.environment.value,
+                            "account_ref": command.account_ref,
+                            "request_id": command.request_id,
+                        },
+                    ).first()
+                    if binding_row is None or tuple(binding_row) != (
+                        decision_request_digest,
+                        decision_id,
+                        fixture_digest,
+                        existing.id,
+                    ):
+                        raise LedgerConflict("decision request binding conflict")
                 return _same_command(existing, fingerprint(command.canonical()))
             owned(session, session_id, owner_id, expected_generation)
             if paper.protected:
@@ -295,7 +329,7 @@ class AdmissionStore:
                 )
                 paper.last_admitted_at_ns = decision.evaluated_at_ns
             paper.generation += 1
-            return _transition_in_session(
+            record = _transition_in_session(
                 session,
                 row.id,
                 "internal:risk",
@@ -304,6 +338,60 @@ class AdmissionStore:
                 decision.code,
                 {S.ADMITTED},
             )
+            if decision_request_digest is not None and decision_id is not None and fixture_digest is not None:
+                receipt = {
+                    "schema_version": "1",
+                    "request_id": command.request_id,
+                    "payload_digest": decision_request_digest,
+                    "decision_id": decision_id,
+                    "status": "admitted" if decision.allowed else "risk_rejected",
+                    "reason": None if decision.allowed else "risk_rejected",
+                    "command_id": record.id,
+                    "native_client_order_id": record.native_client_order_id,
+                }
+                session.execute(
+                    text(
+                        "INSERT INTO ai_paper_decision_bindings "
+                        "(environment, account_ref, request_id, request_digest, decision_id, fixture_digest, "
+                        "command_id, native_client_order_id, receipt_json) "
+                        "VALUES (:environment, :account_ref, :request_id, :request_digest, :decision_id, "
+                        ":fixture_digest, :command_id, :native_client_order_id, :receipt_json)"
+                    ),
+                    {
+                        "environment": command.environment.value,
+                        "account_ref": command.account_ref,
+                        "request_id": command.request_id,
+                        "request_digest": decision_request_digest,
+                        "decision_id": decision_id,
+                        "fixture_digest": fixture_digest,
+                        "command_id": record.id,
+                        "native_client_order_id": record.native_client_order_id,
+                        "receipt_json": json.dumps(receipt, sort_keys=True, separators=(",", ":")),
+                    },
+                )
+            return record
+
+    def get_decision_receipt(self, request_id: str, session_id: str, owner_id: str) -> dict[str, object]:
+        identifier(request_id, "request_id")
+        with transaction(self._sessions) as session:
+            paper = owned(session, session_id, owner_id)
+            row = session.execute(
+                text(
+                    "SELECT receipt_json FROM ai_paper_decision_bindings WHERE environment=:environment "
+                    "AND account_ref=:account_ref AND request_id=:request_id"
+                ),
+                {
+                    "environment": Environment.INTERNAL_PAPER.value,
+                    "account_ref": paper.account_ref,
+                    "request_id": request_id,
+                },
+            ).first()
+            if row is None or not isinstance(row[0], str):
+                raise KeyError(request_id)
+            payload = json.loads(row[0])
+            if not isinstance(payload, dict):
+                raise LedgerConflict("invalid durable decision receipt")
+            return payload
 
     def claim_dispatch(
         self, session_id: str, owner_id: str, expected_generation: int, command_id: str, now_ns: int

@@ -25,12 +25,24 @@ for (const file of ['cordis.patch.yml', 'dist/index.js', 'dist/client.js', 'docs
   if (!existsSync(resolve(root, file))) throw new Error(`missing bundle artifact: ${file}`)
 }
 for (const locale of ['en', 'zh']) {
-  const dictionary = JSON.parse(readFileSync(resolve(root, `locale/${locale}.json`), 'utf8')) as { meta?: { detail?: unknown } }
+  const dictionary = JSON.parse(readFileSync(resolve(root, `locale/${locale}.json`), 'utf8')) as {
+    meta?: { detail?: unknown; description?: unknown }
+  }
   const detail = dictionary.meta?.detail
   if (typeof detail !== 'string' || detail !== 'docs/DETAIL.md') {
     throw new Error(`locale/${locale}.json meta.detail must be docs/DETAIL.md`)
   }
   if (!existsSync(resolve(root, detail))) throw new Error(`locale/${locale}.json detail target is missing: ${detail}`)
+  const description = dictionary.meta?.description
+  if (typeof description !== 'string') throw new Error(`locale/${locale}.json meta.description must be a string`)
+  const requiredCopy = locale === 'zh'
+    ? ['默认关闭', '模拟决策循环', '不支持向交易所提交订单']
+    : ['opt-in background AI loop', 'simulated decisions', 'order submission is currently unavailable']
+  for (const phrase of requiredCopy) {
+    if (!description.toLowerCase().includes(phrase.toLowerCase())) {
+      throw new Error(`locale/${locale}.json meta.description must include “${phrase}”`)
+    }
+  }
 }
 const patch = readFileSync(resolve(root, 'cordis.patch.yml'), 'utf8')
 if (!patch.includes(`name: '${manifest.name}'`)) throw new Error('cordis.patch.yml does not insert the Host plugin row')
@@ -49,6 +61,15 @@ try {
   const packedRoot = join(isolated, 'package')
   const packed = JSON.parse(readFileSync(join(packedRoot, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }
   if (Object.keys(packed.dependencies ?? {}).length !== 0) throw new Error('Host dist must not require external runtime dependencies')
+  for (const locale of ['en', 'zh']) {
+    const dictionary = JSON.parse(readFileSync(join(packedRoot, `locale/${locale}.json`), 'utf8')) as {
+      meta?: { description?: unknown }
+    }
+    const description = dictionary.meta?.description
+    if (typeof description !== 'string' || description.includes('gated live orders') || description.includes('实盘下单')) {
+      throw new Error(`packed locale/${locale}.json contains a stale or invalid order-availability claim`)
+    }
+  }
   const distFiles = readdirSync(join(packedRoot, 'dist'), { recursive: true })
     .filter((file): file is string => typeof file === 'string' && file.endsWith('.js'))
     .map(file => join(packedRoot, 'dist', file))
