@@ -1002,6 +1002,73 @@ not invoke this ledger, the provider remains GET-only, private exchange
 reconciliation and restart recovery are absent, and no Testnet or Mainnet
 order was sent.
 
+## 2026-11-23 official Bundle lifecycle smoke
+
+`pnpm --dir apps/dsh-plugin run bundle:lifecycle` passed with the locally
+installed official DSH CLI `0.2.2-rc.5`. The script used a temporary
+`DSH_HOME` and the official Plugin Manager to install `@bybit-quant/dsh-plugin`
+1.4.5, upgrade a locally packed artifact to 1.4.6, and remove it. It verified
+selection after install/upgrade, absence after removal, and unchanged hashes
+for synthetic credential/config/history sentinel files; it observed zero
+exchange requests and cleaned the temporary profile. No managed user profile
+was edited.
+
+This is evidence for the isolated CLI package lifecycle only. Host activation,
+resource cleanup in a live Harness process, rollback, and preservation in an
+active profile remain unverified; the broader AT-003 lifecycle acceptance is
+therefore **PARTIAL**. It does not change the product status: no live Bybit
+execution or full unattended trading is available.
+
+| Command | Exit | Evidence |
+|---|---:|---|
+| `pnpm --dir apps/dsh-plugin run bundle:lifecycle` | 0 | DSH CLI `0.2.2-rc.5`; install 1.4.5 → upgrade 1.4.6 → remove; sentinel state preserved; 0 exchange requests. |
+| `git diff --check` | 0 | No whitespace errors after receipt update. |
+
+## 2026-11-23 native owner-process lifecycle boundary
+
+The future item-9 boundary now exists as
+`python/packages/quant-execution/src/quant_execution/bybit_runtime.py`.
+Inspection of the pinned Nautilus 1.231.0 live-node lifecycle showed that
+construction registers process signal handlers and that `TradingNode.stop()`
+is not a thread-safe cross-loop bridge. The implementation therefore follows
+the existing paper-runtime pattern: a spawned child process owns the future
+Nautilus node in its main thread, while the parent exposes bounded IPC and a
+sanitized `RuntimeHealth` DTO. Owner loss, queue overflow, timeout, invalid
+commands and node failures fail closed; no retry or new order identity is
+created. The module has no default live factory and did not create a Bybit
+client or access an exchange.
+
+| Command | Exit | Evidence |
+|---|---:|---|
+| `uv run --project python --locked pytest python/packages/quant-execution/tests/test_bybit_runtime.py -q` | 0 | 4 fake-node lifecycle tests passed; no exchange IO. |
+| `uv run --project python --locked ruff check python/packages/quant-execution/src/quant_execution/bybit_runtime.py python/packages/quant-execution/tests/test_bybit_runtime.py` | 0 | All checks passed. |
+| `uv run --project python --locked pyright python/packages/quant-execution/src/quant_execution/bybit_runtime.py python/packages/quant-execution/tests/test_bybit_runtime.py` | 0 | 0 errors, warnings or informations. |
+
+This is a local process/lifecycle foundation, not native execution readiness;
+the live factory, private stream, engine integration, reconnect/recovery and
+Testnet write gate remain blocked.
+
+The subsequent verification refresh passed the complete execution package
+(119 tests) and the full Python workspace (555 tests); Ruff formatting/checks
+also passed. These counts include only local or fake-node tests and do not
+change the blocked native execution conclusion.
+
+The same refresh reran the official disposable Bundle smoke, npm/Python SBOM
+generation, dependency audit and secret scan. Bundle lifecycle passed with DSH
+CLI `0.2.2-rc.5` and 0 exchange requests; npm SBOM contains 200 components;
+dependency audits reported no known vulnerabilities (editable workspace
+packages were skipped by pip-audit); Gitleaks scanned about 42.41 MB with no
+leaks. No credential value was added to the repository or reports.
+
+`CI=1 NX_DAEMON=false pnpm run verify` also passed (root Nx/TypeScript,
+plugin, SDK, tooling and Bundle checks). This remains a local Verify Gate; it
+does not close the live execution or full unattended-trading blockers.
+
+The owner facade was exported from the `quant_execution` package and its
+multiprocessing queues now close and join after the owner exits. The focused
+runtime suite was rerun without the earlier semaphore-leak warning; this is a
+resource-cleanup improvement, not a live execution claim.
+
 ## 2026-11-22 final workspace verification
 
 The current workspace was rechecked after the offline account and mapper

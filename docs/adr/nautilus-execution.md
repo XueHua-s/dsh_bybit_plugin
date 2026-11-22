@@ -75,7 +75,7 @@ Spot 和 Linear 均支持 Market/Limit、IOC/GTC/FOK 与条件订单；reduce-on
 |---|---|
 | `python/apps/quant-engine/src/quant_engine/execution/contracts.py` | Pydantic command/receipt/event schema，OpenAPI 唯一来源 |
 | `python/apps/quant-engine/src/quant_engine/execution/service.py` | 深模块：preview/submit/cancel/status 与授权、risk、idempotency admission，屏蔽底层引擎细节 |
-| `python/apps/quant-engine/src/quant_engine/execution/nautilus_runtime.py` | 唯一 Nautilus node owner、工厂、engine loop、strategy command bridge 和 shutdown；无自写 REST executor |
+| `python/packages/quant-execution/src/quant_execution/bybit_runtime.py` | 唯一 Nautilus node owner 的进程边界、工厂/命令桥接和 shutdown；无自写 REST executor |
 | `python/apps/quant-engine/src/quant_engine/execution/reconciliation.py` | 事件/report 到持久化状态、恢复闸门、unknown outcome；避免 service 与 runtime 重复 OMS |
 | `python/apps/quant-engine/src/quant_engine/execution/store.py` | durable command/ID/event journal，封装 DB schema/transaction；迁移单独备份与回滚 |
 | `python/apps/quant-engine/src/quant_engine/api.py`、`runtime.py`、`service.py` | 挂接 router、生命周期与健康指标；保持单个手写文件 <=500 行 |

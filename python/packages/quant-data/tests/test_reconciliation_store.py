@@ -16,6 +16,7 @@ from alembic import command
 from quant_data.commands import EmergencyState, LedgerConflict
 from quant_data.migrations import upgrade_sqlite
 from quant_data.models import EmergencyState as EmergencyStateRow
+from quant_data.reconciliation_events import NativeEventEvidence
 from quant_data.reconciliation_store import ReconciliationEvidence, ReconciliationStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +55,7 @@ def evidence(
     reason: str | None = None,
     observed_at_ns: int | None = None,
     orders: list[dict[str, str]] | None = None,
+    native_events: tuple[NativeEventEvidence, ...] = (),
 ) -> ReconciliationEvidence:
     return ReconciliationEvidence(
         session_id="test-session",
@@ -66,6 +68,24 @@ def evidence(
         protected_reason=reason,
         observed_at_ns=revision if observed_at_ns is None else observed_at_ns,
         generation=generation,
+        native_events=native_events,
+    )
+
+
+def native_event(
+    event_id: str,
+    *,
+    state: str = "ACCEPTED",
+    payload: dict[str, str] | None = None,
+) -> NativeEventEvidence:
+    return NativeEventEvidence(
+        event_id=event_id,
+        event_type="order",
+        state=state,
+        occurred_at_ns=10,
+        payload={"state": state} if payload is None else payload,
+        client_order_id=f"client-{event_id}",
+        venue_order_id=f"venue-{event_id}",
     )
 
 
@@ -125,11 +145,89 @@ def test_incomplete_reconciliation_fences_account_and_complete_snapshot_does_not
         incomplete = result.account_session("test-session")
         assert incomplete.protected and incomplete.protection_reason == "orders_page_missing"
         assert incomplete.status == EmergencyState.PROTECTED.value
+        with sessionmaker(engine)() as session:
+            emergency = session.get(EmergencyStateRow, "test-session")
+            assert emergency is not None and emergency.state == EmergencyState.PROTECTED.value
         result.record(evidence(2))
         complete = result.account_session("test-session")
         assert complete.protected
         assert complete.protection_reason == "orders_page_missing"
         assert complete.reconciliation_revision == 2
+    finally:
+        engine.dispose()
+
+
+def test_native_event_duplicate_is_inserted_once_and_replays_canonically(database: Path) -> None:
+    result, engine = opened(database)
+    try:
+        event = native_event("evt-1")
+        first = result.record(evidence(1, native_events=(event, event)))
+        replay = result.record(evidence(1, native_events=(event,)))
+        assert replay == first and first.complete
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT count(*) FROM native_execution_events")).scalar_one() == 1
+            assert connection.execute(text("SELECT applied FROM native_execution_events")).scalar_one() == 0
+
+        second = result.record(evidence(2, native_events=(event,)))
+        assert second.complete
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT count(*) FROM native_execution_events")).scalar_one() == 1
+    finally:
+        engine.dispose()
+
+
+def test_conflicting_native_event_batch_is_protected_and_replay_is_idempotent(database: Path) -> None:
+    result, engine = opened(database)
+    try:
+        accepted = native_event("duplicate", state="ACCEPTED")
+        filled = native_event("duplicate", state="FILLED")
+        unrelated = native_event("unrelated")
+        first = result.record(evidence(1, native_events=(accepted, filled, unrelated)))
+        replay = result.record(evidence(1, native_events=(unrelated, filled, accepted)))
+        assert replay == first
+        assert not first.complete and first.protected_reason == "native_event_conflict"
+        assert result.account_session("test-session").protected
+        with engine.connect() as connection:
+            event_ids = connection.execute(text("SELECT event_id FROM native_execution_events")).scalars().all()
+            assert event_ids == ["unrelated"]
+            assert connection.execute(text("SELECT applied FROM native_execution_events")).scalar_one() == 0
+    finally:
+        engine.dispose()
+
+
+def test_native_event_batch_is_bounded_before_persistence(database: Path) -> None:
+    result, engine = opened(database)
+    try:
+        events = tuple(native_event(f"event-{index}", payload={"data": "x" * 60_000}) for index in range(18))
+        with pytest.raises(ValueError, match="native event batch exceeds bounded size"):
+            result.record(evidence(1, native_events=events))
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT count(*) FROM native_execution_events")).scalar_one() == 0
+    finally:
+        engine.dispose()
+
+
+def test_existing_native_event_conflict_protects_a_running_account(database: Path) -> None:
+    result, engine = opened(database)
+    try:
+        original = native_event("evt-1", state="ACCEPTED")
+        result.record(evidence(1, observed_at_ns=1_000_000_000, native_events=(original,)))
+        result.activate("test-session", 0, 1, 1_000_000_001)
+        conflict = result.record(
+            evidence(
+                2,
+                observed_at_ns=1_000_000_002,
+                native_events=(native_event("evt-1", state="FILLED"),),
+            )
+        )
+        assert not conflict.complete and conflict.protected_reason == "native_event_conflict"
+        account = result.account_session("test-session")
+        assert account.protected and account.status == EmergencyState.PROTECTED.value
+        with sessionmaker(engine)() as session:
+            emergency = session.get(EmergencyStateRow, "test-session")
+            assert emergency is not None
+            assert emergency.state == EmergencyState.PROTECTED.value
+            assert emergency.reason == "native_event_conflict"
     finally:
         engine.dispose()
 
@@ -257,3 +355,11 @@ def test_migration_refuses_downgrade_after_native_evidence(database: Path) -> No
             command.downgrade(downgrade_config, "0006_ai_paper_decision_binding")
     finally:
         engine.dispose()
+
+
+@pytest.mark.parametrize(
+    "payload", ({"apiKey": "secret"}, {"access_token": "secret"}, {"nested": {"private-key": "secret"}})
+)
+def test_native_event_rejects_credential_like_fields(payload: object) -> None:
+    with pytest.raises(ValueError, match="credential-like"):
+        native_event("unsafe", payload=payload)  # type: ignore[arg-type]

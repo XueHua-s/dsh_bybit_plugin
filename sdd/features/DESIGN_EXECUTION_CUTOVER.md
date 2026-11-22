@@ -52,7 +52,7 @@ Source hierarchy: latest explicit user authorization > DEFINE > Brainstorm for r
 | Admission authority | Own admission, policy context and account serialization | Python service module, bounded queue | Validated proposal and principal | Durable command receipt | Risk, ledger, server state |
 | Risk evaluator | Deterministically veto all required §13 limits | Existing `quant_risk.evaluate` pure function | Exact intent, server context, policy | Reasons or scoped plan | No HTTP/exchange/credential dependency |
 | Command ledger | Own immutable request identity and transition history | SQLAlchemy/Alembic | Canonical order, decisions, native evidence | Stable native ID, append-only history | Existing quant-data |
-| Native paper runtime | Hide node construction, native OMS, event mapping and stop | Nautilus 1.231.0, dedicated loop/thread | Admitted command, complete fixture market events | Actual native events/account state | Ledger, fixture instrument |
+| Native paper runtime | Hide node construction, native OMS, event mapping and stop | Nautilus 1.231.0, dedicated child-process main-thread loop | Admitted command, complete fixture market events | Actual native events/account state | Ledger, fixture instrument |
 | Execution projections | Derive reconciled state and reservations | Engine-owned transaction/projection | Durable native events | Context revision, protection state | Ledger event identity |
 | Generated control client | Hide bounded authenticated transport | Existing OpenAPI/openapi-fetch package | Service capability, command DTO | Validated receipt/status | Python sole wire schema source |
 | Bybit session resolver (later) | Bind a credential reference to verified environment/account | Trusted credential provider, native Bybit adapter | Operator-selected opaque profile | Private in-memory session | DSH secure mechanism/OS secure store |
@@ -129,7 +129,7 @@ Source hierarchy: latest explicit user authorization > DEFINE > Brainstorm for r
 
 **Context:** `TradingNode.dispose()` manages its event loop and can wait synchronously. FastAPI also owns an event loop. Existing read SDK has no auth. Bybit config defaults to MAINNET and can fall back to process environment credentials.
 
-**Choice:** Node owns a dedicated thread and loop. Bootstrap constructs node with that loop, adds explicit data/execution factories and private strategy, builds then starts a supervised `run_async` task. Node bridge delivers only validated native actions through its loop; callbacks never mutate API-loop objects unsafely. Stop freezes admission first, persists protection, drains/records remaining work, awaits node stop on its loop, waits boundedly for native queues, disposes on node owner thread, closes loop and joins thread. Failure to stop yields protected/failed outcome and retained uncertainty; HTTP `stop` cannot report stopped while thread remains alive.
+**Choice:** A spawned child process owns the node and its main-thread event loop. Bootstrap constructs the node there, adds explicit data/execution factories and private strategy, builds then starts a supervised `run_async` task. The parent bridge delivers only validated native actions through bounded IPC; callbacks never mutate API-loop objects unsafely. Stop freezes admission first, persists protection, drains/records remaining work, awaits node stop on its owner loop, waits boundedly for native queues, disposes on the owner thread, closes the loop and joins the child. Failure to stop yields protected/failed outcome and retained uncertainty; HTTP `stop` cannot report stopped while the child remains alive.
 
 **Rationale:** Concentrates native lifecycle knowledge and prevents closing the FastAPI loop. One private bridge hides required concurrency rather than spreading native APIs to tools.
 
@@ -361,7 +361,7 @@ Verification commands above are planned. This design/research task ran no build/
 | Native event persistence is not atomic with execution | Lost local evidence | Claim-before-submit, protect on write failure, live report reconciliation | Cannot claim exactly-once external execution |
 | Sandbox status methods are empty | False restart recovery | Protect old session; deterministic replay later | First slice cannot resume non-flat old paper sessions |
 | Partial ticker/unknown depth | Fake executable liquidity | Complete explicit fixture feed; native real data later | Fixture fills do not predict exchange fills |
-| Native disposal blocks/owns loop | API shutdown hang | Dedicated native loop/thread, bounded observed join | Implementation must prove actual installed lifecycle |
+| Native disposal blocks/owns loop | API shutdown hang | Dedicated child-process main-thread loop, bounded observed join | Implementation must prove actual installed lifecycle |
 | Bypass remains in TS before exchange cutover | Two execution authorities | Do not activate engine exchange execution until removal audit passes | Existing direct TS drift stays open until implemented |
 | Credential provider unavailable | No safe private connection | Keep paper credential-free; implement trusted provider before live | Demo/Testnet E2E remains blocked by real prerequisites |
 

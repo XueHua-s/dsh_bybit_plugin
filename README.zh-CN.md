@@ -6,6 +6,8 @@ Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 Bybit 量化插件�
 
 这是一个持续开发中的工作区。架构书描述的完整自主量化平台尚未完成。当前已有独立 Python Testnet 公共行情服务、生成的 TypeScript SDK、离线 Nautilus 原生回测基础、策略族和有限的策略选择/组合规划研究模块；Nautilus 作为唯一交易所执行权威、完整账户与订单对账恢复、研究演化闭环仍未完成或未验证。官方 DSH CLI 的临时 `DSH_HOME` 已有可复现的安装、升级、卸载和用户状态保留检查；Host 激活、回滚和活动配置升级保留仍未验证。请以 [架构实现审计](sdd/reports/ARCHITECTURE_IMPLEMENTATION_AUDIT_2026-11-19.md) 为准。
 
+原生执行切片还提供了一个不含凭证的 owner 进程生命周期外壳。未来的 Nautilus 节点会在专用子进程的主线程中运行，父进程只能通过有界命令、固定错误码和保护状态控制；假节点测试覆盖了启动、保护和优雅停止。这个外壳不会创建 Bybit 客户端或发送订单。私有流、引擎准入、对账恢复和 Testnet 执行仍处于阻塞状态。
+
 ## 安装 Bundle
 
 使用官方 DSH Plugin Manager 的 Bundle 流程安装、升级和卸载，不要手动编辑 Harness Profile 中受管理的 `package.json` 或 `cordis.patch.yml`。安装前构建插件，使 Host 和浏览器入口存在：

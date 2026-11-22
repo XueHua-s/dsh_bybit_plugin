@@ -52,7 +52,7 @@ The dashboard remains an observation surface. Chart symbol, market and interval 
 |---|---|---|---|---|---|
 | Trusted profile resolver | Bind an opaque profile reference to Testnet Linear, expected UID/subaccount and an OS/Host credential handle | `bybit_profiles.py` plus a production Host/OS secret-store adapter; no ambient environment fallback | Profile reference, trusted settings | Sanitized profile binding and one-time in-memory credential handoff | DSH secure storage |
 | Readiness and preflight | Prove identity, permissions, funds, instrument rules and complete initial reports before a session can dispatch | Existing `bybit_preflight.py` and `bybit_projection.py`, fail-closed | Named GET evidence | Versioned readiness evidence; never an order permit by itself | GET-only provider |
-| Private account session | Own one account generation, authenticated native data/execution factories and private stream lifecycle | New `bybit_account.py` and `bybit_runtime.py`; dedicated thread/event loop; explicit `BybitEnvironment.TESTNET`, `BybitProductType.LINEAR` | Trusted profile, readiness evidence | Native account context and health | Nautilus 1.231.0 Bybit adapter |
+| Private account session | Own one account generation, authenticated native data/execution factories and private stream lifecycle | New `bybit_account.py` and `bybit_runtime.py`; dedicated child-process main-thread event loop; explicit `BybitEnvironment.TESTNET`, `BybitProductType.LINEAR` | Trusted profile, readiness evidence | Native account context and health | Nautilus 1.231.0 Bybit adapter |
 | Admission authority | Serialize proposals, bind environment/account/session, reserve exposure and recheck policy immediately before dispatch | `quant_engine` service plus `quant_data` ledger | AI target exposure or operator emergency command | Durable command/receipt or veto | `quant-risk`, data ledger |
 | Native order mapper | Convert an admitted intent into exact native instrument, `Quantity`, `Price`, `ClientOrderId`, reduce-only and protection fields | New `bybit_order_mapper.py`; no rounding or caller-supplied venue IDs | Server-owned intent and catalog | Native order command | Instrument/risk context |
 | Reconciliation projector | Join REST bootstrap, private stream events and ledger by stable client/venue IDs; preserve unknowns | New `bybit_reconciliation.py` and additive data tables | Orders, executions, positions, wallet, fills | Reconciled account revision or protected state | Bybit REST/WS, ledger |
@@ -142,7 +142,7 @@ The following is the next Build slice. No file below is evidence that the capabi
 | 6 | `python/packages/quant-execution/src/quant_execution/bybit_account.py` | Create | Build only explicit Testnet Linear `BybitDataClientConfig`/`BybitExecClientConfig` and native factories from trusted credentials; reject ambient env fallback | (general) | Profile/preflight |
 | 7 | `python/packages/quant-execution/src/quant_execution/bybit_order_mapper.py` | Create | Map server-owned intent to exact native instrument/order objects and stable ID | (general) | 1,6 |
 | 8 | `python/packages/quant-execution/src/quant_execution/bybit_reconciliation.py` | Create | Join private REST/WS reports and preserve unknown/partial evidence | (general) | 5,6 |
-| 9 | `python/packages/quant-execution/src/quant_execution/bybit_runtime.py` | Create | Own native node thread, bridge, stop and protected failure outcome | (general) | 6,7,8 |
+| 9 | `python/packages/quant-execution/src/quant_execution/bybit_runtime.py` | Create | Own a native node in a dedicated child-process main thread, bridge bounded commands, stop and protected failure outcome | (general) | 6,7,8 |
 | 10 | `python/apps/quant-engine/src/quant_engine/bybit_session.py` | Create | Session generation, preflight gate, account ownership and readiness | (general) | 4,5,6,8 |
 | 11 | `python/apps/quant-engine/src/quant_engine/admission.py` | Create | Serialize AI intents, invoke deterministic risk and dispatch native commands | (general) | 4,7,9,10 |
 | 12 | `python/apps/quant-engine/src/quant_engine/emergency.py` | Create | Freeze/cancel/reduce-only/close state machine with authorization scopes | (general) | 2,4,8,11 |
@@ -170,14 +170,30 @@ The following is the next Build slice. No file below is evidence that the capabi
 | 34 | `python/packages/quant-data/src/quant_data/native_ledger.py` | Create | Own generation-bound Testnet admission, risk receipt, reservation and revalidated one-shot dispatch claim without venue IO | (general) | 1–5 |
 | 35 | `python/packages/quant-execution/pyproject.toml` | Modify | Declare the direct workspace dependency required by the typed native ledger mapper | (general) | 7 |
 | 36 | `python/uv.lock` | Modify | Record the generated workspace dependency edge without adding an external package | (general) | 35 |
+| 37 | `python/packages/quant-data/src/quant_data/reconciliation_events.py` | Create | Own bounded, canonical private-event evidence, conflict resolution and append-only persistence | (general) | 1,3,5 |
+| 38 | `python/packages/quant-execution/tests/test_bybit_reconciliation.py` | Create | Verify offline report projection, explicit private-event provenance, status normalization, unknown identities and fill consistency | (general) | 8,31,37 |
+| 39 | `python/packages/quant-execution/tests/test_bybit_runtime.py` | Create | Verify owner-process lifecycle, fixed failure codes, protection and clean stop without exchange IO | (general) | 9 |
 
-**Total Files:** 36. Every new handwritten TypeScript file must stay at or below 500 lines; split any implementation that approaches the limit.
+**Total Files:** 39. Every handwritten source file must stay at or below 500 lines; split any implementation that approaches the limit.
+
+### Item 9 lifecycle decision (2026-11-23)
+
+The initial wording said “dedicated thread/event loop”. Inspection of the pinned
+Nautilus 1.231.0 implementation found that a live `TradingNode` constructs a
+kernel which registers process signal handlers; Python permits that only in the
+main thread. `TradingNode.stop()` also schedules directly on its loop and is
+not a thread-safe cross-thread bridge. Item 9 therefore uses the existing
+paper-runtime ownership pattern: one spawned child process owns the node and
+its main-thread event loop; the parent exposes a small, bounded, credential-free
+facade over IPC. This is an implementation correction, not evidence that a
+live Bybit client is enabled. A future live factory must be created only inside
+that child and must still pass the Testnet/Linear and readiness gates.
 
 ### Agent Assignment Rationale
 
 | Agent / Owner | Files Assigned | Why |
 |---|---|---|
-| (general) | 1–36 | No independent Build owner was authorized or required; the slice needs one accountable integrator and separate test review before activation. |
+| (general) | 1–39 | No independent Build owner was authorized or required; the slice needs one accountable integrator and separate test review before activation. |
 
 **Agent Discovery:** Existing reviews and source were scanned; no active agent assignment is part of this design. Build must arrange independent verification of files 24–28 before enabling any write path.
 
@@ -196,6 +212,10 @@ except TimeoutError:
 ```
 
 The catch path never creates a second ID. The actual implementation must use the pinned Nautilus APIs and record native events separately.
+
+### Pattern 3: Report snapshots and private events keep separate provenance
+
+REST wallet/position/order/execution reports belong only to an immutable reconciliation snapshot. Only explicitly supplied, normalized private-stream events may enter `native_execution_events`. Canonical event identity, redaction, deduplication and append-only insertion live together in `reconciliation_events.py`; the reconciliation store owns the enclosing revision transaction and protection fence. Each event and the serialized event batch are bounded to 1 MiB; a conflicting event identity makes the revision incomplete and protects the account.
 
 ### Pattern 2: Dashboard boundary
 
@@ -248,6 +268,8 @@ This execution slice introduces no new prompt. Existing background-loop prompts 
 |---|---|---|---|---|
 | Unit | Profile, endpoint, permissions, precision, stable ID and error redaction | `python/packages/quant-execution/tests/test_bybit_execution.py` | pytest, Ruff, Pyright | Invalid identity/permission/rules produce zero private dispatch |
 | Unit/data | Account generation fencing, monotonic reconciliation, secret-field rejection, append-only evidence and migration backup | `python/packages/quant-data/tests/test_reconciliation_store.py` | pytest against isolated SQLite/Alembic database | Restart creates a protected generation; incomplete evidence stays protected; conflicting replay fails; migration data round-trips through backup |
+| Unit/data | Canonical private-event identity, duplicate/conflict replay, unapplied markers and emergency-state synchronization | `python/packages/quant-data/tests/test_reconciliation_store.py` | pytest against isolated SQLite/Alembic database | Duplicate events insert once; conflicts protect the account; unknown event application remains `applied=0` |
+| Unit/projection | Offline REST/private report validation, status normalization, fill consistency and event provenance | `python/packages/quant-execution/tests/test_bybit_reconciliation.py` | pytest, Ruff, Pyright | REST snapshots never enter the native private-event table; incomplete or ambiguous evidence remains protected |
 | Unit | Ledger transitions, reservations, duplicate payload, event dedupe and protected state | `python/packages/quant-engine/tests/test_bybit_admission.py` | pytest + isolated SQLite | Same request has one canonical ID; changed payload conflicts |
 | Integration | Native node receives actual order events, partial fill/cancel, reconnect and stop | `python/apps/quant-engine/tests/test_bybit_process.py` | spawned process, Nautilus fixture/mocked transport | No event or timeout is silently treated as flat |
 | Contract | OpenAPI generation and safe TS client behavior | `contracts/openapi/quant-engine.v1.json`, `packages/ts/quant-api-client/test/execution.test.ts` | Nx/pnpm, uv | `openapi-check` and client tests exit 0 |
@@ -312,7 +334,7 @@ This execution slice introduces no new prompt. Existing background-loop prompts 
 | AT-008 | Build report and repository SBOM/security checks | root release checks |
 | AT-009 | Read-only dashboard copy and verified-status documentation | docs smoke and UX review |
 | AT-010 | Dedicated engine service lifespan and loopback API | spawned process lifecycle test |
-| AT-011 | Account-session market/private event projection | event persistence integration test |
+| AT-011 | Account-session market/private event projection | `test_reconciliation_store.py` and `test_bybit_reconciliation.py`; live stream integration remains pending |
 | AT-012 | Readiness evidence and protected session on stale/missing state | stale/incomplete fixture matrix |
 | AT-013 | FastAPI OpenAPI as sole wire source and regenerated TS paths/schema | OpenAPI drift check |
 | AT-014 | Admission authority, stable ClientOrderId and Nautilus-only runtime | native event integration test |
@@ -360,6 +382,7 @@ None — no formal external design review occurred for this new slice.
 | Version | Date | Author | Changes |
 |---|---|---|---|
 | 1.0 | 2026-11-22 | SDD Design by RDD | Initial future Testnet execution contract; preserves read-only and simulation boundaries. |
+| 1.1 | 2026-11-23 | SDD Build continuation | Separate REST snapshot evidence from explicit private events; add the event evidence module and offline projector tests. |
 
 ## Next Step
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -16,6 +16,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from quant_data.commands import EmergencyState, Environment, LedgerConflict, identifier
 from quant_data.models import AccountSession, ReconciliationSnapshot
 from quant_data.models import EmergencyState as EmergencyStateRow
+from quant_data.reconciliation_events import (
+    NativeEventEvidence,
+    persist_native_events,
+    resolve_native_events,
+)
 
 _MAX_JSON_BYTES = 1024 * 1024
 _MAX_RECONCILIATION_AGE_NS = 30_000_000_000
@@ -66,6 +71,7 @@ class ReconciliationEvidence:
     observed_at_ns: int
     generation: int = 0
     protected_reason: str | None = None
+    native_events: tuple[NativeEventEvidence, ...] = ()
 
     def __post_init__(self) -> None:
         identifier(self.session_id, "session_id")
@@ -79,6 +85,10 @@ class ReconciliationEvidence:
             raise ValueError("complete evidence cannot carry a protected reason")
         if self.protected_reason is not None:
             identifier(self.protected_reason, "protected_reason")
+        if not isinstance(self.native_events, tuple) or any(
+            not isinstance(event, NativeEventEvidence) for event in self.native_events
+        ):
+            raise TypeError("native event evidence must be a typed tuple")
         if not isinstance(self.wallet, dict) or not isinstance(self.positions, (list, tuple)):
             raise TypeError("wallet and position evidence must be structured reports")
         if not isinstance(self.orders, (list, tuple)) or not isinstance(self.executions, (list, tuple)):
@@ -99,15 +109,17 @@ class ReconciliationEvidence:
             _json(self.orders, "orders"),
             _json(self.executions, "executions"),
         )
-        metadata = json.dumps(
+        metadata = _json(
             {
                 "complete": self.complete,
                 "generation": self.generation,
+                "native_events": [
+                    event.canonical() for event in sorted(self.native_events, key=_native_event_sort_key)
+                ],
                 "observed_at_ns": self.observed_at_ns,
                 "protected_reason": self.protected_reason,
             },
-            sort_keys=True,
-            separators=(",", ":"),
+            "reconciliation metadata",
         )
         digest = hashlib.sha256("|".join((*payloads, metadata)).encode("utf-8")).hexdigest()
         return payloads[0], payloads[1], payloads[2], payloads[3], digest
@@ -230,13 +242,23 @@ class ReconciliationStore:
             return _session_record(row)
 
     def record(self, evidence: ReconciliationEvidence) -> ReconciliationRecord:
-        wallet, positions, orders, executions, digest = evidence.encoded()
         with self._sessions.begin() as session:
             account = session.get(AccountSession, evidence.session_id)
             if account is None:
                 raise KeyError("unknown account session")
             if evidence.generation != account.generation:
                 raise LedgerConflict("stale reconciliation generation")
+            resolution = resolve_native_events(session, evidence.session_id, evidence.native_events)
+            if resolution.conflict:
+                effective = replace(
+                    evidence,
+                    complete=False,
+                    protected_reason="native_event_conflict",
+                    native_events=resolution.snapshot_events,
+                )
+            else:
+                effective = replace(evidence, native_events=resolution.snapshot_events)
+            wallet, positions, orders, executions, digest = effective.encoded()
             if evidence.revision <= account.reconciliation_revision:
                 prior = session.scalar(
                     select(ReconciliationSnapshot).where(
@@ -258,16 +280,34 @@ class ReconciliationStore:
                 positions_json=positions,
                 orders_json=orders,
                 executions_json=executions,
-                complete=int(evidence.complete),
-                protected_reason=evidence.protected_reason,
-                observed_at_ns=evidence.observed_at_ns,
+                complete=int(effective.complete),
+                protected_reason=effective.protected_reason,
+                observed_at_ns=effective.observed_at_ns,
             )
             session.add(row)
+            persist_native_events(session, evidence.session_id, resolution.insertable_events)
             account.reconciliation_revision = evidence.revision
-            if not evidence.complete:
+            if not effective.complete:
                 account.protected = 1
-                account.protection_reason = evidence.protected_reason or "incomplete_reconciliation"
+                account.protection_reason = effective.protected_reason or "incomplete_reconciliation"
                 account.status = EmergencyState.PROTECTED.value
+                emergency = session.get(EmergencyStateRow, evidence.session_id)
+                if emergency is None:
+                    session.add(
+                        EmergencyStateRow(
+                            session_id=evidence.session_id,
+                            state=EmergencyState.PROTECTED.value,
+                            generation=account.generation,
+                            reason=account.protection_reason,
+                            command_id=None,
+                            updated_at_ns=evidence.observed_at_ns,
+                        )
+                    )
+                else:
+                    emergency.state = EmergencyState.PROTECTED.value
+                    emergency.generation = account.generation
+                    emergency.reason = account.protection_reason
+                    emergency.updated_at_ns = evidence.observed_at_ns
             session.flush()
             return _record(row)
 
@@ -383,6 +423,10 @@ def _record(row: ReconciliationSnapshot) -> ReconciliationRecord:
         row.protected_reason,
         row.observed_at_ns,
     )
+
+
+def _native_event_sort_key(event: NativeEventEvidence) -> tuple[str, str]:
+    return event.event_id, event.event_type
 
 
 def _session_record(row: AccountSession) -> AccountSessionRecord:
