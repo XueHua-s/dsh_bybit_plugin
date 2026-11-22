@@ -145,20 +145,21 @@ version-to-version upgrade preserving active user state.
 
 The repository now includes `apps/dsh-plugin/scripts/plugin-manager-smoke.ts`
 and the `bundle:lifecycle` package/Nx target. It creates a temporary
-`DSH_HOME`, packs the current Bundle, runs the installed official DSH CLI, and
-checks the disposable profile after each package operation. The fixture files
-are synthetic sentinels only; their contents are never printed.
+`DSH_HOME`, packs the current Bundle, creates a temporary 1.4.6 archive from
+the packed 1.4.5 artifact, runs the installed official DSH CLI, and checks the
+disposable profile after install, upgrade and removal. The fixture files are
+synthetic sentinels only; their contents are never printed.
 
 Exact command and result:
 
 ```text
 pnpm --dir apps/dsh-plugin run bundle:lifecycle  # exit 0
 {"ok":true,"dshVersion":"0.2.2-rc.5","package":"@bybit-quant/dsh-plugin",
- "lifecycle":["install","remove"],"selectedAfterInstall":true,
- "selectedAfterUninstall":false,"statePreserved":true,"exchangeRequests":0,
+ "lifecycle":["install","upgrade","remove"],"selectedAfterInstall":true,
+ "selectedAfterUpgrade":true,"selectedAfterUninstall":false,"statePreserved":true,"exchangeRequests":0,
  "dshHome":"<temporary>"}
 ```
 
-This is a repeatable disposable CLI install/remove and state-preservation
+This is a repeatable disposable CLI install/upgrade/remove and state-preservation
 receipt. It does not close the separate gaps for Host service activation,
-version-to-version upgrade, rollback, or active-profile state preservation.
+rollback, or active-profile state preservation.

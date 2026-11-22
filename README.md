@@ -2,7 +2,7 @@
 
 Bybit AI Quant is a DeepSeek Harness (DSH) Bundle implemented as a TypeScript Host/Client plugin. The repository is an Nx + pnpm workspace; the Python uv workspace contains `quant-data`, the independent read-only `quant-engine` market service and an optional native synthetic paper service. The current plugin provides Bybit REST market data, deterministic indicators and long-only backtests, a local paper book, a watchlist, an AI simulation ledger with code-owned risk gates, and a view-only dashboard. The dashboard's symbol, market and timeframe filters query display data only. AI decisions use a separately discovered Bybit candidate universe; the optional background loop is default-off and simulation-only. AI decisions and positions are simulated; exchange writes are unavailable.
 
-The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Mainnet AI-subaccount OAuth grant, token exchange, and read-only account-list access were verified on 2026-11-19; the returned list was empty, so no Mainnet sub-account was selected or created and no order was tested. Nautilus as sole exchange execution authority, the full quant/AI/research platform, and Plugin Manager upgrade preservation remain incomplete or unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
+The repository is an active development workspace. The full autonomous quant platform described in the SDD is not complete. The Python engine now consumes public Testnet WebSocket tickers through a bounded adapter and supervised consumer, independently of DSH. A generated, runtime-validated TypeScript SDK connects DSH engine tools and a read-only panel card to that service; existing candle/account/analysis views retain REST paths. An offline native Nautilus foundation now proves finite backtest fills and cancellation. Mainnet AI-subaccount OAuth grant, token exchange, and read-only account-list access were verified on 2026-11-19; the returned list was empty, so no Mainnet sub-account was selected or created and no order was tested. Nautilus as sole exchange execution authority and the full quant/AI/research platform remain incomplete. The disposable official DSH CLI now has a reproducible install/upgrade/remove and user-state-preservation smoke; Host activation, rollback and active-profile upgrade preservation remain unverified. See the [original-scope audit](sdd/reports/ORIGINAL_SCOPE_AUDIT_2026-11-17.md).
 
 ## Install the Bundle
 
@@ -18,9 +18,10 @@ The Bundle patch inserts the `@bybit-quant/dsh-plugin` Host row and defaults to 
 
 To reproduce the disposable CLI lifecycle check without touching the active
 Harness profile, run `pnpm --dir apps/dsh-plugin run bundle:lifecycle`. It
-packs the current Bundle, installs and removes it through the official DSH CLI
-in a temporary `DSH_HOME`, and verifies synthetic user-state hashes are
-unchanged. The smoke does not exercise Host activation or exchange writes.
+packs the current Bundle, installs it, upgrades a temporary copy from 1.4.5 to
+1.4.6, removes it through the official DSH CLI in a temporary `DSH_HOME`, and
+verifies synthetic user-state hashes are unchanged. The smoke does not exercise
+Host activation, rollback, or exchange writes.
 
 ## Available tools
 

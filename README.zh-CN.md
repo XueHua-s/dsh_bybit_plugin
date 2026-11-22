@@ -4,7 +4,7 @@ Bybit AI Quant 是运行在 DeepSeek Harness（DSH）中的 Bybit 量化插件�
 
 当前 Bundle 提供 Bybit 行情与交易品种读取、确定性指标、单资产多头回测、旧版本地模拟账本、观察列表、带代码风控的 AI 模拟决策，以及只读仪表盘。仪表盘的币种、市场和周期筛选只改变展示行情；AI 使用独立发现的 Bybit 候选池。后台 AI 循环默认关闭且仅记录模拟决策，交易所写入不可用。
 
-这是一个持续开发中的工作区。架构书描述的完整自主量化平台尚未完成。当前已有独立 Python Testnet 公共行情服务、生成的 TypeScript SDK、离线 Nautilus 原生回测基础、策略族和有限的策略选择/组合规划研究模块；Nautilus 作为唯一交易所执行权威、完整账户与订单对账恢复、研究演化闭环以及 Plugin Manager 的 Host 级升级保留仍未完成或未验证。请以 [架构实现审计](sdd/reports/ARCHITECTURE_IMPLEMENTATION_AUDIT_2026-11-19.md) 为准。
+这是一个持续开发中的工作区。架构书描述的完整自主量化平台尚未完成。当前已有独立 Python Testnet 公共行情服务、生成的 TypeScript SDK、离线 Nautilus 原生回测基础、策略族和有限的策略选择/组合规划研究模块；Nautilus 作为唯一交易所执行权威、完整账户与订单对账恢复、研究演化闭环仍未完成或未验证。官方 DSH CLI 的临时 `DSH_HOME` 已有可复现的安装、升级、卸载和用户状态保留检查；Host 激活、回滚和活动配置升级保留仍未验证。请以 [架构实现审计](sdd/reports/ARCHITECTURE_IMPLEMENTATION_AUDIT_2026-11-19.md) 为准。
 
 ## 安装 Bundle
 
@@ -20,8 +20,9 @@ Bundle patch 注册 `@bybit-quant/dsh-plugin` Host 行，默认环境为 `[TESTN
 
 如需复现一次不触碰当前 Harness 配置的 CLI 生命周期检查，可运行
 `pnpm --dir apps/dsh-plugin run bundle:lifecycle`。脚本会在临时
-`DSH_HOME` 中打包当前 Bundle，通过官方 DSH CLI 安装和卸载，并校验合成的
-用户状态文件哈希未变化；它不测试 Host 激活或交易所写入。
+`DSH_HOME` 中打包当前 Bundle，将临时副本从 1.4.5 升级到 1.4.6，再通过
+官方 DSH CLI 卸载，并校验合成的用户状态文件哈希未变化；它不测试 Host
+激活、回滚或交易所写入。
 
 ## 可用能力
 

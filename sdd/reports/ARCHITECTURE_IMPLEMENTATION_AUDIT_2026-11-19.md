@@ -792,3 +792,30 @@ Latest local receipts for this review:
 | `pnpm --dir apps/dsh-plugin run verify` | 0 | Plugin build, lint, strict source/test typechecks, 19 unit suites and packed Bundle boundary checks passed; five existing non-blocking lint warnings remain. |
 | `pnpm run python:test` | 0 | 500 tests passed; 11 upstream/deprecation warnings. |
 | `git diff --check` | 0 | No whitespace errors. |
+
+## 2026-11-22 native Testnet design handoff
+
+The next execution slice is specified in
+`sdd/features/DESIGN_NATIVE_TESTNET_EXECUTION.md`. It is a future Build
+contract, not an execution receipt. The design keeps the current GET-only
+provider and simulation paths unchanged while defining the missing native
+Testnet boundary: trusted profile/account binding, complete private-state
+reconciliation, durable `ClientOrderId`, one account writer, protected
+uncertain outcomes, and dedicated freeze/cancel/reduce-only/close commands.
+It intentionally starts with Testnet Linear and keeps Mainnet factories and
+endpoints rejected before construction. No order was sent while producing the
+design.
+
+The design also records that the dashboard remains read-only and that the AI
+is the proposer of eligible symbols and target exposure; deterministic server
+admission, risk and Nautilus own execution. The implementation is still
+blocked on the 29-file Build manifest, independent verification, and a
+separately authorized capped Testnet smoke gate.
+
+The follow-up Build receipt is
+`sdd/reports/BUILD_REPORT_NATIVE_TESTNET_EXECUTION.md`. It records 0/30
+native execution implementation tasks completed, while the local TypeScript,
+Python lint/typecheck and 500-test suite remain green. The product-level
+Verify Gate is therefore **BLOCKED/INCONCLUSIVE**: no native Testnet order,
+Mainnet order, durable client order identity, private reconciliation or
+restart recovery was exercised.
