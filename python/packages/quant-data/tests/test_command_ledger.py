@@ -28,6 +28,7 @@ from quant_data.commands import (
 )
 from quant_data.ledger import CommandLedger
 from quant_data.migrations import upgrade_sqlite
+from quant_data.reconciliation_store import ReconciliationEvidence, ReconciliationStore
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,7 +42,7 @@ def database(tmp_path: Path) -> Path:
     with create_engine(f"sqlite:///{path}").connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0006_ai_paper_decision_binding"
+            == "0007_native_execution_state"
         )
         assert {"execution_commands", "command_events", "market_snapshot_projections"} <= set(
             inspect(connection).get_table_names()
@@ -51,6 +52,36 @@ def database(tmp_path: Path) -> Path:
 
 def ledger(path: Path) -> CommandLedger:
     return CommandLedger(sessionmaker(create_engine(f"sqlite:///{path}", connect_args={"timeout": 10})))
+
+
+def native_ready(path: Path) -> tuple[CommandLedger, ReconciliationStore]:
+    engine = create_engine(f"sqlite:///{path}", connect_args={"timeout": 10})
+    sessions = sessionmaker(engine)
+    reconciliation = ReconciliationStore(sessions)
+    reconciliation.open_session("native-session", "account-fixture", "b" * 64, expected_uid="uid-1")
+    reconciliation.record(
+        ReconciliationEvidence("native-session", 1, {"total_equity": "1000"}, [], [], [], True, 1, generation=0)
+    )
+    reconciliation.activate("native-session", 0, 1, 2)
+    return CommandLedger(sessions), reconciliation
+
+
+def native_admit(store: CommandLedger, request_id: str = "native-request") -> str:
+    row = store.admit_native(
+        replace(intent(), request_id=request_id),
+        "native-session",
+        0,
+        1,
+        True,
+        RiskCode.APPROVED,
+        policy_fingerprint="c" * 64,
+        context_fingerprint="d" * 64,
+        evaluated_at_ns=10,
+        expires_at_ns=100,
+        reservation_price=Decimal(100),
+    )
+    assert row.state == S.READY
+    return row.id
 
 
 def intent() -> OrderCommand:
@@ -129,6 +160,129 @@ def test_risk_rejection_audited_and_cannot_dispatch(database: Path) -> None:
         store.decide_risk(row.id, True, RiskCode.APPROVED)
     with pytest.raises(ValueError):
         store.decide_risk(row.id, True, RiskCode.ACCOUNT)
+
+
+def test_native_admission_requires_complete_active_reconciliation_and_reserves(database: Path) -> None:
+    store, _ = native_ready(database)
+    command_id = native_admit(store)
+    with create_engine(f"sqlite:///{database}").connect() as connection:
+        assert (
+            connection.execute(
+                text("SELECT count(*) FROM execution_reservations WHERE command_id=:id"), {"id": command_id}
+            ).scalar_one()
+            == 1
+        )
+    assert store.claim_native_dispatch(command_id, "native-session", 0, 1, 99)[0]
+
+
+def test_native_admission_rejects_protected_and_incomplete_account(database: Path) -> None:
+    engine = create_engine(f"sqlite:///{database}", connect_args={"timeout": 10})
+    reconciliation = ReconciliationStore(sessionmaker(engine))
+    reconciliation.open_session("native-session", "account-fixture", "b" * 64, expected_uid="uid-1")
+    reconciliation.record(
+        ReconciliationEvidence(
+            "native-session",
+            1,
+            {"total_equity": "1000"},
+            [],
+            [],
+            [],
+            False,
+            1,
+            generation=0,
+            protected_reason="missing_orders_page",
+        )
+    )
+    with pytest.raises(InvalidTransition, match="protected"):
+        native_admit(ledger(database))
+
+
+def test_native_rejected_risk_has_no_reservation(database: Path) -> None:
+    store, _ = native_ready(database)
+    row = store.admit_native(
+        replace(intent(), request_id="rejected-native"),
+        "native-session",
+        0,
+        1,
+        False,
+        RiskCode.BALANCE,
+        policy_fingerprint="c" * 64,
+        context_fingerprint="d" * 64,
+        evaluated_at_ns=10,
+        expires_at_ns=100,
+        reservation_price=Decimal(100),
+    )
+    assert row.state == S.RISK_REJECTED
+    with create_engine(f"sqlite:///{database}").connect() as connection:
+        assert connection.execute(text("SELECT count(*) FROM execution_reservations")).scalar_one() == 0
+    assert not store.claim_native_dispatch(row.id, "native-session", 0, 1, 99)[0]
+
+
+@pytest.mark.parametrize("change", ["generation", "revision", "expiry", "emergency"])
+def test_native_dispatch_rechecks_generation_revision_expiry_and_emergency(database: Path, change: str) -> None:
+    store, reconciliation = native_ready(database)
+    command_id = native_admit(store, request_id=f"stale-{change}")
+    if change == "generation":
+        reconciliation.begin_generation("native-session", 0)
+        args = ("native-session", 0, 1, 99)
+    elif change == "revision":
+        reconciliation.record(
+            ReconciliationEvidence("native-session", 2, {"total_equity": "1000"}, [], [], [], True, 3, generation=0)
+        )
+        reconciliation.activate("native-session", 0, 2, 4)
+        args = ("native-session", 0, 1, 99)
+    elif change == "expiry":
+        args = ("native-session", 0, 1, 100)
+    else:
+        reconciliation.protect("native-session", "operator_stop")
+        args = ("native-session", 0, 1, 99)
+    assert not store.claim_native_dispatch(command_id, *args)[0]
+
+
+def test_native_admission_idempotency_conflict_and_single_claim(database: Path) -> None:
+    store, _ = native_ready(database)
+    command_id = native_admit(store)
+    assert native_admit(store) == command_id
+    with pytest.raises(LedgerConflict):
+        store.admit_native(
+            replace(intent(), request_id="native-request", quantity=Decimal(2)),
+            "native-session",
+            0,
+            1,
+            True,
+            RiskCode.APPROVED,
+            policy_fingerprint="c" * 64,
+            context_fingerprint="d" * 64,
+            evaluated_at_ns=10,
+            expires_at_ns=100,
+            reservation_price=Decimal(100),
+        )
+    barrier = Barrier(6)
+
+    def claim(_: int) -> bool:
+        separate = ledger(database)
+        barrier.wait()
+        return separate.claim_native_dispatch(command_id, "native-session", 0, 1, 99)[0]
+
+    with ThreadPoolExecutor(6) as pool:
+        assert sum(pool.map(claim, range(6))) == 1
+
+
+def test_native_idempotent_replay_returns_receipt_while_protected(database: Path) -> None:
+    store, reconciliation = native_ready(database)
+    command_id = native_admit(store)
+    reconciliation.protect("native-session", "operator_stop")
+    assert native_admit(store) == command_id
+    assert not store.claim_native_dispatch(command_id, "native-session", 0, 1, 99)[0]
+
+
+def test_native_dispatch_fails_closed_when_emergency_projection_is_missing(database: Path) -> None:
+    store, _ = native_ready(database)
+    command_id = native_admit(store)
+    with create_engine(f"sqlite:///{database}").begin() as connection:
+        connection.execute(text("DELETE FROM emergency_states WHERE session_id='native-session'"))
+
+    assert not store.claim_native_dispatch(command_id, "native-session", 0, 1, 99)[0]
 
 
 def test_partial_fill_event_idempotency_and_terminal_guards(database: Path) -> None:

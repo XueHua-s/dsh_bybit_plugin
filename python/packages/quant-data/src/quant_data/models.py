@@ -168,3 +168,142 @@ class AiPaperCycleEvent(Base):
     claim_owner: Mapped[str | None] = mapped_column(String(128))
     claim_deadline_ns: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AccountSession(Base):
+    """Durable identity and protection fence for one authenticated account generation."""
+
+    __tablename__ = "account_sessions"
+    __table_args__ = (
+        UniqueConstraint("environment", "account_ref", name="uq_account_session_scope"),
+        Index("ix_account_session_status", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    environment: Mapped[str] = mapped_column(String(16), nullable=False)
+    account_ref: Mapped[str] = mapped_column(String(128), nullable=False)
+    expected_uid: Mapped[str | None] = mapped_column(String(128))
+    category: Mapped[str] = mapped_column(String(16), nullable=False)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    protected: Mapped[int] = mapped_column(Integer, nullable=False)
+    protection_reason: Mapped[str | None] = mapped_column(String(128))
+    reconciliation_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    config_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ReconciliationSnapshot(Base):
+    """Immutable, redacted account evidence joined at one reconciliation revision."""
+
+    __tablename__ = "reconciliation_snapshots"
+    __table_args__ = (
+        UniqueConstraint("session_id", "revision", name="uq_reconciliation_revision"),
+        Index("ix_reconciliation_observed_at", "observed_at_ns"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), nullable=False)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    evidence_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    wallet_json: Mapped[str] = mapped_column(Text, nullable=False)
+    positions_json: Mapped[str] = mapped_column(Text, nullable=False)
+    orders_json: Mapped[str] = mapped_column(Text, nullable=False)
+    executions_json: Mapped[str] = mapped_column(Text, nullable=False)
+    complete: Mapped[int] = mapped_column(Integer, nullable=False)
+    protected_reason: Mapped[str | None] = mapped_column(String(128))
+    observed_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class NativeExecutionEvent(Base):
+    """Append-only private venue event; payload is redacted before persistence."""
+
+    __tablename__ = "native_execution_events"
+    __table_args__ = (
+        UniqueConstraint("session_id", "event_id", name="uq_native_execution_event"),
+        Index("ix_native_execution_client_order", "client_order_id"),
+        Index("ix_native_execution_occurred_at", "occurred_at_ns"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    command_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("execution_commands.id"))
+    client_order_id: Mapped[str | None] = mapped_column(String(36))
+    venue_order_id: Mapped[str | None] = mapped_column(String(128))
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    applied: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ExecutionReservation(Base):
+    """Server-owned exposure reservation shared by native admission and reconciliation."""
+
+    __tablename__ = "execution_reservations"
+    command_id: Mapped[str] = mapped_column(String(36), ForeignKey("execution_commands.id"), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), nullable=False)
+    account_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    reconciliation_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    symbol: Mapped[str] = mapped_column(String(128), nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    remaining_quantity: Mapped[str] = mapped_column(String(64), nullable=False)
+    reserved_notional: Mapped[str] = mapped_column(String(64), nullable=False)
+    reserved_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class NativeAdmissionDecision(Base):
+    """Immutable, generation-bound risk result for a native Testnet command."""
+
+    __tablename__ = "native_admission_decisions"
+    command_id: Mapped[str] = mapped_column(String(36), ForeignKey("execution_commands.id"), primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), nullable=False)
+    allowed: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    policy_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    context_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    account_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    reconciliation_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    evaluated_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    expires_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reservation_price: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EmergencyState(Base):
+    """Current durable emergency fence; transitions are recorded separately."""
+
+    __tablename__ = "emergency_states"
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), primary_key=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(128))
+    command_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("execution_commands.id"))
+    updated_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class EmergencyEvent(Base):
+    """Append-only emergency command history."""
+
+    __tablename__ = "emergency_events"
+    __table_args__ = (
+        UniqueConstraint("session_id", "event_id", name="uq_emergency_event"),
+        UniqueConstraint("session_id", "sequence", name="uq_emergency_event_sequence"),
+        Index("ix_emergency_event_session", "session_id", "sequence"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(128), ForeignKey("account_sessions.id"), nullable=False)
+    event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(128))
+    command_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("execution_commands.id"))
+    occurred_at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

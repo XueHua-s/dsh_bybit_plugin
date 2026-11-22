@@ -22,7 +22,7 @@ the prompt-evaluation gate, or the scheduler's durable lease/restart status.
 | Dynamic AI universe | `apps/dsh-plugin/src/lib/ai-universe.ts`, `test/ai-universe.ts` | **Implemented for the plugin slice**. Bybit instrument pages and ticker data are joined, filtered by trading status, USDT/category, quantity and price rules, turnover and spread, then bounded and ranked. Discovery failure fails closed. |
 | Background AI loop | `apps/dsh-plugin/src/lib/ai-scheduler.ts`, `src/lib/paper-ai-cycle.ts`, `src/host-tools-ai.ts`, process harness | **Implemented as opt-in internal-paper/testnet research with different execution paths**. Each wake-up has one bounded DSH Agent turn. Internal paper calls the authenticated Python fixture/cycle API and records its durable receipt; the packaged process harness verifies a synthetic fill through Host tools. Testnet still records only to the local simulated journal. Host scheduler ownership/leases are in memory, and independent prompt/model evaluation remains open. |
 | Native internal paper | `python/apps/quant-engine/src/quant_engine/paper_admission.py`, `paper_cycle_service.py`, `paper_bootstrap.py`, `quant-execution` tests | **Implemented and process-tested for synthetic fixtures**. The service provisions a credential-free fixture registry, runs selector → portfolio planner → independent risk → durable admission → isolated native synthetic OMS, and protects uncertain/restart states. This does not use live exchange prices or prove profitability. |
-| Bybit Testnet execution | `python/packages/quant-execution/src/quant_execution/bybit_http_provider.py`, `bybit_preflight.py` | **Not implemented**. The provider is deliberately GET-only and preflight returns `order_submission_allowed=False`. `bybit_trade` returns `execution_authority_unavailable` before any exchange request when `dryRun:false`. No Testnet order was sent. |
+| Bybit Testnet execution | `python/packages/quant-execution/src/quant_execution/bybit_http_provider.py`, `bybit_preflight.py`, `bybit_account.py` | **Offline boundary only; execution not implemented**. The provider is deliberately GET-only and preflight returns `order_submission_allowed=False`. `bybit_account.py` validates an opaque host profile and builds explicit Testnet + Linear Nautilus config objects from in-memory credential material, but does not create clients or connect. `bybit_trade` returns `execution_authority_unavailable` before any exchange request when `dryRun:false`. No Testnet order was sent. |
 | Mainnet OAuth | `apps/dsh-plugin/src/lib/bybit-oauth.ts`, `test/oauth.ts`, README receipt | **Read/account setup only**. Mainnet PKCE endpoints and environment-scoped credential storage are implemented and the recorded account-list request succeeded with an empty list. Mainnet trading remains disabled; no production order was sent. |
 | DSH Bundle packaging and lifecycle | `apps/dsh-plugin/package.json`, `cordis.patch.yml`, `tsdown.config.ts`, `scripts/check-bundle.ts`, and `sdd/reports/PLUGIN_MANAGER_LIFECYCLE_2026-11-17.md` | **Packaged and CLI lifecycle-tested with limits**. The current 1.4.5 tarball passes the Bundle check and installs/removes in a disposable profile using DSH CLI 0.2.2-rc.5; synthetic credential/token/state fixture hashes outside the package tree were unchanged. Earlier CLI receipt upgraded 1.4.5→1.4.6 via a loopback registry. Direct Host `plugin_manager.install_bundle`/`updateBundle` activation, rollback, current-source version upgrade, and active Host state preservation remain unverified; no public-registry package is claimed. |
 | GitHub strategy frameworks | `docs/research/github-repository-audit.md`, `python/packages/quant-strategies`, `sdd/reports/BUILD_REPORT_STRATEGY_FAMILIES.md` | **Not wholesale integrated**. The repository contains independent, tested research implementations (SMA/EMA cross, Donchian, ADX trend, momentum, Bollinger/Z-score/RSI reversion, ATR breakout, funding carry and a small Alpha158 subset). The audited TradingAgents, RD-Agent, FreqAI, VectorBT, FinRL, ElegantRL and Hummingbot repositories are references only. |
@@ -159,6 +159,58 @@ Fresh receipts after adding the lifecycle report:
 | `gitleaks dir --redact --no-banner --ignore-gitleaks-allow .` | 0 | No leaks in approximately 31.42 MB scanned. |
 | `pnpm exec nx show projects` | 0 | Nine Nx projects discovered. |
 | `git diff --check` | 0 | No whitespace errors. |
+
+## 2026-11-22 offline native order-mapper boundary
+
+Manifest item 7 now has a pure `bybit_order_mapper.py` boundary. It accepts a
+`CommandRecord` only when its state is `READY` and its canonical fingerprint
+matches the command. It then requires the exact `BYBIT` catalog instrument and
+command symbol, uses the ledger-owned deterministic `native_client_order_id`,
+and constructs a Nautilus `MarketOrder` or `LimitOrder` with GTC and
+reduce-only fields. Quantity and price are checked against instrument
+increments and min/max precision before conversion; any value that Nautilus
+would round is rejected. UI symbols, caller venue IDs and arbitrary client IDs
+are not accepted, and the mapper performs no exchange IO.
+
+This closes only the offline mapping part of item 7. The live Nautilus data / execution
+factories, private events, account checks, reconciliation, engine admission and
+restart recovery remain absent. No Testnet or Mainnet order was sent.
+
+Latest receipts:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `uv run --project python --locked pytest python/packages/quant-execution/tests/test_bybit_order_mapper.py -q` | 0 | 10 passed; all fixtures are offline. |
+| `uv run --project python --locked ruff check python/packages/quant-execution/src/quant_execution/bybit_order_mapper.py python/packages/quant-execution/tests/test_bybit_order_mapper.py` | 0 | All checks passed. |
+| `uv run --project python --locked pyright python/packages/quant-execution/src/quant_execution/bybit_order_mapper.py python/packages/quant-execution/tests/test_bybit_order_mapper.py` | 0 | 0 errors, warnings or informations. |
+| `uv run --project python --locked pytest python/packages/quant-execution/tests -q` | 0 | 108 passed; 10 existing Pandas warnings. |
+| `CI=1 NX_DAEMON=false pnpm run python:test` | 0 | 536 passed; 11 upstream/deprecation/simulation warnings. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+The execution package now declares its workspace dependency on
+`bybit-quant-data`; `python/uv.lock` records the edge. This is packaging
+metadata and does not enable live execution.
+
+## 2026-11-22 account-config typed API correction and verification
+
+The initial focused typecheck found that Nautilus 1.231.0 publishes the
+`BybitEnvironment` and `BybitProductType` type definitions from
+`nautilus_trader.core.nautilus_pyo3`; the adapter config module only re-exports
+them at runtime. `bybit_account.py` and its tests now import the typed public
+location. This is a type-boundary correction only and does not widen the
+environment, product category or runtime authority. Non-string profile and UID
+inputs are also rejected with stable `ValueError` responses at the module
+boundary.
+
+The focused account tests still pass (5), the module and tests pass Ruff and
+Pyright, and the full Python suite now passes 528 tests with 11 existing
+warnings. Nx package targets `quant-execution:build`, `:test`, `:typecheck`,
+and `:lint` each exited 0. These checks verify packaging and static boundaries;
+they do not create a Nautilus client, connect to Bybit, or prove exchange
+identity/reconciliation. Testnet writes and all Mainnet writes remain disabled.
+The root Verify Gate also exited 0 after this addition, and
+`gitleaks dir --no-banner --redact .` scanned approximately 40.53 MB with no
+leaks found. No SBOM dependency input changed in this typed-import correction.
 
 ## 2026-11-22 fixture expiry precision correction
 
@@ -789,8 +841,8 @@ Latest local receipts for this review:
 
 | Command | Exit | Result |
 |---|---:|---|
-| `pnpm --dir apps/dsh-plugin run verify` | 0 | Plugin build, lint, strict source/test typechecks, 19 unit suites and packed Bundle boundary checks passed; five existing non-blocking lint warnings remain. |
-| `pnpm run python:test` | 0 | 500 tests passed; 11 upstream/deprecation warnings. |
+| `pnpm --dir apps/dsh-plugin run verify` | 0 | Plugin build, lint, strict source/test typechecks, unit suites and packed Bundle boundary checks passed; eight existing non-blocking lint warnings remain. |
+| `pnpm run python:test` | 0 | 510 tests passed; 11 upstream/deprecation/simulation warnings. |
 | `git diff --check` | 0 | No whitespace errors. |
 
 ## 2026-11-22 native Testnet design handoff
@@ -809,13 +861,170 @@ design.
 The design also records that the dashboard remains read-only and that the AI
 is the proposer of eligible symbols and target exposure; deterministic server
 admission, risk and Nautilus own execution. The implementation is still
-blocked on the 29-file Build manifest, independent verification, and a
+blocked on the 36-entry Build manifest, independent verification, and a
 separately authorized capped Testnet smoke gate.
 
 The follow-up Build receipt is
-`sdd/reports/BUILD_REPORT_NATIVE_TESTNET_EXECUTION.md`. It records 0/30
-native execution implementation tasks completed, while the local TypeScript,
-Python lint/typecheck and 500-test suite remain green. The product-level
-Verify Gate is therefore **BLOCKED/INCONCLUSIVE**: no native Testnet order,
-Mainnet order, durable client order identity, private reconciliation or
-restart recovery was exercised.
+`sdd/reports/BUILD_REPORT_NATIVE_TESTNET_EXECUTION.md`. The 2026-11-22
+continuation expanded the manifest to 36 entries and completed the persistence
+plus local admission foundation: additive migration
+`0007_native_execution_state`, account-generation fencing, redacted
+reconciliation snapshots, explicit activation, and generation/revision-bound
+admission/reservation/dispatch claims. It records 11/36 entries complete, with
+the emergency enum partial; no native Testnet order, Mainnet order, private
+event projector, or restart recovery was exercised. At the time of that
+receipt, the full Python suite was 523 passed; the later workspace-wide
+receipt below supersedes that count. The product-level Verify Gate remains
+**BLOCKED/INCONCLUSIVE**.
+
+## 2026-11-22 native admission/claim continuation
+
+The persistence slice now includes a separate `native_ledger.py` boundary.
+`CommandLedger.admit_native` accepts only Testnet commands, binds the command
+to an account generation and current complete reconciliation revision, stores
+the typed risk result and policy/context fingerprints, and creates a server
+owned notional reservation only for an approved decision. An explicit
+`ReconciliationStore.activate` call is required to clear the initial
+protected fence after a complete snapshot; it also installs a `running`
+emergency fence. `claim_native_dispatch` rechecks account identity, generation,
+current revision, complete snapshot, emergency state and risk expiry before one
+optimistic READY→DISPATCHING transition. It does not call Bybit or any other
+exchange.
+
+The new isolated SQLite tests cover protected/incomplete admission rejection,
+generation and revision drift, risk expiry, non-running emergency fence,
+risk-rejected commands without reservations, same-request replay and payload
+conflict, and six-way concurrent claim with one winner. Targeted quant-data
+tests pass (`70 passed`), Ruff and Pyright pass, and the product remains
+**PARTIAL/BLOCKED**: the independent risk evaluator, engine admission/runtime,
+Nautilus execution client, private event reconciliation, restart recovery and
+Testnet/Mainnet exchange writes are still absent. No order or credential was
+used.
+
+## 2026-11-22 fail-closed freshness and emergency projection correction
+
+The native persistence boundary now rejects activation and dispatch when the
+complete reconciliation snapshot is older than 30 seconds or more than five
+seconds ahead of the caller clock. The check is generation- and revision-bound,
+so a complete snapshot from an earlier account generation cannot authorize a
+new dispatch. `ReconciliationStore.protect` also updates the durable
+`emergency_states` projection, and native dispatch fails closed when that
+projection is missing rather than trusting the account row alone.
+
+New regression cases cover stale and future-dated snapshots, emergency-state
+synchronization and deletion of the emergency projection. They run against
+isolated SQLite only; the store still does not fetch venue state or submit an
+order.
+
+Latest receipts for this correction:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `uv run --project python --locked pytest python/packages/quant-data/tests/test_reconciliation_store.py python/packages/quant-data/tests/test_command_ledger.py -q` | 0 | 42 tests passed. |
+| `CI=1 NX_DAEMON=false pnpm run python:test` | 0 | 523 tests passed; 11 upstream/deprecation/simulation warnings. |
+| `CI=1 NX_DAEMON=false pnpm run python:lint` | 0 | Ruff check and format check passed; 114 files already formatted. |
+| `CI=1 NX_DAEMON=false pnpm run python:typecheck` | 0 | Pyright reported 0 errors, warnings or informations. |
+| `CI=1 NX_DAEMON=false pnpm run verify` | 0 | Nx/TypeScript/plugin/unit/Bundle/SDK/tooling Verify Gate passed for local scope. |
+| `CI=1 NX_DAEMON=false pnpm run security:deps` | 0 | No known npm or pip vulnerabilities; editable workspace distributions skipped by pip-audit. |
+| `CI=1 NX_DAEMON=false pnpm run sbom` | 0 | CycloneDX npm SBOM regenerated with 200 components. |
+| `CI=1 NX_DAEMON=false pnpm exec nx run quant-data:sbom` | 0 | Python SBOM target succeeded. |
+| `gitleaks dir --no-banner --redact .` | 0 | Scanned approximately 40.03 MB; no leaks found. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+These receipts strengthen only the local Testnet admission foundation. They do
+not change the product status: the Bybit provider remains GET-only,
+Nautilus-backed private execution and exchange reconciliation are absent, the
+engine does not invoke this native ledger, and Mainnet remains disabled.
+
+## 2026-11-22 offline Nautilus account-config boundary
+
+Manifest item 6 now has a deliberately narrow module at
+`python/packages/quant-execution/src/quant_execution/bybit_account.py`.
+`BybitAccountBinding` owns validation of an opaque profile reference and
+expected UID/subaccount facts. `resolve_testnet_credentials` accepts secret
+material only through a host-owned resolver, and
+`build_testnet_linear_configs` constructs the two explicit Nautilus config
+objects with `BybitEnvironment.TESTNET` and `BybitProductType.LINEAR`.
+The module does not read ambient environment variables, persist or log secret
+values, create a live client, open a socket, or submit an order. Five isolated
+tests use fixture strings and verify malformed identity/material rejection,
+fixed environment/category, missing-profile fail-closed behavior, and a
+redacted wrapper `repr`. The underlying Nautilus configs remain credential-
+bearing in memory and their own `repr` exposes those fields; they must only be
+passed to a trusted future factory and never be logged, formatted or
+serialized.
+
+This is an offline configuration boundary, not an account verifier. The
+Nautilus live factories, private event lifecycle, permission/balance/precision
+checks, reconciliation projector and engine integration remain absent. The
+provider still rejects writes, no Testnet or Mainnet order was sent, and the
+overall unattended-trading status remains **PARTIAL/BLOCKED**.
+
+Design-quality receipt: the module keeps the venue environment/category and
+credential lookup knowledge behind a small interface, so callers receive
+explicit inert configs without knowing Nautilus transport details. The
+remaining design diagnostic gap is intentional: a production Host/OS secret
+store and one authoritative readiness contract are still future work, as
+recorded in `DESIGN_NATIVE_TESTNET_EXECUTION.md`.
+
+Latest focused receipts:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `uv run --project python --locked pytest python/packages/quant-execution/tests/test_bybit_account.py -q` | 0 | 5 tests passed; no exchange IO. |
+| `uv run --project python --locked ruff check python/packages/quant-execution/src/quant_execution/bybit_account.py python/packages/quant-execution/tests/test_bybit_account.py` | 0 | All checks passed. |
+| `uv run --project python --locked pyright python/packages/quant-execution/src/quant_execution/bybit_account.py python/packages/quant-execution/tests/test_bybit_account.py` | 0 | 0 errors, warnings or informations after importing enums from Nautilus' typed public module. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+## 2026-11-22 mapper packaging and current verification receipt
+
+The native order mapper remains an offline-only boundary: it accepts only a
+READY, fingerprint-verified Testnet ledger record, an exact Bybit catalog
+instrument and a ledger-owned client ID, and rejects any quantity or price
+that would be rounded. Its `quant-execution` workspace dependency on
+`bybit-quant-data` is now explicit in both `pyproject.toml` and `python/uv.lock`;
+this changes package discovery only and does not enable exchange IO. The
+design manifest therefore contains 36 entries, with the two packaging paths
+recorded as entries 35–36.
+
+Latest local receipts:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `uv run --project python --locked pytest python/packages/quant-execution/tests/test_bybit_order_mapper.py python/packages/quant-execution/tests/test_bybit_account.py -q` | 0 | 15 tests passed; all fixtures are local and offline. |
+| `uv run --project python --locked pytest python/packages/quant-data/tests/test_reconciliation_store.py python/packages/quant-data/tests/test_command_ledger.py python/packages/quant-data/tests/test_migrations.py -q` | 0 | 53 tests passed; isolated SQLite only. |
+| `uv run --project python --locked ruff check python/packages/quant-data/src/quant_data/ledger.py python/packages/quant-data/src/quant_data/native_ledger.py python/packages/quant-data/src/quant_data/reconciliation_store.py python/packages/quant-execution/src/quant_execution/bybit_account.py python/packages/quant-execution/src/quant_execution/bybit_order_mapper.py` | 0 | Targeted changed Python modules passed Ruff. |
+| `uv run --project python --locked pyright python/packages/quant-data/src/quant_data/ledger.py python/packages/quant-data/src/quant_data/native_ledger.py python/packages/quant-data/src/quant_data/reconciliation_store.py python/packages/quant-execution/src/quant_execution/bybit_account.py python/packages/quant-execution/src/quant_execution/bybit_order_mapper.py` | 0 | 0 errors, warnings or informations for targeted changed Python modules. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+The current product status remains **PARTIAL/BLOCKED**. The engine still does
+not invoke this ledger, the provider remains GET-only, private exchange
+reconciliation and restart recovery are absent, and no Testnet or Mainnet
+order was sent.
+
+## 2026-11-22 final workspace verification
+
+The current workspace was rechecked after the offline account and mapper
+boundaries were added. Local code and isolated fixtures passed the following
+commands; no Bybit endpoint was accessed and no order was submitted.
+
+| Command | Exit | Result |
+|---|---:|---|
+| `pnpm --dir apps/dsh-plugin run verify` | 0 | Plugin build, lint, typecheck, unit tests and bundle checks passed; 8 pre-existing lint warnings remain. |
+| `CI=1 NX_DAEMON=false pnpm run python:test` | 0 | 538 tests passed; 11 upstream/deprecation/simulation warnings. |
+| `CI=1 NX_DAEMON=false pnpm run python:lint` | 0 | Ruff checks passed; 118 files already formatted. |
+| `CI=1 NX_DAEMON=false pnpm run python:typecheck` | 0 | Pyright reported 0 errors, warnings or informations. |
+| `CI=1 NX_DAEMON=false pnpm run verify` | 0 | Nx/TypeScript/plugin/unit/Bundle/SDK/tooling checks passed for local scope. |
+| `pnpm exec nx show projects` | 0 | Nx discovered 9 projects. |
+| `pnpm run sbom` | 0 | CycloneDX npm SBOM regenerated with 200 components. |
+| `pnpm exec nx run quant-data:sbom` | 0 | Python SBOM target passed. |
+| `pnpm run security:deps` | 0 | No known npm or pip vulnerabilities; editable workspace packages were skipped by pip-audit. |
+| `gitleaks dir --no-banner --redact .` | 0 | Scanned approximately 41.10 MB; no leaks found. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+This is a verification refresh, not a capability change. The DSH dashboard is
+observation-only and the AI simulation path can choose from a fresh dynamic
+candidate pool. The engine still does not invoke the native ledger, the Bybit
+provider remains GET-only, private reconciliation/cancel/restart recovery are
+absent, the named GitHub algorithm projects remain research references rather
+than production integrations, and Testnet/Mainnet orders remain disabled.

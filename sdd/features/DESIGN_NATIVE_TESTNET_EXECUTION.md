@@ -136,7 +136,7 @@ The following is the next Build slice. No file below is evidence that the capabi
 |---:|---|---|---|---|---|
 | 1 | `python/packages/quant-data/src/quant_data/models.py` | Modify | Add account generation, reconciliation revision, native order identity and emergency state | (general) | None |
 | 2 | `python/packages/quant-data/src/quant_data/commands.py` | Modify | Add submit/cancel/reduce-only/freeze/close command states and legal transitions | (general) | 1 |
-| 3 | `python/packages/quant-data/alembic/versions/0007_testnet_execution.py` | Create | Additive migration for durable identity, reservations, events and reconciliation snapshots | (general) | 1,2 |
+| 3 | `python/packages/quant-data/alembic/versions/0007_native_execution_state.py` | Create | Additive migration for durable identity, reservations, events and reconciliation snapshots | (general) | 1,2 |
 | 4 | `python/packages/quant-data/src/quant_data/ledger.py` | Modify | Atomic intent, reservation, dispatch claim and event dedupe | (general) | 1,2,3 |
 | 5 | `python/packages/quant-data/src/quant_data/reconciliation_store.py` | Create | Persist redacted REST/WS evidence, revisions and protected reasons | (general) | 1,3 |
 | 6 | `python/packages/quant-execution/src/quant_execution/bybit_account.py` | Create | Build only explicit Testnet Linear `BybitDataClientConfig`/`BybitExecClientConfig` and native factories from trusted credentials; reject ambient env fallback | (general) | Profile/preflight |
@@ -164,14 +164,20 @@ The following is the next Build slice. No file below is evidence that the capabi
 | 28 | `packages/ts/quant-api-client/test/execution.test.ts` | Create | Generated contract, timeout, conflict and redaction tests | (general) | 17–20 |
 | 29 | `apps/dsh-plugin/test/testnet-boundary.ts` | Create | AI/UI boundary and no direct POST regression matrix | (general) | 21–24 |
 | 30 | `sdd/reports/BUILD_REPORT_NATIVE_TESTNET_EXECUTION.md` | Create | Actual commands, receipts, gaps and external Testnet evidence | (general) | 25–29 |
+| 31 | `python/packages/quant-data/tests/test_reconciliation_store.py` | Create | Verify account generation fences, contiguous/idempotent reconciliation revisions, protected incomplete evidence, credential-field rejection, append-only migration constraints and backup preservation | (general) | 1–5 |
+| 32 | `python/packages/quant-data/tests/test_migrations.py` | Modify | Keep published schema and preservation assertions aligned with the additive native execution migration | (general) | 3, 31 |
+| 33 | `python/packages/quant-data/tests/test_command_ledger.py` | Modify | Keep ledger fixture assertions aligned with the new migration head while preserving command and dispatch coverage | (general) | 3 |
+| 34 | `python/packages/quant-data/src/quant_data/native_ledger.py` | Create | Own generation-bound Testnet admission, risk receipt, reservation and revalidated one-shot dispatch claim without venue IO | (general) | 1–5 |
+| 35 | `python/packages/quant-execution/pyproject.toml` | Modify | Declare the direct workspace dependency required by the typed native ledger mapper | (general) | 7 |
+| 36 | `python/uv.lock` | Modify | Record the generated workspace dependency edge without adding an external package | (general) | 35 |
 
-**Total Files:** 30. Every new handwritten TypeScript file must stay at or below 500 lines; split any implementation that approaches the limit.
+**Total Files:** 36. Every new handwritten TypeScript file must stay at or below 500 lines; split any implementation that approaches the limit.
 
 ### Agent Assignment Rationale
 
 | Agent / Owner | Files Assigned | Why |
 |---|---|---|
-| (general) | 1–30 | No independent Build owner was authorized or required; the slice needs one accountable integrator and separate test review before activation. |
+| (general) | 1–36 | No independent Build owner was authorized or required; the slice needs one accountable integrator and separate test review before activation. |
 
 **Agent Discovery:** Existing reviews and source were scanned; no active agent assignment is part of this design. Build must arrange independent verification of files 24–28 before enabling any write path.
 
@@ -241,6 +247,7 @@ This execution slice introduces no new prompt. Existing background-loop prompts 
 | Test Type | Scope / Requirement | Files | Tools | Pass Signal |
 |---|---|---|---|---|
 | Unit | Profile, endpoint, permissions, precision, stable ID and error redaction | `python/packages/quant-execution/tests/test_bybit_execution.py` | pytest, Ruff, Pyright | Invalid identity/permission/rules produce zero private dispatch |
+| Unit/data | Account generation fencing, monotonic reconciliation, secret-field rejection, append-only evidence and migration backup | `python/packages/quant-data/tests/test_reconciliation_store.py` | pytest against isolated SQLite/Alembic database | Restart creates a protected generation; incomplete evidence stays protected; conflicting replay fails; migration data round-trips through backup |
 | Unit | Ledger transitions, reservations, duplicate payload, event dedupe and protected state | `python/packages/quant-engine/tests/test_bybit_admission.py` | pytest + isolated SQLite | Same request has one canonical ID; changed payload conflicts |
 | Integration | Native node receives actual order events, partial fill/cancel, reconnect and stop | `python/apps/quant-engine/tests/test_bybit_process.py` | spawned process, Nautilus fixture/mocked transport | No event or timeout is silently treated as flat |
 | Contract | OpenAPI generation and safe TS client behavior | `contracts/openapi/quant-engine.v1.json`, `packages/ts/quant-api-client/test/execution.test.ts` | Nx/pnpm, uv | `openapi-check` and client tests exit 0 |

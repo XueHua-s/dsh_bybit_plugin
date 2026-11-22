@@ -40,6 +40,17 @@ class CommandState(StrEnum):
     RECONCILIATION_REQUIRED = "reconciliation_required"
 
 
+class EmergencyState(StrEnum):
+    """Durable account fence states; freeze precedes any cancel or close action."""
+
+    RUNNING = "running"
+    FREEZE_NEW = "freeze_new"
+    CANCEL_OPEN = "cancel_open"
+    REDUCE_ONLY = "reduce_only"
+    CLOSE_POSITIONS = "close_positions"
+    PROTECTED = "protected"
+
+
 class RiskCode(StrEnum):
     APPROVED = "approved"
     ACCOUNT = "account"

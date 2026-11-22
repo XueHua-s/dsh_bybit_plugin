@@ -91,6 +91,13 @@ def test_upgrade_preserves_strategy_trade_and_audit_rows_and_backups(tmp_path: P
         "ai_paper_decision_bindings",
         "ai_paper_cycle_receipts",
         "ai_paper_cycle_events",
+        "account_sessions",
+        "reconciliation_snapshots",
+        "native_execution_events",
+        "native_admission_decisions",
+        "execution_reservations",
+        "emergency_states",
+        "emergency_events",
     }
     assert {"event_type", "environment", "payload_json"} <= {
         column["name"] for column in inspector.get_columns("trade_events")
@@ -215,7 +222,7 @@ def test_migration_preserves_special_characters_in_database_path(tmp_path: Path)
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0006_ai_paper_decision_binding"
+            == "0007_native_execution_state"
         )
     engine.dispose()
 

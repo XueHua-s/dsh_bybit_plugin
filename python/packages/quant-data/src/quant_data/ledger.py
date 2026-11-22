@@ -26,7 +26,10 @@ from quant_data.commands import (
     fingerprint,
     identifier,
 )
-from quant_data.models import CommandEvent, ExecutionCommand
+from quant_data.models import (
+    CommandEvent,
+    ExecutionCommand,
+)
 
 S = CommandState
 _OBSERVATIONS = {S.ACCEPTED, S.PARTIALLY_FILLED, S.FILLED, S.CANCELLED, S.REJECTED, S.RECONCILIATION_REQUIRED}
@@ -102,6 +105,58 @@ class CommandLedger:
                 if existing is None:
                     raise
                 return _same_command(existing, digest)
+
+    def admit_native(
+        self,
+        command: OrderCommand,
+        session_id: str,
+        expected_generation: int,
+        reconciliation_revision: int,
+        allowed: bool,
+        decision_code: RiskCode,
+        *,
+        policy_fingerprint: str,
+        context_fingerprint: str,
+        evaluated_at_ns: int,
+        expires_at_ns: int,
+        reservation_price: Decimal,
+    ) -> CommandRecord:
+        from quant_data.native_ledger import admit_native
+
+        return admit_native(
+            self._sessions,
+            command,
+            session_id,
+            expected_generation,
+            reconciliation_revision,
+            allowed,
+            decision_code,
+            policy_fingerprint=policy_fingerprint,
+            context_fingerprint=context_fingerprint,
+            evaluated_at_ns=evaluated_at_ns,
+            expires_at_ns=expires_at_ns,
+            reservation_price=reservation_price,
+        )
+
+    def claim_native_dispatch(
+        self,
+        command_id: str,
+        session_id: str,
+        expected_generation: int,
+        reconciliation_revision: int,
+        now_ns: int,
+    ) -> tuple[bool, CommandRecord]:
+        from quant_data.native_ledger import claim_native_dispatch
+
+        return claim_native_dispatch(
+            self._sessions,
+            self.get,
+            command_id,
+            session_id,
+            expected_generation,
+            reconciliation_revision,
+            now_ns,
+        )
 
     def get(self, command_id: str) -> CommandRecord:
         with self._sessions() as session:
