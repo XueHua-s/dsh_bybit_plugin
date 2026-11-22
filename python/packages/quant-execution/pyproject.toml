@@ -1,0 +1,18 @@
+[project]
+name = "bybit-quant-execution"
+version = "0.1.0"
+description = "Native offline backtest and continuous synthetic paper execution; no exchange connectivity"
+license = "MIT AND LGPL-3.0-only"
+license-files = ["LICENSES/*.txt", "NOTICE.md"]
+requires-python = ">=3.12,<3.15"
+dependencies = ["bybit-quant-data", "nautilus-trader==1.231.0", "fsspec==2026.6.0"]
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quant_execution"]
+
+[tool.uv.sources]
+bybit-quant-data = { workspace = true }

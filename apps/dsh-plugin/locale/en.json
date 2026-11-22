@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Bybit quant",
+    "description": "Bybit market data, strategy backtests, and paper trading, with an opt-in background AI loop for simulated decisions. Exchange order submission is currently unavailable.",
+    "detail": "docs/DETAIL.md"
+  }
+}

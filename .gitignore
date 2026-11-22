@@ -5,3 +5,21 @@ coverage/
 .DS_Store
 .env
 .env.*
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.nx/
+bybit_quant.db
+
+# Local DSH / Harness state
+.dsh/
+.deepseek/
+
+# Local OAuth and credential material
+credentials.json
+oauth-token.json
+oauth-init.json
+oauth-callback.json

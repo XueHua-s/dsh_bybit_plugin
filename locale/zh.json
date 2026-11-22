@@ -1,7 +1,0 @@
-{
-  "meta": {
-    "title": "Bybit 量化",
-    "description": "Bybit 行情、策略回测、模拟盘账本，以及带显式安全开关的实盘下单，并在 Web 界面里提供一个 Bybit 面板。",
-    "detail": "docs/DETAIL.md"
-  }
-}

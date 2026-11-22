@@ -1,0 +1,28 @@
+[project]
+name = "bybit-quant-engine"
+version = "0.1.0"
+description = "Long-running lifecycle and health boundary for Bybit AI Quant"
+requires-python = ">=3.12"
+dependencies = ["bybit-quant-data", "bybit-quant-risk", "bybit-quant-execution", "bybit-quant-portfolio", "bybit-quant-strategies", "websockets>=13,<16", "fastapi>=0.115,<1", "pydantic>=2.10,<3", "uvicorn>=0.34,<1", "psutil>=6,<8"]
+
+[project.scripts]
+quant-engine = "quant_engine.bootstrap:main"
+quant-engine-paper = "quant_engine.paper_bootstrap:main"
+quant-engine-openapi = "quant_engine.bootstrap:export_openapi"
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+bybit-quant-data = { workspace = true }
+bybit-quant-risk = { workspace = true }
+bybit-quant-execution = { workspace = true }
+bybit-quant-portfolio = { workspace = true }
+bybit-quant-strategies = { workspace = true }
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quant_engine"]
