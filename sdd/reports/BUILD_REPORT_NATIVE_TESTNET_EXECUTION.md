@@ -355,8 +355,9 @@ fixtures only; it did not access Bybit or submit an order.
 
 This receipt does not change the product status. The UI remains observation-only
 and the AI simulation path may choose from a fresh dynamic candidate pool, but
-the engine does not invoke the native ledger, the Bybit provider remains
-GET-only, live private-stream reconciliation/cancel/restart recovery are absent, and no
+the engine now invokes the native ledger only through an offline Testnet
+admission boundary; the Bybit provider remains GET-only, live private-stream
+reconciliation/cancel/restart recovery are absent, and no
 Testnet or Mainnet order was sent. The algorithm repositories named in the
 architecture brief remain research references; only the local strategy subset
 is implemented.
@@ -435,9 +436,10 @@ reconciliation gates pass.
 | `uv run --project python --locked pyright python/packages/quant-execution/src/quant_execution/bybit_runtime.py python/packages/quant-execution/tests/test_bybit_runtime.py` | 0 | 0 errors, warnings or informations. |
 | `git diff --check` | 0 | No whitespace errors after lifecycle boundary updates. |
 
-The SDD manifest now has 39 files. This improves the local lifecycle boundary
+The SDD manifest then had 39 files. This improves the local lifecycle boundary
 only; the product remains **BLOCKED / PARTIAL** because no live Nautilus
-factory, private stream, engine admission path or Testnet order is connected.
+factory, private stream or Testnet order is connected. The later offline
+engine admission slice is recorded below and still performs no venue IO.
 
 ## 2026-11-23 post-runtime verification refresh
 
@@ -483,3 +485,28 @@ user profile; those acceptance details remain partial.
 |---|---:|---|
 | `pnpm --dir apps/dsh-plugin run bundle:lifecycle` | 0 | Official DSH CLI `0.2.2-rc.5`; install `1.4.5`, upgrade `1.4.6`, remove; selected state correct at each step; sentinel state hashes preserved; 0 exchange requests; temporary DSH home cleaned. |
 | `git diff --check` | 0 | No whitespace errors after this receipt. |
+
+## 2026-11-23 engine Testnet admission boundary
+
+The engine now has a venue-free `BybitSession` and `NativeAdmission` boundary.
+The session owns an opaque Testnet Linear account binding, generation, preflight
+projection and contiguous redacted reconciliation revision. It starts protected
+and can become ready only after a complete fresh reconciliation is explicitly
+activated. `NativeAdmission` accepts a typed AI proposal, derives the account
+and environment server-side, evaluates the existing deterministic risk engine,
+persists the generation/revision-bound decision and reservation, and returns a
+single durable dispatch claim. It does not resolve credentials, construct a
+Bybit client, retry a submission, or call an exchange.
+
+| Command | Exit | Result |
+|---|---:|---|
+| `uv run --project python --locked pytest python/apps/quant-engine/tests/test_bybit_admission.py -q` | 0 | 2 offline tests passed; protected-session and Testnet/account binding gates plus one-shot claim covered. |
+| `uv run --project python --locked ruff check python/apps/quant-engine/src/quant_engine python/apps/quant-engine/tests/test_bybit_admission.py` | 0 | All checks passed. |
+| `uv run --project python --locked pyright python/apps/quant-engine` | 0 | 0 errors, warnings or informations. |
+| `uv run --project python --locked pytest python/apps/quant-engine/tests -q` | 0 | 257 tests passed; one existing Starlette deprecation warning. |
+| `git diff --check` | 0 | No whitespace errors. |
+
+This closes only the offline engine admission slice. A real Nautilus Bybit
+factory, private WebSocket lifecycle, exchange order/reconciliation/recovery,
+emergency state machine, API/Host bridge and complete Testnet order E2E remain
+unimplemented; Testnet and Mainnet orders remain disabled.

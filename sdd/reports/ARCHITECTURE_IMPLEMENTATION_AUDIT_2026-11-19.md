@@ -1091,7 +1091,25 @@ commands; no Bybit endpoint was accessed and no order was submitted.
 
 This is a verification refresh, not a capability change. The DSH dashboard is
 observation-only and the AI simulation path can choose from a fresh dynamic
-candidate pool. The engine still does not invoke the native ledger, the Bybit
-provider remains GET-only, private reconciliation/cancel/restart recovery are
-absent, the named GitHub algorithm projects remain research references rather
-than production integrations, and Testnet/Mainnet orders remain disabled.
+candidate pool. The engine now has an offline native-ledger admission boundary;
+the Bybit provider remains GET-only, private reconciliation/cancel/restart
+recovery are absent, the named GitHub algorithm projects remain research
+references rather than production integrations, and Testnet/Mainnet orders
+remain disabled.
+
+## 2026-11-23 engine admission boundary receipt
+
+Added `quant_engine.bybit_session.BybitSession` and
+`quant_engine.admission.NativeAdmission`. The session binds an opaque Testnet
+Linear account to a generation and contiguous redacted reconciliation revision;
+it starts protected and only becomes ready after explicit complete-snapshot
+activation. The admission boundary accepts a typed AI proposal, derives the
+Testnet/account scope server-side, invokes the deterministic risk evaluator,
+persists the generation/revision-bound decision and reservation, and produces
+one durable dispatch claim without venue IO.
+
+Focused validation passed: quant-engine test suite 257 tests, Ruff, and Pyright.
+This is an offline integration slice only. There is still no live Nautilus
+Bybit factory, private WebSocket/order reconciliation, emergency state machine,
+engine API/DSH Host bridge, restart recovery, or Testnet order E2E. The provider
+remains GET-only and Testnet/Mainnet order submission remains disabled.

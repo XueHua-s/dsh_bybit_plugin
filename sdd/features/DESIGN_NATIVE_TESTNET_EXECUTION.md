@@ -173,8 +173,11 @@ The following is the next Build slice. No file below is evidence that the capabi
 | 37 | `python/packages/quant-data/src/quant_data/reconciliation_events.py` | Create | Own bounded, canonical private-event evidence, conflict resolution and append-only persistence | (general) | 1,3,5 |
 | 38 | `python/packages/quant-execution/tests/test_bybit_reconciliation.py` | Create | Verify offline report projection, explicit private-event provenance, status normalization, unknown identities and fill consistency | (general) | 8,31,37 |
 | 39 | `python/packages/quant-execution/tests/test_bybit_runtime.py` | Create | Verify owner-process lifecycle, fixed failure codes, protection and clean stop without exchange IO | (general) | 9 |
+| 40 | `python/apps/quant-engine/src/quant_engine/bybit_session.py` | Create | Own Testnet account generation, preflight and reconciliation activation without credentials or venue IO | (general) | 4,5,6,8,10 |
+| 41 | `python/apps/quant-engine/src/quant_engine/admission.py` | Create | Convert typed AI proposals into server-owned commands, run deterministic risk, and claim native dispatch durably | (general) | 4,7,9,10,11 |
+| 42 | `python/apps/quant-engine/tests/test_bybit_admission.py` | Create | Verify account/reconciliation gates, AI proposal binding, risk veto and one-shot claim without venue IO | (general) | 40,41 |
 
-**Total Files:** 39. Every handwritten source file must stay at or below 500 lines; split any implementation that approaches the limit.
+**Total Files:** 42. Every handwritten source file must stay at or below 500 lines; split any implementation that approaches the limit.
 
 ### Item 9 lifecycle decision (2026-11-23)
 
