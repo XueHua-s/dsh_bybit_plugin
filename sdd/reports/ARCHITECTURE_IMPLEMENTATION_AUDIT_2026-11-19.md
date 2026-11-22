@@ -188,6 +188,12 @@ No Testnet/Mainnet request was made. Overall product status remains
 durable scheduler lease/restart recovery and independent prompt/model
 evaluation are still open gates.
 
+Remote CI receipt for commit `174d05f693daf40fb3c32bfb5d91318bacf8ea79`:
+workflow run `45000024503` completed successfully. The blocking Nx,
+TypeScript, Python, Bundle and security job passed, including the previously
+failing native internal-paper process step; the non-blocking Testnet smoke also
+passed without exchange mutation.
+
 ## 2026-11-22 Bundle upgrade and legacy-paper boundary correction
 
 The checked-in disposable lifecycle smoke now exercises the full local CLI
