@@ -160,6 +160,34 @@ Fresh receipts after adding the lifecycle report:
 | `pnpm exec nx show projects` | 0 | Nine Nx projects discovered. |
 | `git diff --check` | 0 | No whitespace errors. |
 
+## 2026-11-22 fixture expiry precision correction
+
+The first remote process harness run exposed a real cross-language boundary
+bug: Python keeps Unix nanosecond timestamps as exact integers, while the Host
+receives the JSON value as a JavaScript `number`. At current epoch values this
+can round `expires_at_ns` upward, so a request copied directly from the fixture
+could be rejected as `request_expires_after_fixture` even though both sides
+started from the same snapshot.
+
+`apps/dsh-plugin/src/lib/paper-ai-cycle.ts` now derives the request deadline
+slightly before the service-owned fixture deadline (with a one-microsecond
+margin and an observed-time lower bound). This keeps the request inside the
+Python window without changing the fixture's authoritative expiry. The unit
+contract asserts that the deadline remains after observation and before fixture
+expiry.
+
+Receipts:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `pnpm --dir apps/dsh-plugin run verify` | 0 | Build, strict typechecks, unit suites and Bundle checks passed; five existing lint warnings remain. |
+| `pnpm --dir apps/dsh-plugin run test:paper-process` (three consecutive runs) | 0 | Real Host/Python internal-paper cycle completed with terminal fill, recovery, child cleanup and protected restart on every run. |
+
+No Testnet/Mainnet request was made. Overall product status remains
+**INCOMPLETE/PARTIAL** because exchange execution, complete reconciliation,
+durable scheduler lease/restart recovery and independent prompt/model
+evaluation are still open gates.
+
 ## 2026-11-22 Bundle upgrade and legacy-paper boundary correction
 
 The checked-in disposable lifecycle smoke now exercises the full local CLI

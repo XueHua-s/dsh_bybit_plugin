@@ -3,6 +3,11 @@ import type { PaperAiCycleRequest, PaperFixtureSnapshot } from '@bybit-quant/qua
 
 export type PaperCandidate = PaperFixtureSnapshot['candidates'][number]
 
+// Unix nanosecond timestamps are above JavaScript's exact-integer range. Keep
+// a small margin below the service-owned expiry so a JSON number rounded up by
+// the client can never extend the request beyond the Python snapshot window.
+const REQUEST_EXPIRY_SAFETY_NS = 1_000_000
+
 /** The model-visible universe is owned by the authenticated paper service. */
 export type PaperUniverseView = {
   status: 'fresh'
@@ -69,6 +74,10 @@ export function createPaperDecisionRequest(input: {
     target_exposure: input.targetExposure,
     evidence_digest: input.evidenceDigest,
   } as const
+  const expiresAtNs = Math.max(
+    input.fixture.observed_at_ns + 1,
+    input.fixture.expires_at_ns - REQUEST_EXPIRY_SAFETY_NS,
+  )
   const requestWithoutDigest = {
     schema_version: '1' as const,
     environment: 'internal_paper' as const,
@@ -78,7 +87,7 @@ export function createPaperDecisionRequest(input: {
     bundle_digest: input.fixture.bundle_digest,
     cycle_id: input.cycleId,
     universe_digest: input.fixture.bundle_digest,
-    expires_at_ns: input.fixture.expires_at_ns,
+    expires_at_ns: expiresAtNs,
     decision,
   }
   return { ...requestWithoutDigest, payload_digest: sha256(canonicalJson(requestWithoutDigest)) }
